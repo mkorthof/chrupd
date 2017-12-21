@@ -8,7 +8,7 @@ Uses RSS feed from "chromium.woolyss.com" to download and install latest Chromiu
 NOTE: for easy execution this PowerShell script is embedded in a Batch .CMD file using a "polyglot wrapper". It can be renamed to chrupd.ps1. More info:
 
    - https://blogs.msdn.microsoft.com/jaybaz_ms/2007/04/26/powershell-polyglot
-   - https://stackoverflow.com/questions/29645  #>
+   - https://stackoverflow.com/questions/29645
    
 ```
 USAGE: chrupd.cmd -[editor|channel|getFile]
