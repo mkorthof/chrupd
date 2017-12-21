@@ -1,6 +1,6 @@
 # Simple Chromium Updater (chrupd.cmd)
 
-Uses RSS feed from "chromium.woolyss.com" to download and install latest Chromium version, if a newer version is available. Options can be set in script or using command line arguments (try "chrupd.cmd -h")
+Uses RSS feed from https://chromium.woolyss.com to download and install latest Chromium version, if a newer version is available. Options can be set in script or using command line arguments (try "chrupd.cmd -h")
 
  - default is to get the "stable" 64-bit "nosync" Installer by "Nik"
  - verifies sha1/md5 hash and runs installer
