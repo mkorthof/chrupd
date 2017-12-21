@@ -1,0 +1,2 @@
+# chrupd
+Simple Chromium Updater
