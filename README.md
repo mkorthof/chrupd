@@ -6,10 +6,11 @@ Uses RSS feed from https://chromium.woolyss.com to download and install latest C
  - verifies sha1/md5 hash and runs installer
  
 For easy execution this PowerShell script is embedded in a Batch .CMD ile using a "polyglot wrapper". It can be renamed to chrupd.ps1. More info:
-    - https://blogs.msdn.microsoft.com/jaybaz_ms/2007/04/26/powershell-polyglot
-    - https://stackoverflow.com/questions/29645
+ - https://blogs.msdn.microsoft.com/jaybaz_ms/2007/04/26/powershell-polyglot
+ - https://stackoverflow.com/questions/29645
 
-If you add a scheduled task with "-crTask", a vbs wrapper is written to **chrupd.vbs** which is used to hide it's window. Use "-noVbs" to disable, this will cause a flashing window when task runs.
+If you add a scheduled task with "-crTask", a vbs wrapper is written to **chrupd.vbs** which is used to hide it's window.
+Use "-noVbs" to disable, this will cause a flashing window when the task runs.
 
 ```
 USAGE: chrupd.cmd -[editor|channel|getFile]|[crTask|rmTask|shTask|noVbs|confirm]
