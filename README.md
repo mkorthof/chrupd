@@ -33,6 +33,8 @@ Use "-noVbs" to disable, this will however cause a flashing window when the task
 
 To update chrupd to a newer version just replace "chrupd.cmd". So if you have scheduled task setup you do not need to change the task.
 
+---
+
 > *For easy execution this PowerShell script is embedded in a Batch .CMD file using a "polyglot wrapper". It can be renamed to chrupd.ps1. More info: [blogs.msdn.microsoft.com](https://blogs.msdn.microsoft.com/jaybaz_ms/2007/04/26/powershell-polyglot) and [stackoverflow.com](https://stackoverflow.com/questions/29645).*
 > 
 > <small>Note that this script has no connection to the preexisting [ChrUpdWin.cmd](https://gist.github.com/mikhaelkh/12dec36d4a1c4136628b#file-chrupdwin-cmd) Batch file by [Michael Kharitonov](https://github.com/mikhaelkh)</small>
