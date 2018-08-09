@@ -7,7 +7,7 @@ Uses RSS feed from https://chromium.woolyss.com to download and install latest C
  - default is to get the "stable" 64-bit ("sync") Installer by "Nik"
  - verifies sha1/md5 hash and runs installer
 
-~~There seems to be an mismatch between the Version and Revision listed in the RSS feed and URL of Nik's dev "sync" Installer (issue #1). Added option "`-ignVer`" to ignore this and skip checking version, be sure to manually check correct version when using this option.~~
+~~~There seems to be an mismatch between the Version and Revision listed in the RSS feed and URL of Nik's dev "sync" Installer (issue [#1](https://github.com/mkorthof/chrupd/issues/1)). Added option "`-ignVer`" to ignore this and skip checking version, be sure to manually check correct version when using this option.~~~
 
 ---
 
@@ -22,7 +22,7 @@ Make sure the combination of editor and channel is correct:
 | Chromium     | dev          |
 | ThumbApps    | dev          |
 
-~~Also note that if editor is set to "Nik", you need to set getFile to either "chromium-sync.exe" (default) or "chromium-nosync.exe".~~
+~~~Also note that if editor is set to "Nik", you need to set getFile to either "chromium-sync.exe" (default) or "chromium-nosync.exe".~~~
 
 For more information about versions: [chromium.woolyss.com](https://chromium.woolyss.com/?cut=1&ago=1) (RSS atom [feed](https://chromium.woolyss.com/feed/windows-64-bit)).
 
