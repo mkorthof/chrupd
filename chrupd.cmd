@@ -2,43 +2,44 @@
 @echo off
 SETLOCAL & SET "PS_BAT_ARGS=%~dp0 %*"
 IF DEFINED PS_BAT_ARGS SET "PS_BAT_ARGS=%PS_BAT_ARGS:"="""%"
-ENDLOCAL & powershell.exe -NoLogo -NoProfile -Command "&{ [ScriptBlock]::Create( ( Get-Content \"%~f0\" ) -join [char]10 ).Invoke( @( &{ $Args } %PS_BAT_ARGS% ) ) }"
+ENDLOCAL & powershell.exe -NoLogo -NoProfile -Command "&(Invoke-Command {[ScriptBlock]::Create('$Args = @( &{$Args} %PS_BAT_ARGS% );'+[String]::Join([char]10,(Get-Content \"%~f0\")))})"
 GOTO :EOF
 #>
-<# -------------------------------------------------------------------------- #>
-<# 20180501 MK: Simple Chromium Updater (chrupd.cmd)                          #>
-<# -------------------------------------------------------------------------- #>
-<# Uses RSS feed from "chromium.woolyss.com" to download and install latest   #>
-<# Chromium version, if a newer version is available. Options can be set      #>
-<# below or using command line arguments (try "chrupd.cmd -h")                #>
-<#  - default is to get the "stable" 64-bit "nosync" Installer by "Nik"       #>
-<#  - verifies sha1/md5 hash and runs installer                               #>
-<# -------------------------------------------------------------------------- #>
-<#   NOTES:                                                                   #>
-<# - If you add a scheduled task with -crTask, a VBS wrapper is written to    #>
-<#   chrupd.vbs which is used to hide it's window. use -noVbs to disable.     #>
-<# - To update chrupd to a newer versions just replace this file.             #>
-<# -------------------------------------------------------------------------- #>
-<# For easy execution this PowerShell script is embedded in a Batch .CMD      #>
-<# file using a "polyglot wrapper". Renaming to .ps1 also works. More info:   #>
-<# https://blogs.msdn.microsoft.com/jaybaz_ms/2007/04/26/powershell-polyglot  #>
-<# https://stackoverflow.com/questions/29645                                  #>
-<# -------------------------------------------------------------------------- #>
 
-<# -------------------------------------------------------------------------- #>
-<#   CONFIGURATION:                                                           #>
-<# -------------------------------------------------------------------------- #>
-<#  Make sure the combination of editor and channel is correct
-<#  See "chrupd.cmd -h" for possible settings                                 #>
-<# -------------------------------------------------------------------------- #>
+<# ------------------------------------------------------------------------- #>
+<# 20180808 MK: Simple Chromium Updater (chrupd.cmd)                         #>
+<# ------------------------------------------------------------------------- #>
+<# Uses RSS feed from "chromium.woolyss.com" to download and install latest  #>
+<# Chromium version, if a newer version is available. Options can be set     #>
+<# below or using command line arguments (try "chrupd.cmd -h")               #>
+<#  - default is to get the "stable" 64-bit "nosync" Installer by "Nik"      #>
+<#  - verifies sha1/md5 hash and runs installer                              #>
+<# ------------------------------------------------------------------------- #>
+<# NOTES:                                                                    #>
+<# - If you add a scheduled task with -crTask, a VBS wrapper is written to   #>
+<#   chrupd.vbs which is used to hide it's window. use -noVbs to disable.    #>
+<# - To update chrupd to a newer versions just replace this file.            #>
+<# ------------------------------------------------------------------------- #>
+<# For easy execution this PowerShell script is embedded in a Batch .CMD     #>
+<# file using a "polyglot wrapper". Renaming to .ps1 also works. More info:  #>
+<#  - https://blogs.msdn.microsoft.com/jaybaz_ms/2007/04/26                  #>
+<#  - https://stackoverflow.com/questions/29645                              #>
+<# ------------------------------------------------------------------------- #>
+
+<# ------------------------------------------------------------------------- #>
+<# CONFIGURATION:                                                            #>
+<# Make sure the combination of editor and channel is correct                #>
+<# See "chrupd.cmd -h" or README.md for more possible settings               #>
+<# ------------------------------------------------------------------------- #>
+<# 2018-08-09: Nik's nosync builds are no longer available, more info:       #>
+<#             https://chromium.woolyss.com/#news                            #>
+<# ------------------------------------------------------------------------- #>
+
 $editor = "Nik"
 $channel = "stable"
-$getFile = "chromium-sync.exe"
 $log = 1
 
-<# -------------------------------------------------------------------------- #>
-<# END OF CONFIGURATION #>
-<# -------------------------------------------------------------------------- #>
+<# END OF CONFIGURATION ---------------------------------------------------- #>
 
 $scriptDir = $Args[0]
 If ( $(Try { (Test-Path variable:local:scriptDir) -And (&Test-Path $scriptDir) -And (-Not [string]::IsNullOrWhiteSpace($scriptDir)) } Catch { $False }) ) {
@@ -46,80 +47,85 @@ If ( $(Try { (Test-Path variable:local:scriptDir) -And (&Test-Path $scriptDir) -
 } Else { 
 	$scriptDir = ($ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath('.\'))
 }
+
 $logFile = $scriptDir + "\chrupd.log"
 $scriptName = "Simple Chromium Updater"; $scriptCmd = "chrupd.cmd"
 $installLog = "$env:TEMP\chromium_installer.log"
-$chkSite = "chromium.woolyss.com"
-$rssFeed = "https://$chkSite/feed/windows-64-bit"
-$debug = 0; $fakeVer = 0; $ignVer = 0
-$force = 0; $crTask = 0; $rmTask = 0; $shTask = 0; $noVbs = 0; $confirm = 0
-$scheduler = 0
+$checkSite = "chromium.woolyss.com"
+$rssFeed = "https://$checkSite/feed/windows-64-bit"
+
+$debug = $fakeVer = $force = $ignVer = $ignHash = 0
+$crTask = $rmTask = $shTask = $noVbs = $confirm = 0
+$scheduler = $list = 0
+
 $items = @{ 
-	"Nik" = @("https://$chkSite", "https://github.com/henrypp/chromium/releases/download/", "chromium-sync.exe");
-	"RobRich" = @("https://$chkSite", "https://github.com/RobRich999/Chromium_Clang/releases/download/", "mini_installer.exe");
+	"Nik" = @("https://$checkSite", "https://github.com/henrypp/chromium/releases/download/", "chromium-sync.exe");
+	"RobRich" = @("https://$checkSite", "https://github.com/RobRich999/Chromium_Clang/releases/download/", "mini_installer.exe");
 	"Chromium" =  @("https://www.chromium.org", "https://storage.googleapis.com/chromium-browser-snapshots/Win_x64/", "mini_installer.exe");
 	"The Chromium Authors" =  ($items.("Chromium"));
 	"ThumbApps" = @("http://www.thumbapps.org", "https://netix.dl.sourceforge.net/project/thumbapps/Internet/Chromium/", "ChromiumPortable_");
 }
+
 Write-Host -ForeGroundColor White -NoNewLine "`r`n$scriptName"; Write-Host " ($scriptCmd)"; Write-Host ("-" * 36)"`r`n"
 
 <# HANDLE ARGUMENTS #> 
+<# REMOVED: Options related to Nik's nosync build #>
 If ($Args -iMatch "[-/]h") {
-	Write-Host "Uses RSS feed from `"$chkSite`" to download and install latest"
+	Write-Host "Uses RSS feed from `"$checkSite`" to download and install latest"
 	Write-Host "Chromium version, if a newer version is available." "`r`n"
-	Write-Host "USAGE: $scriptCmd -[editor|channel|getFile|force]"
+	Write-Host "USAGE: $scriptCmd -[editor|channel|force|list]"
 	Write-Host "`t`t" " -[crTask|rmTask|shTask|noVbs|confirm]" "`r`n"
-	Write-Host "`t" "-editor  can be set to [Nik|RobRich|Chromium|ThumbApps]"
-	Write-Host "`t" "-channel can be set to [stable|dev]"
-	Write-Host "`t" "-getFile can be set to [chromium-sync.exe|chromium-nosync.exe]"
-	Write-Host "`t" "-force   always (re)install latest version" "`r`n"
+	Write-Host "`t" "-editor  can be set to <Nik|RobRich|Chromium|ThumbApps>"
+	Write-Host "`t" "-channel can be set to <stable|dev>"
+<# Write-Host "`t" "-getFile can be set to [chromium-sync.exe|chromium-nosync.exe]" #>
+	Write-Host "`t" "-force   always (re)install, even if latest version installed already"
+	Write-Host "`t" "-list    lists editors and urls" "`r`n"
 	Write-Host "`t" "-crTask  to create a daily scheduled task"
 	Write-Host "`t" "-rmTask  to remove scheduled task"
 	Write-Host "`t" "-shTask  to show scheduled task details"
 	Write-Host "`t" "-noVbs   to not use vbs wrapper to hide window when creating task"
 	Write-Host "`t" "-confirm to answer Y on prompt about removing scheduled task" "`r`n"
-	Write-Host "`t" "-ignVer  (!) ignore version mismatch between feed and filename" "`r`n"
-	Write-Host "EXAMPLE: .\$scriptCmd -editor Nik -channel stable -getFile chromium-nosync.exe"
-	Write-Host "                      [-crTask]" "`r`n"
-	Write-Host "NOTES:   - Options are CasE Sensive"
-	Write-Host "`t" "- Option `"getFile`" is only used if editor is set to `"Nik`""
-	Write-Host "`t" "- Options `"xxTask`" can also be used without any other options"
-	Write-Host "`t" "- Options can be set permanently using variables inside script" "`r`n"
+<# Write-Host "`t" "-ignVer  (!) ignore version mismatch between feed and filename" "`r`n"
+	 Write-Host "EXAMPLE: .\$scriptCmd -editor Nik -channel stable -getFile chromium-nosync.exe"
+#>
+	Write-Host "EXAMPLE: .\$scriptCmd -editor Nik -channel stable [-crTask]" "`r`n"
+	Write-Host "NOTES:   Options `"editor`" and `"channel`" need an argument (CasE Sensive)"
+<# Write-Host "`t" "Option `"getFile`" is only used if editor is set to `"Nik`"" #>
+	Write-Host "`t" "Schedule `"xxTask`" options can also be used without any other options"
+	Write-Host "`t" "Options can be set permanently using variables inside script" "`r`n"
 	Exit 0
 } Else {
 	ForEach ($a in $Args) {
-		If ($m = $(Select-String -Pattern "[-/](debug|force|fakeVer|crTask|rmTask|shTask|noVbs|confirm|scheduler|ignVer)" -AllMatches -InputObject $a)) {
+		If ($m = $(Select-String -Pattern "[-/](debug|force|fakeVer|list|crTask|rmTask|shTask|noVbs|confirm|scheduler|ignHash|ignVer)" -AllMatches -InputObject $a)) {
 			Invoke-Expression ('{0}="{1}"' -f ($m -Replace "^-", "$"), 1);
 			$Args = ($Args) | Where { $_ -ne $m }
 		}
 	}
-  If (($Args.length % 2) -eq 0) {
-  	$i = 0; While ($Args -Is [Object[]] -And $i -lt $Args.length) {
-  	#$i = 0; While ($i -lt $Args.length) {	
-  		If (($Args[$i] -Match "^-") -And ($Args[($i+1)] -Match "^[\w\.]")) {
-  			Invoke-Expression ('{0}="{1}"' -f ($Args[$i] -Replace "^-", "$"), $Args[++$i].Trim());
-  		} 
-  	$i++
-  	}
-	} Else { Write-Host -ForeGroundColor Red "ERROR: Invalid options specfied (check CasE). Try `"$scriptCmd -h`" for help, exiting`r`n"; Exit 1 }
+	If (($Args.length % 2) -eq 0) {
+		$i = 0; While ($Args -Is [Object[]] -And $i -lt $Args.length) {
+		#$i = 0; While ($i -lt $Args.length) {	
+			If (($Args[$i] -Match "^-") -And ($Args[($i+1)] -Match "^[\w\.]")) {
+				Invoke-Expression ('{0}="{1}"' -f ($Args[$i] -Replace "^-", "$"), $Args[++$i].Trim());
+			} 
+		$i++
+		}
+	} Else { Write-Host -ForeGroundColor Red "ERROR: Invalid options specfied. Try `"$scriptCmd -h`" for help, exiting...`r`n"; Exit 1 }
+}
+
+<# LIST EDITOR ITEMS #>
+If ($list -eq 1) {
+	$items.GetEnumerator() | where Value | ft @{l='editor:';e={$_.Name}}, @{l='website, repository, file:';e={$_.Value}} -AutoSize
+	Exit 0
 }
 
 <# CHECK VARIABLES #>
-##If ($editor -ceq "Nik") { $website = "https://$chkSite"; $fileSrc = "https://github.com/henrypp/chromium/releases/download/" }
-#ElseIf ($editor -ceq "RobRich") { $website = "https://$chkSite"; $fileSrc = "https://github.com/RobRich999/Chromium_Clang/releases/download/"; $getFile = "mini_installer.exe" }
-#ElseIf ($editor -cMatch "Chromium|The Chromium Authors") { $website = "https://www.chromium.org"; $fileSrc = "https://storage.googleapis.com/chromium-browser-snapshots/Win_x64/";	$getFile = "mini_installer.exe" }
-#Else { Write-Host -ForeGroundColor Red "ERROR: Settings incorrect - check editor `"$editor`", exiting"; Exit 1 }
 $m = 0; $items.GetEnumerator() | % {
-<#	TODO: If (("RobRich" -ceq $editor) -And ($channel -eq "stable")) {Write-Host -ForeGroundColor Red "ERROR: Settings incorrect - check `"channel`". Editor is `"RobRich`" so channel should be `"dev`", exiting"; Exit 1 } #>
-	If ($_.Name -ceq $editor) {	$m = 1; $website = $items.($editor)[0];  $fileSrc = $items.($editor)[1]; If (-Not ("Nik" -ceq $editor)) { $getFile = $items.($editor)[2] } }
-} 
-If ($m -eq 0) {	Write-Host -ForeGroundColor Red "ERROR: Settings incorrect - check editor `"$editor`", exiting"; Exit 1 }
-If (-Not ($channel -cMatch "^(stable|dev)$")) { Write-Host -ForeGroundColor Red "ERROR: Invalid channel `"$channel`", exiting"; Exit 1 }
-#If (-Not ($getFile -cMatch "^(chromium-sync.exe|chromium-nosync.exe|mini_installer.exe)$")) { Write-Host -ForeGroundColor Red "ERROR: Invalid getFile `"$getFile`", exiting"; Exit 1 }
+	If ($_.Name -ceq $editor) {	$m = 1; $website = $items.($editor)[0]; $fileSrc = $items.($editor)[1]; $getFile = $items.($editor)[2] }
+}
+If ($m -eq 0) {	Write-Host -ForeGroundColor Red "ERROR: Settings incorrect - check editor `"$editor`" (CasE Sensive), exiting..."; Exit 1 }
+If (-Not ($channel -cMatch "^(stable|dev)$")) { Write-Host -ForeGroundColor Red "ERROR: Invalid channel `"$channel`" (CasE Sensive), exiting..."; Exit 1 }
 
-$saveAs = "$env:TEMP\$getFile"
-
-<# SCHEDULED TASK #>
+<# SCHTASK VBS WRAPPER #>
 $vbsContent = @"
 '
 ' Wrapper for chrupd.cmd to hide window when using Task Scheduler
@@ -133,6 +139,7 @@ WinScriptHost.Run Chr(34) & "${scriptDir}$scriptCmd" & Chr(34) & " " & Args, 0
 Set WinScriptHost = Nothing
 "@
 
+<# HANDLE SCHEDULED TASK #>
 If ($crTask -eq 1) {
 	$vbsWrapper = $scriptDir + "chrupd.vbs"
 	If ( $(Try { -Not (&Test-Path $vbsWrapper) } Catch { $False }) ) {
@@ -140,9 +147,9 @@ If ($crTask -eq 1) {
 		Add-Content $vbsWrapper -Value $vbsContent
 	}
 	If ($noVbs -eq 1) {
-		$action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-ExecutionPolicy ByPass -NoLogo -NoProfile -WindowStyle Hidden $scriptCmd -scheduler -editor $editor -channel $channel -getFile $getFile" -WorkingDirectory "$scriptDir"
+		$action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-ExecutionPolicy ByPass -NoLogo -NoProfile -WindowStyle Hidden $scriptCmd -scheduler -editor $editor -channel $channel" -WorkingDirectory "$scriptDir"
 	} Else {
-		$action = New-ScheduledTaskAction -Execute $vbsWrapper -Argument "-scheduler -editor $editor -channel $channel -getFile $getFile" -WorkingDirectory "$scriptDir"
+		$action = New-ScheduledTaskAction -Execute $vbsWrapper -Argument "-scheduler -editor $editor -channel $channel" -WorkingDirectory "$scriptDir"
 	}
 	$trigger = New-ScheduledTaskTrigger -RandomDelay (New-TimeSpan -Hour 1) -Daily -At 17:00
 	If (-Not (&Get-ScheduledTask -ErrorAction SilentlyContinue -TaskName "$scriptName")) {
@@ -152,7 +159,7 @@ If ($crTask -eq 1) {
 		Write-Host "Scheduled Task already exists"
 	}
 	$task = (Get-ScheduledTask -TaskName "$scriptName")
-	Write-Host ("Task: `"{0}{1}`", Description: `"{2}`", State: {3}." -f ($task).TaskPath, ($task).TaskName, ($task).Description, ($task).State);	Write-Host
+	Write-Host ("Task: `"{0}{1}`"`r`nDescription: `"{2}`", State: {3}." -f ($task).TaskPath, ($task).TaskName, ($task).Description, ($task).State);	Write-Host
 } ElseIf ($rmTask -eq 1) {
 	If (&Get-ScheduledTask -ErrorAction SilentlyContinue -TaskName "$scriptName") {
 		Write-Host "Removing Daily Task `"$scriptName`" from Task Scheduler..."`r`n""
@@ -168,17 +175,17 @@ If ($crTask -eq 1) {
 	Exit 0
 } ElseIf ($shTask -eq 1) {
 	If ($task = (&Get-ScheduledTask -ErrorAction SilentlyContinue -TaskName "$scriptName")) {
-			$taskinfo = (&Get-ScheduledTaskInfo -TaskName "$scriptName")
-			Write-Host ("Task: `"{0}{1}`", Description: `"{2}`", State: {3}." -f ($task).TaskPath, ($task).TaskName, ($task).Description, ($task).State); Write-Host
-			Write-Host ("Actions: WorkingDirectory: `"{0}`", Execute: `"{1}`", Arguments: `"{2}`"" -f ($task).actions.WorkingDirectory, ($task).actions.Execute, ($task).actions.Arguments)
-			Write-Host ("TaskInfo: LastRunTime: `"{0}`", NextRunTime: `"{1}`", NumberOfMissedRuns: {2}" -f ($taskinfo).LastRunTime, ($taskinfo).NextRunTime, ($taskinfo).NumberOfMissedRuns); Write-Host
+		$taskinfo = (&Get-ScheduledTaskInfo -TaskName "$scriptName")
+		Write-Host ("Task: `"{0}{1}`"`r`nDescription: `"{2}`", State: {3}." -f ($task).TaskPath, ($task).TaskName, ($task).Description, ($task).State); Write-Host
+		Write-Host ("Actions: WorkingDirectory: `"{0}`", Execute: `"{1}`", Arguments: `"{2}`"" -f ($task).actions.WorkingDirectory, ($task).actions.Execute, ($task).actions.Arguments)
+		Write-Host ("TaskInfo: LastRunTime: `"{0}`", NextRunTime: `"{1}`", NumberOfMissedRuns: {2}" -f ($taskinfo).LastRunTime, ($taskinfo).NextRunTime, ($taskinfo).NumberOfMissedRuns); Write-Host
 	} Else { 
-			Write-Host "Scheduled Task not found"
+		Write-Host "Scheduled Task not found"
 	}
 	Exit 0
 }
 
-<# VERIFY LOGFILE #>
+<# VERIFY LOGFILE AND LOG FUNC #>
 If ($log -eq 1) {
 	If ( $(Try { (Test-Path variable:local:logFile) -And (-Not [string]::IsNullOrWhiteSpace($logFile)) } Catch { $False }) ) {
 		Write-Host "Logging to: `"$logFile`"`r`n"
@@ -192,28 +199,35 @@ Function Write-Log($msg) {
 }
 
 If ($debug -eq 1) {
-  '_DEBUG_OPTIONS_', 'fakeVer', 'log', 'ignVer', 
-  '_STANDARD_OPTIONS_', 'editor', 'channel', 'getFile', 'force', 'website', 'fileSrc', 'getFile', 
+	'_DEBUG_OPTIONS_', 'fakeVer', 'log', 'ignVer', 'ignHash'
+	'_STANDARD_OPTIONS_', 'editor', 'channel', 'getFile', 'force', 'list', 'website', 'fileSrc', 'getFile', 
 	'_SCHEDULER_OPTIONS_', 'crTask', 'rmTask', 'shTask', 'noVbs', 'confirm', 'scheduler' | % { Write-Host "DEBUG: ${_}:" $(Invoke-Expression `$$_) }
 }
 
 Write-Log "Start (pid:$pid name:$($(Get-PSHostProcessInfo|where ProcessId -eq $pid).ProcessName) scheduler:$scheduler)"
 
+<# VERIFY CURRENT VERSION #>
 $curVersion = (Get-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Chromium).Version
 If ($force -eq 1) { 
-		Write-Host "Forcing update, ignoring currently installed version `"$curVersion`"`r`n"
-		Write-Log "Forcing update, ignoring current version $curVersion"
-		$curVersion = "00.0.0000.000"
+	$vMsg = "Forcing update, ignoring currently installed version `"$curVersion`""
+	Write-Host "$vMsg" "`r`n";	Write-Log "$vMsg"
+	$curVersion = "00.0.0000.000"
 } ElseIf ($fakeVer -eq 1) {
 	Write-Host "DEBUG: Changing real current version `"$curVersion`" to fake value"
 	$curVersion = "6.6.6.0-fake"
 } Else {
-	Write-Host "Currently installed version: `"$curVersion`"`r`n"; Write-Log "Current version: $curVersion"
+	If ( $(Try { (Test-Path variable:local:curVersion) -And (-Not [string]::IsNullOrWhiteSpace($curVersion)) } Catch { $False }) ) {
+		$vMsg = "Currently installed version: `"$curVersion`""
+		Write-Host "$vMsg" "`r`n"; Write-Log "$vMsg"
+	} Else {
+		$vMsg = "Could not find Chromium, downloaded installer will setup..."
+		Write-Host -ForeGroundColor Yellow "$vMsg"; Write-Log "$vMsg"
+		$curVersion = "00.0.0000.000"
+	}
 }
 
-$curSettings = "Checksite: `"$chkSite`", Editor: `"$editor`", Channel: `"$channel`""
-Write-Host "Using the folowing settings:"; Write-Host "$curSettings`r`n"
-Write-Log "$curSettings"
+$cMsg = "Checking: `"$checkSite`", Editor: `"$editor`", Channel: `"$channel`""
+Write-Host "Using the folowing settings:`r`n$cMsg`r`n"; Write-Log "$cMsg"
 
 <# MAIN OUTER WHILE LOOP: XML #>
 $xml = [xml](Invoke-WebRequest $rssFeed); $i = 0; While ($xml.rss.channel.item[$i]) {
@@ -222,53 +236,77 @@ $xml = [xml](Invoke-WebRequest $rssFeed); $i = 0; While ($xml.rss.channel.item[$
 		Write-Host "DEBUG: $i xml title: $($xml.rss.channel.item[$i].title)"
 		Write-Host "DEBUG: $i xml link: $($xml.rss.channel.item[$i].link)"
 		<# Write-Host "DEBUG: $i xml description: $($xml.rss.channel.item[$i].description."#cdata-section")" #>
-		<# If ($xml.rss.channel.item[$i].title -Match ".*?(Nik)") {$Matches[1]; $editorMatch = 1} #>
-		<# If ($debug) {Write-Host "DEBUG: Matches[0], [1]:"; % {$Matches[0]}; % {$Matches[1]}} #>
+		<# MATCHES: If ($xml.rss.channel.item[$i].title -Match ".*?(Nik)") {$Matches[1]; $editorMatch = 1} #>
+		<# MATCHES: If ($debug) {Write-Host "DEBUG: Matches[0], [1]:"; % {$Matches[0]}; % {$Matches[1]}} #>
 	}
 	<# INNER WHILE LOOP: HTML #>
 	$xml.rss.channel.item[$i].description."#cdata-section" | ForEach {
-		If ($debug) {Write-Host "DEBUG `$_:`r`n" $_} 
+		<# If ($debug) {Write-Host "DEBUG: HTML `$_:`r`n" $_} #>
 		If ($_ -Match '(?i)' + $channel + '.*?(Editor: <a href="' + $website + '/">' + $editor + '</a>).*(?i)' + $channel) { $editorMatch = 1 }
 		If ($_ -Match '(?i)' + $channel + '.*?(Architecture: 64-bit).*(?i)' + $channel) { $archMatch = 1 }
 		If ($_ -Match '(?i)' + $channel + '.*?(Channel: ' + $channel + ')') { $chanMatch = 1 }
 		$version = [regex]::Replace($_, '.*(?i)' + $channel + '.*?Version: ([\d.]+).*', '$1')
 		$revision = [regex]::Replace($_, '.*(?i)' + $channel + '.*?Revision: (?:<[^>]+>)?(\d{6})<[^>]+>.*', '$1')
 		$date = [regex]::Replace($_, '.*(?i)' + $channel + '.*?Date: <abbr title="Date format: YYYY-MM-DD">([\d-]{10})</abbr>.*', '$1')
-		If ($debug -eq 1) { 'editor', 'architecture', 'version', 'channel', 'revision', 'date' | ForEach { Write-Host "DEBUG: $i cdata ${_}:" $(Invoke-Expression `$$_) } }
-		If ($ignVer -eq 0) {
-			If (-Not ($editor -eq "ThumbApps")) {
-				$url = [regex]::Replace($_, '.*?(?i)' + $channel + '.*?Download from.*?repository: .*?<li><a href="(' + $fileSrc + '(?:v' + $version + '-r)?' + $revision + '(?:-win64)?/' + $getFile + ')".*', '$1')
-			} Else {
-				write-host getFile: ${getFile}${version}_Dev_32_64_bit.paf.exe
-				$saveAs = "$env:TEMP\${getFile}${version}_Dev_32_64_bit.paf.exe"
-				$url = [regex]::Replace($_, '.*?(?i)' + $channel + '.*?Download from.*?repository: .*?<li><a href="(' + $fileSrc + $getFile + $version + '_Dev_32_64_bit.paf.exe)".*', '$1')
-				If ($debug -eq 1) { Write-Host "DEBUG: $i cdata url: $url" }
-				If ($url -Match ('^https://.*' + '.*' + $getFile + $version + '_Dev_32_64_bit.paf.exe$') ) {	
-  				#$urlMatch = 1
-					$revision = '.*'
-					$hashMatch = 1
-  				Return
-				}
-			}
-		} ElseIf ($ignVer -eq 1) {
+		$url = [regex]::Replace($_, '.*?(?i)' + $channel + '.*?Download from.*?repository: .*?<li><a href="(' + $fileSrc + '(?:v' + $version + '-r)?' + $revision + '(?:-win64)?/' + $getFile + ')".*', '$1')
+		If ($($xml.rss.channel.item[$i].title) -Match "ThumbApps") {
+			$getFile = "${getFile}${version}_Dev_32_64_bit.paf.exe"
+			$revision = "thumbapps"
+			$ignHash = 1
+			$url = [regex]::Replace($_, '.*?(?i)' + $channel + '.*?Download from.*?repository: .*?<li><a href="(' + $fileSrc + $getFile + ')".*', '$1')
+			$hMsg = "There is no hash provided for this installer"
+			Write-Host "$hMsg"; Write-Log "$hMsg"
+		}
+		If ($ignVer -eq 1) {
 			$url = [regex]::Replace($_, '.*?(?i)' + $channel + '.*?Download from.*?repository: .*?<li><a href="(' + $fileSrc + '(?:v[\d.]+-r)?\d{6}(?:-win64)?/' + $getFile + ')".*', '$1')
 			$revision = '\d{6}' 
+			$vMsg = "Ignoring version mismatch between feed and filename"
+			Write-Host -NoNewLine -ForeGroundColor Yellow "`r`n(!) $vMsg"; Write-Log "$vMsg"
 		}
-		If ($debug -eq 1) { Write-Host "DEBUG: $i cdata url: $url" }
+		If ($debug -eq 1) {
+			 If ($($xml.rss.channel.item[$i].title) -Match $editor) { Write-Host ("{0}`r`n{1}`r`n{0}" -f ("-"*80), "DEBUG: TITLE MATCHES EDITOR") }
+			'editor', 'architecture', 'version', 'channel', 'revision', 'date', 'url' | ForEach { Write-Host "DEBUG: $i cdata ${_}:" $(Invoke-Expression `$$_) } 
+		}
 		If ($url -Match ('^https://.*' + '(' + $version + ')?.*' + $revision + '.*' + $getFile + '$') ) {	
 		 	$urlMatch = 1
-			$hashTmp = [regex]::Replace($_, '.*?(?i)' + $channel + '.*?<a href="' + $url + '">' + $getFile + '</a> - (?:(sha1|md5): ([0-9a-f]{32}|[0-9a-f]{40}))</li>.*', '$1 $2')
-			$hashAlgo, $hash = $hashTmp.ToUpper().Split(' ')
-			If (($hashAlgo) -And ($hash)) { $hashMatch = 1 }
-			If ($debug -eq 1) { Write-Host "DEBUG: $i cdata hash: $hash`r`n" }
-			Break
+			$hashFeed = [regex]::Replace($_, '.*?(?i)' + $channel + '.*?<a href="' + $url + '">' + $getFile + '</a> - (?:(sha1|md5): ([0-9a-f]{32}|[0-9a-f]{40}))</li>.*', '$1 $2')
+			$hashAlgo, $hash = $hashFeed.ToUpper().Split(' ')
+			If ($ignHash -eq 0) {
+				If (($hashAlgo -Match "SHA1|MD5") -And ($hash -Match "[0-9a-f]{32}|[0-9a-f]{40}")) { 
+					$hashMatch = 1
+				} Else {
+					$hMsg = "ERROR: No valid hash for installer found, exiting..."
+					Write-Host -ForeGroundColor Red "$hMsg"; Write-Log "$hMsg"
+					Exit 0
+				}
+				If ($debug -eq 1) { Write-Host "DEBUG: $i cdata hash: $hash`r`n" }
+				Break
+			} Else {
+				$hMsg = "Ignoring hash - can not verify installer checksum"
+				Write-Host -ForeGroundColor Yellow "`r`n(!) ${hMsg}. Press any key to abort or `"c`" to continue...";	Write-Log "$hMsg"
+				$host.UI.RawUI.FlushInputBuffer()
+				$startTime = Get-Date; $waitTime = New-TimeSpan -Seconds 30
+				While ((-Not $host.ui.RawUI.KeyAvailable) -And ($curTime -lt $startTime + $waitTime)) {
+					$curTime = Get-Date; $RemainTime = (($startTime - $curTime ).Seconds) + ($waitTime.Seconds)
+					Write-Host -ForeGroundColor Yellow -NoNewLine "`r    Waiting $($waitTime.Seconds) seconds before continuing, ${remainTime}s left "
+				}
+				Write-Host "`r`n"
+				If ($host.ui.RawUI.KeyAvailable) {
+					$x = $host.ui.RawUI.ReadKey("IncludeKeyDown, NoEcho")
+					If ($x.VirtualKeyCode -ne "67") { Write-Host "Aborting..."; Write-Log "Aborting..."; Exit 1 }
+				}
+				$hashFeed = ""; $hash = ""; $hashAlgo = "SHA1"; $hashMatch = 1
+				Break
+			}
 		}
 	}
-$i++; Write-Host
+$i++; If ($debug -eq 1) { Write-Host }
 }
 
-<# DOWNLOAD LATEST AND CHECK VERSION #>
 If ($debug -eq 1) { 'editorMatch', 'archMatch', 'chanMatch', 'urlMatch', 'hashMatch' | ForEach { Write-Host "DEBUG: ${_}:" $(Invoke-Expression `$$_) }; Write-Host }
+
+<# DOWNLOAD LATEST AND CHECK VERSION #>
+$saveAs = "$env:TEMP\$getFile"
 If (($editorMatch -eq 1) -And ($archMatch -eq 1) -And ($chanMatch -eq 1) -And ($urlMatch -eq 1) -And ($hashMatch -eq 1)) {
 	If (($url) -And ($url -NotMatch ".*$curVersion.*")) {
 	$ago = ((Get-Date) - ([DateTime]::ParseExact($date,'yyyy-MM-dd', $null)))
@@ -292,15 +330,21 @@ If (($editorMatch -eq 1) -And ($archMatch -eq 1) -And ($chanMatch -eq 1) -And ($
 		Exit 0
 	}
 } Else {
-	Write-Host "No matching versions found - set correct `"channel`" and `"getFile`", exiting...`r`n"
-	Write-Log "No matching versions found"
+	$vMsg = "No matching versions found"
+	Write-Host "$vMsg - set correct `"channel`" and `"getFile`", exiting...`r`n";	Write-Log "$vMsg"
 	Exit 0
+}
+
+If ($ignHash -eq 1) {
+	$hash = (Get-FileHash -Algorithm $hashAlgo "$saveAs").Hash
+	$hMsg = "Ignored hash set to downloaded installer `"$hash`""
+	Write-Host "$hMsg"; Write-Log "$hMsg"
 }
 
 <# VERIFY HASH AND INSTALL #>
 If ((Get-FileHash -Algorithm $hashAlgo "$saveAs").Hash -eq $hash) {
-	Write-Host "$hashAlgo Hash matches `"$hash`""; Write-Log "$hashAlgo matches: `"$hash`""
-	Write-Host "Executing `"$getFile`"...";	Write-Log "Executing `"$getFile`""
+	$hMsg = "$hashAlgo Hash matches `"$hash`""; $eMsg = "Executing `"$getFile`""
+	Write-Host "${hMsg}`r`n${eMsg}..."; Write-Log "$hMsg"; Write-Log "$eMsg"
 	If ($fakeVer -eq 1) { 
 		$saveAs = "true"
 	}
@@ -310,8 +354,9 @@ If ((Get-FileHash -Algorithm $hashAlgo "$saveAs").Hash -eq $hash) {
 		$p = (Start-Process -FilePath "$saveAs" -ArgumentList "--do-not-launch-chrome" -Wait -NoNewWindow -PassThru)
 	}
 	If ($p.ExitCode -eq 0) {
-	 	Write-Host -NoNewLine "["; Write-Host -NoNewLine -ForeGroundColor Green "OK"; Write-Host -NoNewLine "] Done. "; Write-Host -ForeGroundColor Yellow "New Chromium version will be used on next (re)start."
-		Write-Log "Done. New Chromium version will be used on next (re)start"
+		$rMsg = "New Chromium version will be used on next (re)start"
+	 	Write-Host -NoNewLine "["; Write-Host -NoNewLine -ForeGroundColor Green "OK"; Write-Host -NoNewLine "] Done. "; Write-Host -ForeGroundColor Yellow "${rMsg}."
+		Write-Log "Done. $rMsg"
 	} Else {
 		$errorMsg = "ERROR: after executing `"$getFile`""
 		Write-Host -ForeGroundColor Red -NoNewLine "$errorMsg"
@@ -322,13 +367,12 @@ If ((Get-FileHash -Algorithm $hashAlgo "$saveAs").Hash -eq $hash) {
 		}
 	}
 	If (&Test-Path $installLog) {
-			$ilogMsg = "Log file: $installLog"
-			Write-Host -ForeGroundColor Red -NoNewLine "$ilogMsg"
-			Write-Log "$ilogMsg"
+		$ilogMsg = "Logfile: $installLog"
+		Write-Host -ForeGroundColor Red -NoNewLine "`r`n$ilogMsg"; Write-Log "$ilogMsg"
 	}
 } Else {
-	Write-Host -ForeGroundColor Red "ERROR: $hashAlgo Hash does NOT match: `"$hash`", exiting..."
-	Write-Log "$hashAlgo does not match: `"$hash`""
+	$hMsg = "$hashAlgo Hash does NOT match: `"$hash`""
+	Write-Host -ForeGroundColor Red "ERROR: $hMsg, exiting..."; Write-Log "$hMsg"
 	Exit 1
 }
 Write-Host
