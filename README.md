@@ -11,7 +11,8 @@ Uses RSS feed from https://chromium.woolyss.com to download and install latest C
 
 2018-08-09: Nik's nosync builds are no longer available ([more info](https://chromium.woolyss.com/#news)). Removed related getFile option as it is no longer needed.
 
-2018-07-29: ~~There seems to be an mismatch between the Version and Revision listed in the RSS feed and URL of Nik's dev "sync" Installer (issue [#1](https://github.com/mkorthof/chrupd/issues/1)). Added option "`-ignVer`" to ignore this and skip checking version, be sure to manually check correct version when using this option.~~
+2018-07-29: FIXED
+###### There seems to be an mismatch between the Version and Revision listed in the RSS feed and URL of Nik's dev "sync" Installer (issue [#1](https://github.com/mkorthof/chrupd/issues/1)). Added option "`-ignVer`" to ignore this and skip checking version, be sure to manually check correct version when using this option.</small>
 
 #### Configuration:
 
@@ -23,8 +24,6 @@ Make sure the combination of editor and channel is correct:
 | RobRich      | dev          |
 | Chromium     | dev          |
 | ThumbApps    | dev          |
-
-~~Also note that if editor is set to "Nik", you need to set getFile to either "chromium-sync.exe" (default) or "chromium-nosync.exe".~~
 
 For more information about versions: [chromium.woolyss.com](https://chromium.woolyss.com/?cut=1&ago=1) (RSS atom [feed](https://chromium.woolyss.com/feed/windows-64-bit)).
 
