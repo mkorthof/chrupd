@@ -18,7 +18,7 @@ GOTO :EOF
 <# NOTES:                                                                    #>
 <# - If you add a scheduled task with -crTask, a VBS wrapper is written to   #>
 <#   chrupd.vbs which is used to hide it's window. use -noVbs to disable.    #>
-<# - To update chrupd to a newer versions just replace this file.            #>
+<# - To update chrupd to a newer version just replace this .cmd file.        #>
 <# ------------------------------------------------------------------------- #>
 <# For easy execution this PowerShell script is embedded in a Batch .CMD     #>
 <# file using a "polyglot wrapper". Renaming to .ps1 also works. More info:  #>
@@ -41,10 +41,11 @@ $log = 1
 
 <# END OF CONFIGURATION ---------------------------------------------------- #>
 
+$autoUpd = 0
 $scriptDir = $Args[0]
 If ( $(Try { (Test-Path variable:local:scriptDir) -And (&Test-Path $scriptDir) -And (-Not [string]::IsNullOrWhiteSpace($scriptDir)) } Catch { $False }) ) {
-	$rm = ($Args[0]); $Args = ($Args) | Where { $_ -ne $rm }
-} Else { 
+	$rm = ($Args[0]); $Args = ($Args) | Where-Object { $_ -ne $rm }
+} Else {
 	$scriptDir = ($ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath('.\'))
 }
 
@@ -55,10 +56,10 @@ $checkSite = "chromium.woolyss.com"
 $rssFeed = "https://$checkSite/feed/windows-64-bit"
 
 $debug = $fakeVer = $force = $ignVer = $ignHash = 0
-$crTask = $rmTask = $shTask = $noVbs = $confirm = 0
-$scheduler = $list = 0
+$tsMode = $crTask = $rmTask = $shTask = $xmlTask = $manTask = $noVbs = $confirm = 0
+$scheduler = $getVer = $list = 0
 
-$items = @{ 
+$items = @{
 	"Nik" = @("https://$checkSite", "https://github.com/henrypp/chromium/releases/download/", "chromium-sync.exe");
 	"RobRich" = @("https://$checkSite", "https://github.com/RobRich999/Chromium_Clang/releases/download/", "mini_installer.exe");
 	"Chromium" =  @("https://www.chromium.org", "https://storage.googleapis.com/chromium-browser-snapshots/Win_x64/", "mini_installer.exe");
@@ -66,66 +67,207 @@ $items = @{
 	"ThumbApps" = @("http://www.thumbapps.org", "https://netix.dl.sourceforge.net/project/thumbapps/Internet/Chromium/", "ChromiumPortable_");
 }
 
+<#
+  "Windows Version"         = @(majorVer, minorVer, osType[1=ws,3=server], tsMode)
+#>
+$windowsVersions = @{
+	"Windows 10" 							= @(10, 0, 1, 1);
+	"Windows 8.1" 						= @( 6, 3, 1, 1);
+	"Windows 8" 							= @( 6, 2, 1, 1);
+	"Windows 7" 							= @( 6, 1, 1, 2);
+	"Windows Vista" 					= @( 6, 0, 1, 2);
+	"Windows XP 64bit"				= @( 5, 2, 1, 3);
+	"Windows XP" 							= @( 5, 1, 1, 3);
+  "Windows Server 2019" 		= @(10, 0, 3, 1);
+  "Windows Server 2016" 		= @(10, 0, 3, 1);
+	"Windows Server 2012 R2" 	= @( 6, 3, 3, 1);
+	"Windows Server 2012" 		= @( 6, 2, 3, 1);
+	"Windows Server 2008 R2"	= @( 6, 1, 3, 2);
+	"Windows Server 2008" 		= @( 6, 0, 3, 2);
+	"Windows Server 2003" 		= @( 5, 2, 3, 3);
+}
+$osTypeList = @{
+	1 = "Workstation";
+	2 = "DC";
+  3 = "Server";
+}
+$tsList = @{
+	0 = "Auto";
+	1 = "Normal";
+	2 = "Legacy";
+	3 = "Schtasks Command"
+}
+
 Write-Host -ForeGroundColor White -NoNewLine "`r`n$scriptName"; Write-Host " ($scriptCmd)"; Write-Host ("-" * 36)"`r`n"
 
-<# HANDLE ARGUMENTS #> 
+<#
+TODO: selfupdater
+ (!) retain user settings/vars from current version
+#>
+$autoUpd = 1
+If ($Args -iMatch "-testUpd") {
+	Write-Host "DEBUG: Uncomment to test selfupdater"
+	Return
+  If ($autoUpd -eq 1) {
+  	$loBlob = "blob $((Get-Item $scriptCmd).Length)`0" + $(Get-Content "$scriptCmd"|Out-string)
+		#TEST: $scriptCmd = "README.md"; $loblob = "blob $((Get-Item ${scriptDir}$scriptCmd).Length)`0" + Get-Content "${scriptDir}$scriptCmd"
+  	$loSha = (Get-FileHash -Algorithm SHA1 -InputStream ([System.IO.MemoryStream]::new([System.Text.Encoding]::UTF8.GetBytes((($loBlob)))))).Hash
+    [System.Net.ServicePointManager]::SecurityProtocol = @("Tls12","Tls11","Tls")
+  	$ghApi = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String("aHR0cHM6Ly9hcGkuZ2l0aHViLmNvbS9yZXBvcy9ta29ydGhvZi9jaHJ1cGQvY29udGVudHMvY2hydXBkLmNtZA=="))
+  	$ghJson = (ConvertFrom-Json(Invoke-WebRequest $ghApi))
+    #$ghContent = ($ghJson).content
+  	#$ghTmp  = [System.Text.Encoding]::UTF8.GetBytes.(($ghJson).content)
+  	#$ghStr = [System.Convert]::ToBase64String($ghTmp)
+    #$ghTmp = [System.Text.Encoding]::UTF8.GetString(([System.Convert]::FromBase64String((($ghJson).content))|?{$_}))
+  	$ghContent = [System.Text.Encoding]::UTF8.GetString(([System.Convert]::FromBase64String((($ghJson).content))))
+
+    $ghSha = (($ghJson).sha).ToUpper()
+  	Write-Host "DEBUG: loSha=" $loSha
+  	Write-Host "DEBUG: ghSha=" $ghSha
+  	If ($loSha -ne $ghSha) {
+  		Write-Host "Update available:"
+  		If ( $(Try { (&Test-Path ${scriptCmd}.tmp) } Catch { $False }) ) {
+  			Write-Host "DEBUG: TEMP ${scriptCmd}.tmp already exists, removing..."
+  			Try {
+					Remove-Item -ErrorAction Stop -WarningAction Stop ${scriptCmd}.tmp -Force
+				} Catch { 
+					$eMsg = "ERROR: Could not remove ${scriptCmd}.tmp"
+					Write-Host -ForeGroundColor Red "$eMsg" "`r`n";	Write-Log "$eMsg"
+					Return
+				}
+  		}
+  		$ghContent | Set-Content -NoNewline "${scriptCmd}.tmp"
+  		Get-Item "${scriptCmd}.tmp"
+  		#((Get-FileHash -Algorithm SHA1 "${scriptCmd}.tmp").Hash).ToLower()
+  		$newBlob = "blob $((Get-Item "${scriptCmd}.tmp").Length)`0" + $(Get-Content "${scriptCmd}.tmp"|Out-string)
+  		$newSha = (Get-FileHash -Algorithm SHA1 -InputStream ([System.IO.MemoryStream]::new([System.Text.Encoding]::UTF8.GetBytes((($newBlob)))))).Hash
+  		#Write-Host "DEBUG: newBLow=$newBlob"
+  		Write-Host "DEBUG: TEMP ghSha=$ghSha"
+  		Write-Host "DEBUG: TEMP newSha=$newSha"
+  		If ($ghSha -eq $newSha) {
+  			Write-Host "Local file matches GitHub SHA1 Hash, renaming current version `"${scriptCmd}`" to `"$scriptCmd.bak`" first"
+  			Try {
+					#Rename-Item -Force -Verbose -ErrorAction SilentlyContinue -WarningAction SilentlyContinue -Path "${scriptCmd}.tmp" -NewName "${scriptCmd}.TEST" } Catch { ErrorMessage "Could not rename $scriptCmd" };
+					Move-Item -Force -Verbose -ErrorAction SilentlyContinue -WarningAction SilentlyContinue -Path "${scriptCmd}" -Destination "${scriptCmd}.bak.TEST"
+				} Catch {
+					$eMsg = "ERROR: Could not move ${scriptCmd} to $scriptCmd.bak"
+					Write-Host -ForeGroundColor Red "$eMsg" "`r`n";	Write-Log "$eMsg"
+					Return
+				}
+  			Write-Host "Copying new version `"${scriptCmd}.tmp`" to `"$scriptCmd`""
+  			Try {
+					Move-Item -Force -Verbose -ErrorAction SilentlyContinue -WarningAction SilentlyContinue -Path "${scriptCmd}.tmp" -Destination "${scriptCmd}.TEST"
+				} Catch {
+					$eMsg = "ERROR: Could not move ${scriptCmd}.tmp to $scriptCmd"
+					Write-Host -ForeGroundColor Red "$eMsg" "`r`n";	Write-Log "$eMsg"
+					Return
+				};
+    	} Else {
+  			Write-Host "ERROR: Local file SHA1 Hash does not match GitHub's"
+				Return
+  		}
+  	} 
+    Exit
+  }
+}
+
+<# SHOW HELP AND ARGUMENTS #>
 <# REMOVED: Options related to Nik's nosync build #>
 If ($Args -iMatch "[-/]h") {
 	Write-Host "Uses RSS feed from `"$checkSite`" to download and install latest"
-	Write-Host "Chromium version, if a newer version is available." "`r`n"
-	Write-Host "USAGE: $scriptCmd -[editor|channel|force|list]"
-	Write-Host "`t`t" " -[crTask|rmTask|shTask|noVbs|confirm]" "`r`n"
-	Write-Host "`t" "-editor  can be set to <Nik|RobRich|Chromium|ThumbApps>"
-	Write-Host "`t" "-channel can be set to <stable|dev>"
+	Write-Host "Chromium version, if a newer version is available.", "`r`n"
+	Write-Host "USAGE: $scriptCmd -[editor|channel|autoUpd|force|getVer|list]"
+	Write-Host "`t`t", " -[taskMode|crTask|rmTask|shTask|noVbs|confirm]", "`r`n"
+	Write-Host "`t", "-editor  can be set to <Nik|RobRich|Chromium|ThumbApps>"
+	Write-Host "`t", "-channel can be set to <stable|dev>"
 <# Write-Host "`t" "-getFile can be set to [chromium-sync.exe|chromium-nosync.exe]" #>
-	Write-Host "`t" "-force   always (re)install, even if latest version installed already"
-	Write-Host "`t" "-list    lists editors and urls" "`r`n"
-	Write-Host "`t" "-crTask  to create a daily scheduled task"
-	Write-Host "`t" "-rmTask  to remove scheduled task"
-	Write-Host "`t" "-shTask  to show scheduled task details"
-	Write-Host "`t" "-noVbs   to not use vbs wrapper to hide window when creating task"
-	Write-Host "`t" "-confirm to answer Y on prompt about removing scheduled task" "`r`n"
-<# Write-Host "`t" "-ignVer  (!) ignore version mismatch between feed and filename" "`r`n"
-	 Write-Host "EXAMPLE: .\$scriptCmd -editor Nik -channel stable -getFile chromium-nosync.exe"
-#>
-	Write-Host "EXAMPLE: .\$scriptCmd -editor Nik -channel stable [-crTask]" "`r`n"
-	Write-Host "NOTES:   Options `"editor`" and `"channel`" need an argument (CasE Sensive)"
+<# Write-Host "`t", "-autoUpd can set to <0|1> to turn off|on auto updating $scriptCmd" #>
+	Write-Host "`t", "-force   always (re)install, even if latest Chromium is installed"
+	Write-Host "`t", "-getVer  lists currently installed Chromium version"
+	Write-Host "`t", "-list    lists editors website, repository and installer", "`r`n"
+	Write-Host "`t", "-tsMode  can be set to <1|2|3> or `"auto`" if unset, details below"
+	Write-Host "`t", "-crTask  to create a daily scheduled task"
+	Write-Host "`t", "-rmTask  to remove scheduled task"
+	Write-Host "`t", "-shTask  to show scheduled task details"
+	Write-Host "`t", "-noVbs   to not use vbs wrapper to hide window when creating task"
+	Write-Host "`t", "-confirm to answer Y on prompt about removing scheduled task", "`r`n"
+<# Write-Host "`t" "-ignVer  (!) ignore version mismatch between feed and filename" "`r`n" #>
+<# Write-Host "EXAMPLE: .\$scriptCmd -editor Nik -channel stable -getFile chromium-nosync.exe #>
+<#	Write-Host "EXAMPLE: .\$scriptCmd -editor Nik -channel stable [-autoUpd 1] [-crTask]", "`r`n" #>
+	Write-Host "EXAMPLE: .\$scriptCmd -editor Nik -channel stable [-crTask]", "`r`n"
+	Write-Host "NOTES:   - Options `"editor`" and `"channel`" need an argument (CasE Sensive)"
 <# Write-Host "`t" "Option `"getFile`" is only used if editor is set to `"Nik`"" #>
-	Write-Host "`t" "Schedule `"xxTask`" options can also be used without any other options"
-	Write-Host "`t" "Options can be set permanently using variables inside script" "`r`n"
+  Write-Host "`t", "- Option `"tsMode`" task scheduler modes: unset Default=Auto(Detect OS), "
+  Write-Host "`t", "    or: 1=Normal(Windows8+), 2=Legacy(Win7), 3=Command(WinXP)"
+	Write-Host "`t", "- Schedule `"xxTask`" options can also be used without any other options"
+	Write-Host "`t", "- Options can be set permanently using variables inside script", "`r`n"
 	Exit 0
 } Else {
 	ForEach ($a in $Args) {
-		If ($m = $(Select-String -Pattern "[-/](debug|force|fakeVer|list|crTask|rmTask|shTask|noVbs|confirm|scheduler|ignHash|ignVer)" -AllMatches -InputObject $a)) {
+		$p = "[-/](debug|force|fakeVer|getVer|list|crTask|rmTask|shTask|xmlTask|manTask|noVbs|confirm|scheduler|ignHash|ignVer)"
+		If ($m = $(Select-String -CaseSensitive -Pattern $p -AllMatches -InputObject $a)) {
 			Invoke-Expression ('{0}="{1}"' -f ($m -Replace "^-", "$"), 1);
-			$Args = ($Args) | Where { $_ -ne $m }
+			$Args = ($Args) | Where-Object { $_ -ne $m }
 		}
 	}
 	If (($Args.length % 2) -eq 0) {
 		$i = 0; While ($Args -Is [Object[]] -And $i -lt $Args.length) {
-		#$i = 0; While ($i -lt $Args.length) {	
+		<# $i = 0; While ($i -lt $Args.length) { #>
 			If (($Args[$i] -Match "^-") -And ($Args[($i+1)] -Match "^[\w\.]")) {
-				Invoke-Expression ('{0}="{1}"' -f ($Args[$i] -Replace "^-", "$"), $Args[++$i].Trim());
-			} 
+				Invoke-Expression ('{0}="{1}"' -f ($Args[$i] -Replace "^-", "$"), ($Args[++$i]|Out-String).Trim());
+			}
 		$i++
 		}
 	} Else { Write-Host -ForeGroundColor Red "ERROR: Invalid options specfied. Try `"$scriptCmd -h`" for help, exiting...`r`n"; Exit 1 }
 }
 
+<# DETECT WINDOWS VERSION #>
+$osVer = (([System.Environment]::OSVersion).Version)
+$osType = (Get-WmiObject Win32_OperatingSystem).ProductType
+<# TEST: $osVer = @{ Major = 6; Minor = 1; }; $osType = 3 #>
+$osFound = 0; $windowsVersions.GetEnumerator() | ForEach-Object {
+	If ( ($(($osVer).Major) -eq $($_.Value[0])) -And ($(($osVer).Minor) -eq $($_.Value[1])) -And ($($osType) -eq $($_.Value[2])) ) {
+		$osFound = 1
+		$osFullName = ("`"{0}`" ({1}.{2}, {3})" -f $_.Name, ($osVer).Major, ($osVer).Minor, $osTypeList.[int]$($osType))
+		$tsModeFound = $_.Value[3]
+	}
+}
+If ($osFound -ne 1) {
+	$osFullName = "Unknown Windows Version"
+}
+If (-Not ($tsMode -Match '^[1-3]$')) {
+ 	If ($osFound -eq 1) {
+		$tsMode = $tsModeFound
+	} Else {
+		$tsMode = 3
+	}
+}
+Write-Host "OS Detected: $osFullName`r`nTask Scheduler Mode: ${tsMode}, $($tsList.[int]$tsMode)`r`n"
+
+<# LIST VERSION #>
+If ($getVer -eq 1) {
+	Write-Host -NoNewLine "Currently installed Chromium version: "
+	Write-Host $(Get-ItemProperty -ErrorAction SilentlyContinue -WarningAction SilentlyContinue HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Chromium).Version
+	Exit 0
+}
+
 <# LIST EDITOR ITEMS #>
 If ($list -eq 1) {
-	$items.GetEnumerator() | where Value | ft @{l='editor:';e={$_.Name}}, @{l='website, repository, file:';e={$_.Value}} -AutoSize
+	$items.GetEnumerator() | Where-Object Value | Format-Table @{l='editor:';e={$_.Name}}, @{l='website, repository, file:';e={$_.Value}} -AutoSize
 	Exit 0
 }
 
 <# CHECK VARIABLES #>
-$m = 0; $items.GetEnumerator() | % {
+$m = 0; $items.GetEnumerator() | ForEach-Object {
 	If ($_.Name -ceq $editor) {	$m = 1; $website = $items.($editor)[0]; $fileSrc = $items.($editor)[1]; $getFile = $items.($editor)[2] }
 }
 If ($m -eq 0) {	Write-Host -ForeGroundColor Red "ERROR: Settings incorrect - check editor `"$editor`" (CasE Sensive), exiting..."; Exit 1 }
 If (-Not ($channel -cMatch "^(stable|dev)$")) { Write-Host -ForeGroundColor Red "ERROR: Invalid channel `"$channel`" (CasE Sensive), exiting..."; Exit 1 }
+If (-Not ($autoUpd -Match "^(0|1)$")) { Write-Host -ForeGroundColor Red "ERROR: Invalid autoUpd setting `"$autoUpd`" - must be 0 or 1, exiting..."; Exit 1 }
 
-<# SCHTASK VBS WRAPPER #>
+<# SCHEDULED TASKS #>
+
+<# VBS WRAPPER #>
 $vbsContent = @"
 '
 ' Wrapper for chrupd.cmd to hide window when using Task Scheduler
@@ -138,49 +280,286 @@ Set WinScriptHost = CreateObject("WScript.Shell")
 WinScriptHost.Run Chr(34) & "${scriptDir}$scriptCmd" & Chr(34) & " " & Args, 0
 Set WinScriptHost = Nothing
 "@
-
-<# HANDLE SCHEDULED TASK #>
+<# SET VARIABLES AND MSGS #>
+$confirmParam = $true
+If ( $(Try { -Not (Test-Path variable:local:tsMode) -Or ([string]::IsNullOrWhiteSpace($tsMode)) } Catch { $False }) ) {
+	$tsMode = 1
+}
+If ( $(Try { -Not (&Test-Path $vbsWrapper) } Catch { $False }) ) {
+	Write-Host "VBS Wrapper ($vbsWrapper) missing, creating..."
+	Set-Content $vbsWrapper -Value $vbsContent
+}
+$vbsWrapper = $scriptDir + "chrupd.vbs"
+<# $taskArgs = "-scheduler -editor $editor -channel $channel -autoUpd $autoUpd" #>
+$taskArgs = "-scheduler -editor $editor -channel $channel"
+If ($noVbs -eq 1) {
+	$taskCmd = 'powershell.exe'
+	$taskArgs = "-ExecutionPolicy ByPass -NoLogo -NoProfile -WindowStyle Hidden $scriptCmd $taskArgs"
+} Else {
+	$taskCmd = "$vbsWrapper"
+}
+$taskDescr = "Download and install latest Chromium version"
+$createMsg = "Creating Daily Task `"$scriptName`" in Task Scheduler..."
+$crfailMsg = "Creating Scheduled Task failed."
+$swrongMsg = "Something went wrong..."
+$existsMsg = "Scheduled Task already exists."
+$nfoundMsg = "Scheduled Task not found."
+$removeMsg = "Removing Daily Task `"${scriptName}`" from Task Scheduler..."
+$rmfailMsg = "Could not remove Task: ${scriptName}."
+$notaskMsg = "Scheduled Task already removed."
+$manualMsg = "Run `"${scriptCmd} -manTask`" for manual instructions"
+$exportMsg = "Run `"${scriptCmd} -xmlTask`" to export a Task XML File"
+$xmlContent = @"
+<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Description>${taskDescr}</Description>
+    <URI>\${scriptName}</URI>
+  </RegistrationInfo>
+  <Principals>
+    <Principal id="Author">
+      <LogonType>InteractiveToken</LogonType>
+    </Principal>
+  </Principals>
+  <Settings>
+    <DisallowStartIfOnBatteries>true</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>true</StopIfGoingOnBatteries>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <IdleSettings>
+      <Duration>PT10M</Duration>
+      <WaitTimeout>PT1H</WaitTimeout>
+      <StopOnIdleEnd>true</StopOnIdleEnd>
+      <RestartOnIdle>false</RestartOnIdle>
+    </IdleSettings>
+  </Settings>
+  <Triggers>
+    <CalendarTrigger>
+      <StartBoundary>2018-10-13T17:00:00+02:00</StartBoundary>
+      <RandomDelay>PT1H</RandomDelay>
+      <ScheduleByDay>
+        <DaysInterval>1</DaysInterval>
+      </ScheduleByDay>
+    </CalendarTrigger>
+  </Triggers>
+  <Actions Context="Author">
+    <Exec>
+      <Command>${taskCmd}</Command>
+      <Arguments>${taskArgs}</Arguments>
+      <WorkingDirectory>${scriptDir}</WorkingDirectory>
+    </Exec>
+  </Actions>
+</Task>
+"@
+<# CREATE SCHEDULED TASK #>
 If ($crTask -eq 1) {
-	$vbsWrapper = $scriptDir + "chrupd.vbs"
-	If ( $(Try { -Not (&Test-Path $vbsWrapper) } Catch { $False }) ) {
-		Write-Host "VBS Wrapper ($vbsWrapper) missing, creating..."
-		Add-Content $vbsWrapper -Value $vbsContent
+	Switch ($tsMode) {
+		<# NORMAL MODE #>
+		1 {
+    	$action = New-ScheduledTaskAction -Execute $taskCmd -Argument "$taskArgs" -WorkingDirectory "$scriptDir"
+    	$trigger = New-ScheduledTaskTrigger -RandomDelay (New-TimeSpan -Hour 1) -Daily -At 17:00
+    	If (-Not (&Get-ScheduledTask -ErrorAction SilentlyContinue -TaskName "$scriptName")) {
+    		Write-Host $createMsg
+    		Try { (Register-ScheduledTask -Action $action -Trigger $trigger -TaskName "$scriptName" -Description "$taskDescr") | Out-Null }
+				Catch { Write-Host "$swrongMsg`r`nError: `"$($_.Exception.Message)`"" }
+    	} Else {
+    		Write-Host $existsMsg
+    	}
+   	  If (&Get-ScheduledTask -ErrorAction SilentlyContinue -TaskName "$scriptName" -OutVariable task) {
+				If ( $(Try { (Test-Path variable:local:task) -And (-Not [string]::IsNullOrWhiteSpace($task)) } Catch { $False }) ) {
+			   	Write-Host ("Task: `"{0}{1}`"`r`nDescription: `"{2}`", State: {3}`r`n" -f ($task).TaskPath, ($task).TaskName, ($task).Description, ($task).State)
+				} Else {
+					Write-Host "$crfailMsg"
+				}
+			}	Else {
+				Write-Host ("{0}`r`n`r`n  {1}`r`n  {2}`r`n" -f $crfailMsg, $manualMsg, $exportMsg)
+			}
+		}
+		<# LEGACY MODE #>
+		2 {
+      $taskService = New-Object -ComObject("Schedule.Service")
+      $taskService.Connect()
+      $taskFolder = $taskService.GetFolder("\")
+			If (-Not $(Try { $taskFolder.GetTask("$scriptName") } Catch { $False }) ) {
+ 				Write-Host $createMsg
+        $taskDef = $taskService.NewTask(0) 
+        $taskDef.RegistrationInfo.Description = "$TaskDescr"
+        $taskDef.Settings.Enabled = $true
+        $taskDef.Settings.AllowDemandStart = $true
+
+        $trigCollection = $taskDef.Triggers
+        $trigger = $trigCollection.Create(2)
+
+        $trigger.StartBoundary = ((Get-Date).toString("yyyy-MM-dd'T'17:00:00"))
+        $trigger.RandomDelay = "PT1H"
+        $trigger.DaysInterval = 1
+        $trigger.Enabled = $true
+
+				$execAction = $taskDef.Actions.Create(0)
+        $execAction.Path = "$taskCmd"
+        $execAction.Arguments = "$taskArgs"
+        $execAction.WorkingDirectory = "$scriptDir"
+    		Try { $x = $taskFolder.RegisterTaskDefinition("$scriptName", $taskDef, 6, "", "", 3, "") }
+				Catch { Write-Host "$swrongMsg Error: `"$($_.Exception.Message)`"" }
+				If ( $(Try { -Not (Test-Path variable:local:x) -Or ( [string]::IsNullOrWhiteSpace($x)) } Catch { $False }) ) {
+					Write-Host ("{0}`r`n`r`n  {1}`r`n  {2}`r`n" -f $crfailMsg, $manualMsg, $exportMsg)
+				}
+    	} Else {
+    		Write-Host $existsMsg
+    	}
+			If ( $(Try { $taskFolder.GetTask("$scriptName") } Catch { $False }) ) {
+				$task = $taskFolder.GetTask("$scriptName")
+	  		Write-Host ("Task: `"{0}{1}`"`r`nDescription: `"{2}`", State: {3}.`r`n" -f $($task.Path), "", $($task.Definition.RegistrationInfo.Description), $($task.State))
+			}
+		}
+	<# CMD MODE #>
+	3 {
+			Write-Host "$createMsg`r`n"
+			Write-Host "Creating Task XML File..."
+			Set-Content "$env:TEMP\chrupd.xml" -Value $xmlContent
+			$delay = (Get-Random -minimum 0 -maximum 59).ToString("00")
+			<# $a = "/Create /SC DAILY /ST 17:${delay} /TN \\`"$scriptName`" /TR `"'$vbsWrapper' $taskArgs`"" #>
+			$a = "/Create /TN \\`"$scriptName`" /XML `"$env:TEMP\chrupd.xml`""
+			If ($confirm -eq 1) { $a = "$a /F" }
+			$p = Start-Process -FilePath "$env:SystemRoot\system32\schtasks.exe" -ArgumentList $a -Wait -NoNewWindow -PassThru
+			$handle = $p.Handle
+			$p.WaitForExit()
+			If ($p.ExitCode -eq 0) {
+				Write-Host
+			} Else {
+				Write-Host ("`r`n{0}`r`n`r`n  {1}`r`n  {2}`r`n" -f $crfailMsg, $manualMsg, $exportMsg)
+			}
+			Try { Remove-Item -ErrorAction SilentlyContinue -WarningAction SilentlyContinue -Force "$env:TEMP\chrupd.xml" } Catch { $False }
+		}
 	}
-	If ($noVbs -eq 1) {
-		$action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-ExecutionPolicy ByPass -NoLogo -NoProfile -WindowStyle Hidden $scriptCmd -scheduler -editor $editor -channel $channel" -WorkingDirectory "$scriptDir"
-	} Else {
-		$action = New-ScheduledTaskAction -Execute $vbsWrapper -Argument "-scheduler -editor $editor -channel $channel" -WorkingDirectory "$scriptDir"
-	}
-	$trigger = New-ScheduledTaskTrigger -RandomDelay (New-TimeSpan -Hour 1) -Daily -At 17:00
-	If (-Not (&Get-ScheduledTask -ErrorAction SilentlyContinue -TaskName "$scriptName")) {
-		Write-Host "Creating Daily Task `"$scriptName`" in Task Scheduler..."
-		Try { (Register-ScheduledTask -Action $action -Trigger $trigger -TaskName "$scriptName" -Description "Download and install latest Chromium version") } Catch { Write-Host "Something went wrong... $($_.Exception.Message)" }
-	} Else {
-		Write-Host "Scheduled Task already exists"
-	}
-	$task = (Get-ScheduledTask -TaskName "$scriptName")
-	Write-Host ("Task: `"{0}{1}`"`r`nDescription: `"{2}`", State: {3}." -f ($task).TaskPath, ($task).TaskName, ($task).Description, ($task).State);	Write-Host
+ 	Exit 0
+<# REMOVE SCHEDULED TASK #>
 } ElseIf ($rmTask -eq 1) {
-	If (&Get-ScheduledTask -ErrorAction SilentlyContinue -TaskName "$scriptName") {
-		Write-Host "Removing Daily Task `"$scriptName`" from Task Scheduler..."`r`n""
-		If ($rmTask -eq 1) { $confirm = $false } Else { $confirm = $true }
-		Try { UnRegister-ScheduledTask -Confirm:$confirm -TaskName "$scriptName" } Catch { Write-Host "Something went wrong... $($_.Exception.Message)" }
-	} Else { 
-		Write-Host "Scheduled Task already removed`r`n"
+	Switch ($tsMode) {
+		<# NORMAL MODE #>
+  	1 {
+			If ($confirm -eq 1) {	$confirmParam = $false }
+    	If (&Get-ScheduledTask -ErrorAction SilentlyContinue -TaskName "$scriptName") {
+    		Write-Host "$removeMsg`r`n"
+    		Try { UnRegister-ScheduledTask -confirm:${confirmParam} -TaskName "$scriptName" } Catch { Write-Host "${wrongMsg}... $($_.Exception.Message)" }
+    	} Else {
+    		Write-Host "$notaskMsg`r`n"
+    	}
+    	If (&Get-ScheduledTask -ErrorAction SilentlyContinue -TaskName "$scriptName" -OutVariable task) {
+				If ( $(Try { (Test-Path variable:local:task) -And (-Not [string]::IsNullOrWhiteSpace($task)) } Catch { $False }) ) {
+    			Write-Host ("Could not remove Task: `"{0}{1}`", Description: `"{2}`", State: {3}`r`n" -f ($task).TaskPath, ($task).TaskName, ($task).Description, ($task).State)
+    			Write-Host ("{0}`r`n`r`n{1}`r`n" -f $rmfailMsg, $manualMsg)
+				}
+    	}
+		}
+		<# LEGACY MODE #>
+		2 {
+      $taskService = New-Object -ComObject("Schedule.Service")
+      $taskService.Connect()
+      $taskFolder = $taskService.GetFolder("\")
+			If ( $(Try { $taskFolder.GetTask("$scriptName") } Catch { $False }) ) {
+	    	Write-Host "$removeMsg`r`n"
+				Try { $taskFolder.DeleteTask("$scriptName", 0) } Catch { Write-Host "${wrongMsg}... $($_.Exception.Message)" }
+    	} Else {
+    		Write-Host "$notaskMsg`r`n"
+    	}
+			If ( $(Try { $taskFolder.GetTask("$scriptName") } Catch { $False }) ) {
+				$task = $taskFolder.GetTask("$scriptName")
+  			Write-Host ("Could not remove Task: `"{0}{1}`", Description: `"{2}`", State: {3}`r`n" -f "", ($task).TaskName, ($task).Description, ($task).State)
+   			Write-Host ("{0}`r`n`r`n{1}`r`n" -f $rmfailMsg, $manualMsg)
+			}
+		}
+		<# COMMAND MODE #>
+		3 {
+			Write-Host "$removeMsg`r`n"
+			$a = "/Delete /TN \\`"$scriptName`""
+			$p = Start-Process -FilePath "$env:SystemRoot\system32\schtasks.exe" -ArgumentList $a -Wait -NoNewWindow -PassThru
+			$handle = $p.Handle
+			$p.WaitForExit()
+			If ($p.ExitCode -eq 0) {
+				Write-Host
+			} Else {
+				Write-Host ("{0}`r`n`r`n{1}`r`n" -f $rmfailMsg, $manualMsg)
+			}
+		}
 	}
-	If (&Get-ScheduledTask -ErrorAction SilentlyContinue -TaskName "$scriptName" -OutVariable task) {
-		Write-Host ("Could not remove Task: `"{0}{1}`", Description: `"{2}`", State: {3}." -f ($task).TaskPath, ($task).TaskName, ($task).Description, ($task).State)
-		Write-Host "Please try removing it manually using `"Start > Task Scheduler`"."; Write-Host
-	}
-	Exit 0
+ 	Exit 0
+<# SHOW SCHEDULED TASK #>
 } ElseIf ($shTask -eq 1) {
-	If ($task = (&Get-ScheduledTask -ErrorAction SilentlyContinue -TaskName "$scriptName")) {
-		$taskinfo = (&Get-ScheduledTaskInfo -TaskName "$scriptName")
-		Write-Host ("Task: `"{0}{1}`"`r`nDescription: `"{2}`", State: {3}." -f ($task).TaskPath, ($task).TaskName, ($task).Description, ($task).State); Write-Host
-		Write-Host ("Actions: WorkingDirectory: `"{0}`", Execute: `"{1}`", Arguments: `"{2}`"" -f ($task).actions.WorkingDirectory, ($task).actions.Execute, ($task).actions.Arguments)
-		Write-Host ("TaskInfo: LastRunTime: `"{0}`", NextRunTime: `"{1}`", NumberOfMissedRuns: {2}" -f ($taskinfo).LastRunTime, ($taskinfo).NextRunTime, ($taskinfo).NumberOfMissedRuns); Write-Host
-	} Else { 
-		Write-Host "Scheduled Task not found"
+
+	Switch ($tsMode) {
+		<# NORMAL MODE #>
+  	1 {
+    	If (&Get-ScheduledTask -ErrorAction SilentlyContinue -TaskName "$scriptName" -OutVariable task) {
+				If ( $(Try { (Test-Path variable:local:task) -And (-Not [string]::IsNullOrWhiteSpace($task)) } Catch { $False }) ) {
+	    		$taskinfo = (&Get-ScheduledTaskInfo -TaskName "$scriptName")
+    			Write-Host ("Task: `"{0}{1}`"`r`nDescription: `"{2}`", State: {3}." -f ($task).TaskPath, ($task).TaskName, ($task).Description, ($task).State)
+    			Write-Host ("Actions: WorkingDirectory: `"{0}`", Execute: `"{1}`", Arguments: `"{2}`"" -f ($task).actions.WorkingDirectory, ($task).actions.Execute, ($task).actions.Arguments)
+    			Write-Host ("TaskInfo: LastRunTime: `"{0}`", NextRunTime: `"{1}`", NumberOfMissedRuns: {2}`r`n" -f ($taskinfo).LastRunTime, ($taskinfo).NextRunTime, ($taskinfo).NumberOfMissedRuns)
+				}
+    	} Else {
+    		Write-Host "$nfoundMsg`r`n"
+    	}
+  	}
+		<# LEGACY MODE #>
+		2 {
+      $taskService = New-Object -ComObject("Schedule.Service")
+      $taskService.Connect()
+      $taskFolder = $taskService.GetFolder("\")
+  		If ( $(Try { $taskFolder.GetTask("$scriptName") } Catch { $False }) ) {
+				$task = $taskFolder.GetTask("$scriptName")
+    		Write-Host ("Task: `"{0}{1}`"`r`nDescription: `"{2}`", State: {3}." -f $($task.Path), "", $($task.Definition.RegistrationInfo.Description), $($task.State))
+    		Write-Host ("Actions: WorkingDirectory: `"{0}`", Execute: `"{1}`", Arguments: `"{2}`"" -f $($($task.Definition.Actions).WorkingDirectory), $($($task.Definition.Actions).Path), $($($task.Definition.Actions).Arguments))
+    		Write-Host ("TaskInfo: LastRunTime: `"{0}`", NextRunTime: `"{1}`", NumberOfMissedRuns: {2}`r`n" -f $($task.LastRunTime), $($task.NextRunTime), $($task.NumberOfMissedRuns))
+    	} Else {
+    		Write-Host "$nfoundMsg`r`n"
+    	}
+		}
+		<# CMD MODE #>
+		3 {
+			$a = "/Query /TN \\`"${scriptName}`" /XML" 
+			# $p = Start-Process -FilePath "$env:SystemRoot\system32\schtasks.exe" -ArgumentList $a -Wait -NoNewWindow -PassThru
+			# $handle = $p.Handle	
+			# $p.WaitForExit()
+      $pinfo = New-Object System.Diagnostics.ProcessStartInfo
+      $pinfo.FileName = "$env:SystemRoot\system32\schtasks.exe"
+      $pinfo.RedirectStandardError = $true
+      $pinfo.RedirectStandardOutput = $true
+      $pinfo.UseShellExecute = $false
+      $pinfo.Arguments = "$a"
+      $p = New-Object System.Diagnostics.Process
+      $p.StartInfo = $pinfo
+      $p.Start() | Out-Null
+      $p.WaitForExit()
+      [xml]$stdout = $p.StandardOutput.ReadToEnd()
+      $stderr = $p.StandardError.ReadToEnd()
+			If ($p.ExitCode -eq 0) {
+				$stOut = (&$env:SystemRoot\system32\schtasks.exe /Query /TN `"$scriptName`" /FO LIST /V)
+				$State = $(($stOut | Select-String -Pattern "^Status") -Replace '.*: +(.*)$', '$1')
+				$LastRunTime = $(($stOut | Select-String -Pattern "^Last Run Time") -Replace '.*: +(.*)$', '$1')
+				$NextRunTime = $(($stOut | Select-String -Pattern "^Next Run Time") -Replace '.*: +(.*)$', '$1')
+    		Write-Host ("Task: `"{0}{1}`"`r`nDescription: `"{2}`", State: {3}." -f $($stdout.Task.RegistrationInfo.URI), "", $($stdout.Task.RegistrationInfo.Description), $State)
+     		Write-Host ("Actions: WorkingDirectory: `"{0}`", Execute: `"{1}`", Arguments: `"{2}`"" -f $($stdout.Task.Actions.Exec.WorkingDirectory), $($stdout.Task.Actions.Exec.Command), $($stdout.Task.Actions.Exec.Arguments))
+     		Write-Host ("TaskInfo: LastRunTime: `"{0}`", NextRunTime: `"{1}`", NumberOfMissedRuns: {2}`r`n" -f $LastRunTime, $NextRunTime, "?")
+			} Else {
+    		Write-Host "$nfoundMsg`r`nError: $stderr"
+			}
+		}
+	}
+ 	Exit 0
+} ElseIf ($manTask -eq 1) {
+	Write-Host "Check settings and retry, use a different taskMode (see help) or try"
+	Write-Host "manually by going to: `"Start > Task Scheduler`" or `"Run taskschd.msc`".`r`n"
+	Write-Host "These settings can be used when creating a New Task :`r`n"
+	Write-Host ("  Name: `"{0}`"`r`n    Description `"{1}`"`r`n    Trigger: Daily 17:00 (1H random delay)`r`n    Action: `"{2}`"`r`n    Arguments: `"{3}`"`r`n    WorkDir: `"{4}`"`r`n" `
+								-f $scriptName, $taskDescr, $taskCmd, $taskArgs, $scriptDir)
+	Exit 0
+} ElseIf ($xmlTask -eq 1) {
+	Set-Content "$env:TEMP\chrupd.xml" -Value $xmlContent
+  If ( $(Try { (&Test-Path "$env:TEMP\chrupd.xml") } Catch { $False }) ) {
+  	Write-Host "Exported Task XML File to: `"$env:TEMP\chrupd.xml`""
+		Write-Host "File can be imported in Task Scheduler or `"schtasks.exe`".`r`n"
+	} Else {
+		Write-Host "Could not export XML"
 	}
 	Exit 0
 }
@@ -199,28 +578,28 @@ Function Write-Log($msg) {
 }
 
 If ($debug -eq 1) {
-	'_DEBUG_OPTIONS_', 'fakeVer', 'log', 'ignVer', 'ignHash'
-	'_STANDARD_OPTIONS_', 'editor', 'channel', 'getFile', 'force', 'list', 'website', 'fileSrc', 'getFile', 
-	'_SCHEDULER_OPTIONS_', 'crTask', 'rmTask', 'shTask', 'noVbs', 'confirm', 'scheduler' | % { Write-Host "DEBUG: ${_}:" $(Invoke-Expression `$$_) }
+	'_DEBUG_OPTIONS_', 'fakeVer', 'log', 'ignVer', 'ignHash',
+	'_STANDARD_OPTIONS_', 'editor', 'channel', 'getFile', 'autoUpd', 'force', 'getVer', 'list', 'website', 'fileSrc', 'getFile',
+	'_SCHEDULER_OPTIONS_', 'crTask', 'rmTask', 'shTask', 'xmlTask', 'manTask', 'noVbs', 'confirm', 'scheduler' | ForEach-Object { Write-Host "DEBUG: ${_}:" $(Invoke-Expression `$$_) }
 }
 
-Write-Log "Start (pid:$pid name:$($(Get-PSHostProcessInfo|where ProcessId -eq $pid).ProcessName) scheduler:$scheduler)"
+Write-Log "Start (pid:$pid name:$($(Get-PSHostProcessInfo | Where-Object ProcessId -eq $pid).ProcessName) scheduler:$scheduler)"
 
 <# VERIFY CURRENT VERSION #>
-$curVersion = (Get-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Chromium).Version
-If ($force -eq 1) { 
-	$vMsg = "Forcing update, ignoring currently installed version `"$curVersion`""
+$curVersion = (Get-ItemProperty -ErrorAction SilentlyContinue -WarningAction SilentlyContinue HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Chromium).Version
+If ($force -eq 1) {
+	$vMsg = "Forcing update, ignoring currently installed Chromium version `"$curVersion`""
 	Write-Host "$vMsg" "`r`n";	Write-Log "$vMsg"
 	$curVersion = "00.0.0000.000"
 } ElseIf ($fakeVer -eq 1) {
-	Write-Host "DEBUG: Changing real current version `"$curVersion`" to fake value"
+	Write-Host "DEBUG: Changing real current Chromium version `"$curVersion`" to fake value"
 	$curVersion = "6.6.6.0-fake"
 } Else {
 	If ( $(Try { (Test-Path variable:local:curVersion) -And (-Not [string]::IsNullOrWhiteSpace($curVersion)) } Catch { $False }) ) {
-		$vMsg = "Currently installed version: `"$curVersion`""
+		$vMsg = "Currently installed Chromium version: `"$curVersion`""
 		Write-Host "$vMsg" "`r`n"; Write-Log "$vMsg"
 	} Else {
-		$vMsg = "Could not find Chromium, downloaded installer will setup..."
+		$vMsg = "Could not find Chromium, the downloaded installer will install it..."
 		Write-Host -ForeGroundColor Yellow "$vMsg"; Write-Log "$vMsg"
 		$curVersion = "00.0.0000.000"
 	}
@@ -240,7 +619,7 @@ $xml = [xml](Invoke-WebRequest $rssFeed); $i = 0; While ($xml.rss.channel.item[$
 		<# MATCHES: If ($debug) {Write-Host "DEBUG: Matches[0], [1]:"; % {$Matches[0]}; % {$Matches[1]}} #>
 	}
 	<# INNER WHILE LOOP: HTML #>
-	$xml.rss.channel.item[$i].description."#cdata-section" | ForEach {
+	$xml.rss.channel.item[$i].description."#cdata-section" | ForEach-Object {
 		<# If ($debug) {Write-Host "DEBUG: HTML `$_:`r`n" $_} #>
 		If ($_ -Match '(?i)' + $channel + '.*?(Editor: <a href="' + $website + '/">' + $editor + '</a>).*(?i)' + $channel) { $editorMatch = 1 }
 		If ($_ -Match '(?i)' + $channel + '.*?(Architecture: 64-bit).*(?i)' + $channel) { $archMatch = 1 }
@@ -259,20 +638,20 @@ $xml = [xml](Invoke-WebRequest $rssFeed); $i = 0; While ($xml.rss.channel.item[$
 		}
 		If ($ignVer -eq 1) {
 			$url = [regex]::Replace($_, '.*?(?i)' + $channel + '.*?Download from.*?repository: .*?<li><a href="(' + $fileSrc + '(?:v[\d.]+-r)?\d{6}(?:-win64)?/' + $getFile + ')".*', '$1')
-			$revision = '\d{6}' 
+			$revision = '\d{6}'
 			$vMsg = "Ignoring version mismatch between feed and filename"
 			Write-Host -NoNewLine -ForeGroundColor Yellow "`r`n(!) $vMsg"; Write-Log "$vMsg"
 		}
 		If ($debug -eq 1) {
 			 If ($($xml.rss.channel.item[$i].title) -Match $editor) { Write-Host ("{0}`r`n{1}`r`n{0}" -f ("-"*80), "DEBUG: TITLE MATCHES EDITOR") }
-			'editor', 'architecture', 'version', 'channel', 'revision', 'date', 'url' | ForEach { Write-Host "DEBUG: $i cdata ${_}:" $(Invoke-Expression `$$_) } 
+			'editor', 'architecture', 'version', 'channel', 'revision', 'date', 'url' | ForEach-Object { Write-Host "DEBUG: $i cdata ${_}:" $(Invoke-Expression `$$_) }
 		}
-		If ($url -Match ('^https://.*' + '(' + $version + ')?.*' + $revision + '.*' + $getFile + '$') ) {	
+		If ($url -Match ('^https://.*' + '(' + $version + ')?.*' + $revision + '.*' + $getFile + '$') ) {
 		 	$urlMatch = 1
 			$hashFeed = [regex]::Replace($_, '.*?(?i)' + $channel + '.*?<a href="' + $url + '">' + $getFile + '</a> - (?:(sha1|md5): ([0-9a-f]{32}|[0-9a-f]{40}))</li>.*', '$1 $2')
 			$hashAlgo, $hash = $hashFeed.ToUpper().Split(' ')
 			If ($ignHash -eq 0) {
-				If (($hashAlgo -Match "SHA1|MD5") -And ($hash -Match "[0-9a-f]{32}|[0-9a-f]{40}")) { 
+				If (($hashAlgo -Match "SHA1|MD5") -And ($hash -Match "[0-9a-f]{32}|[0-9a-f]{40}")) {
 					$hashMatch = 1
 				} Else {
 					$hMsg = "ERROR: No valid hash for installer found, exiting..."
@@ -286,9 +665,9 @@ $xml = [xml](Invoke-WebRequest $rssFeed); $i = 0; While ($xml.rss.channel.item[$
 				Write-Host -ForeGroundColor Yellow "`r`n(!) ${hMsg}. Press any key to abort or `"c`" to continue...";	Write-Log "$hMsg"
 				$host.UI.RawUI.FlushInputBuffer()
 				$startTime = Get-Date; $waitTime = New-TimeSpan -Seconds 30
-				While ((-Not $host.ui.RawUI.KeyAvailable) -And ($curTime -lt $startTime + $waitTime)) {
-					$curTime = Get-Date; $RemainTime = (($startTime - $curTime ).Seconds) + ($waitTime.Seconds)
-					Write-Host -ForeGroundColor Yellow -NoNewLine "`r    Waiting $($waitTime.Seconds) seconds before continuing, ${remainTime}s left "
+				While ((-Not $host.ui.RawUI.KeyAvailable) -And ($curTime -lt ($startTime + $waitTime))) {
+					$curTime = Get-Date; $RemainTime = (($startTime - $curTime) + $waitTime).Seconds
+					Write-Host -ForeGroundColor Yellow -NoNewLine "`r    Waiting $($waitTime.TotalSeconds) seconds before continuing, ${remainTime}s left "
 				}
 				Write-Host "`r`n"
 				If ($host.ui.RawUI.KeyAvailable) {
@@ -303,7 +682,7 @@ $xml = [xml](Invoke-WebRequest $rssFeed); $i = 0; While ($xml.rss.channel.item[$
 $i++; If ($debug -eq 1) { Write-Host }
 }
 
-If ($debug -eq 1) { 'editorMatch', 'archMatch', 'chanMatch', 'urlMatch', 'hashMatch' | ForEach { Write-Host "DEBUG: ${_}:" $(Invoke-Expression `$$_) }; Write-Host }
+If ($debug -eq 1) { 'editorMatch', 'archMatch', 'chanMatch', 'urlMatch', 'hashMatch' | ForEach-Object { Write-Host "DEBUG: ${_}:" $(Invoke-Expression `$$_) }; Write-Host }
 
 <# DOWNLOAD LATEST AND CHECK VERSION #>
 $saveAs = "$env:TEMP\$getFile"
@@ -311,7 +690,7 @@ If (($editorMatch -eq 1) -And ($archMatch -eq 1) -And ($chanMatch -eq 1) -And ($
 	If (($url) -And ($url -NotMatch ".*$curVersion.*")) {
 	$ago = ((Get-Date) - ([DateTime]::ParseExact($date,'yyyy-MM-dd', $null)))
 	If ($ago.Days -lt 1) { $agoTxt = ($ago.Hours, "hours") } Else { $agoTxt = ($ago.Days, "days")	}
-	Write-Host "New version `"$version`" from $date is available ($agoTxt ago)"; Write-Log "New version `"$version`" from $date is available ($agoTxt ago)"
+	Write-Host "New Chromium version `"$version`" from $date is available ($agoTxt ago)"; Write-Log "New Chromium version `"$version`" from $date is available ($agoTxt ago)"
 		If ($debug -eq 1) {
 			If (&Test-Path "$saveAs") { Write-Host "DEBUG: Would have deleted $saveAs" }
 			Write-Host "DEBUG: Would have downloaded `"$url`" to `"$saveAs`""
@@ -326,11 +705,11 @@ If (($editorMatch -eq 1) -And ($archMatch -eq 1) -And ($chanMatch -eq 1) -And ($
 		}
 	} Else {
 		Write-Host -NoNewLine "["; Write-Host -NoNewLine -ForeGroundColor Green "OK"; Write-Host -NoNewLine "] Latest Chromium version already installed"; Write-Host
-		Write-Log "Latest version already installed"
+		Write-Log "Latest Chromium version already installed"
 		Exit 0
 	}
 } Else {
-	$vMsg = "No matching versions found"
+	$vMsg = "No matching Chromium versions found"
 	Write-Host "$vMsg - set correct `"channel`" and `"getFile`", exiting...`r`n";	Write-Log "$vMsg"
 	Exit 0
 }
@@ -345,10 +724,10 @@ If ($ignHash -eq 1) {
 If ((Get-FileHash -Algorithm $hashAlgo "$saveAs").Hash -eq $hash) {
 	$hMsg = "$hashAlgo Hash matches `"$hash`""; $eMsg = "Executing `"$getFile`""
 	Write-Host "${hMsg}`r`n${eMsg}..."; Write-Log "$hMsg"; Write-Log "$eMsg"
-	If ($fakeVer -eq 1) { 
+	If ($fakeVer -eq 1) {
 		$saveAs = "true"
 	}
-	If ($debug -eq 1) { 
+	If ($debug -eq 1) {
 		Write-Host "DEBUG: `$p = Start-Process -FilePath `"$saveAs`" -ArgumentList `"--do-not-launch-chrome`" -Wait -NoNewWindow -PassThru"
 	} Else {
 		$p = (Start-Process -FilePath "$saveAs" -ArgumentList "--do-not-launch-chrome" -Wait -NoNewWindow -PassThru)
