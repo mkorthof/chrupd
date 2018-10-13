@@ -9,9 +9,18 @@ Uses RSS feed from https://chromium.woolyss.com to download and install latest C
 
 #### Changes:
 
+2018-10-12:	Added 2 alternative modes to add Scheduled Tasks:
+
+1) Normal: Windows 8+ and 2012+, PowerShell 3.0+ (ScheduledTasks module)
+2) Legacy: Windows 7 and 2008, PowerShell 2.0+ (COMObject Schedule.Service)
+3) Command: Windows XP and 2003 (schtasks.exe)
+
+OS version should be detected and correct mode automatically selected, but `tsMode` can be used to force it. If the script is still unable to add a New Task it will display instructions on how to do it manually. It can also export to Task XML file. This takes care of issue [#3](https://github.com/mkorthof/chrupd/issues/3).
+
 2018-08-09: Nik's nosync builds are no longer available ([more info](https://chromium.woolyss.com/#news)). Removed related getFile option as it is no longer needed.
 
-2018-07-29: ~~There seems to be an mismatch between the Version and Revision listed in the RSS feed and URL of Nik's dev "sync" Installer (issue [#1](https://github.com/mkorthof/chrupd/issues/1)). Added option "`-ignVer`" to ignore this and skip checking version, be sure to manually check correct version when using this option.~~
+2018-07-29: FIXED
+###### There seems to be an mismatch between the Version and Revision listed in the RSS feed and URL of Nik's dev "sync" Installer (issue [#1](https://github.com/mkorthof/chrupd/issues/1)). Added option "`-ignVer`" to ignore this and skip checking version, be sure to manually check correct version when using this option.</small>
 
 #### Configuration:
 
@@ -24,13 +33,11 @@ Make sure the combination of editor and channel is correct:
 | Chromium     | dev          |
 | ThumbApps    | dev          |
 
-~~Also note that if editor is set to "Nik", you need to set getFile to either "chromium-sync.exe" (default) or "chromium-nosync.exe".~~
-
-For more information about versions: [chromium.woolyss.com](https://chromium.woolyss.com/?cut=1&ago=1) (RSS atom [feed](https://chromium.woolyss.com/feed/windows-64-bit)).
+You can also use  the```list``` option or for more information about versions see: [chromium.woolyss.com](https://chromium.woolyss.com/?cut=1&ago=1) (RSS atom [feed](https://chromium.woolyss.com/feed/windows-64-bit)).
 
 #### Scheduled Task:
 
-You can add a Scheduled Task with "-crTask". A VBS wrapper will be written to **chrupd.vbs** which is used to hide it's window. Option "-noVbs" disables the wrapper, this will however cause a flashing window when the task runs.
+You can add a Scheduled Task with "```crTask```". A VBS wrapper will be written to **chrupd.vbs** which is used to hide it's window. Option "```noVbs```" disables the wrapper, this will however cause a flashing window when the task runs.
 
 #### Updating:
 
@@ -47,14 +54,16 @@ To update Simple Chromium Updater to a newer version just replace "chrupd.cmd". 
 
 <pre>
 
-USAGE: chrupd.cmd -[editor|channel|force|list]
-                  -[crTask|rmTask|shTask|noVbs|confirm]
+USAGE: chrupd.cmd -[editor|channel|autoUpd|force|getVer|list]
+                  -[taskMode|crTask|rmTask|shTask|noVbs|confirm]
 
-         -editor  can be set to &lt;Nik|RobRich|Chromium|ThumbApps&gt;
-         -channel can be set to &lt;stable|dev&gt;
-         -force   always (re)install, even if latest version installed already
-         -list    lists editors and urls
+         -editor  can be set to <Nik|RobRich|Chromium|ThumbApps>
+         -channel can be set to <stable|dev>
+         -force   always (re)install, even if latest Chromium is installed
+         -getVer  lists currently installed Chromium version
+         -list    lists editors website, repository and installer
 
+         -tsMode  can be set to <1|2|3> or "auto" if unset, details below
          -crTask  to create a daily scheduled task
          -rmTask  to remove scheduled task
          -shTask  to show scheduled task details
@@ -63,9 +72,10 @@ USAGE: chrupd.cmd -[editor|channel|force|list]
 
 EXAMPLE: .\chrupd.cmd -editor Nik -channel stable [-crTask]
 
-NOTES:   Options "editor" and "channel" need an argument (CasE Sensive)
-         Schedule "xxTask" options can also be used without any other options
-         Options can be set permanently using variables inside script
+NOTES:   - Options "editor" and "channel" need an argument (CasE Sensive)
+         - Option "tsMode" task scheduler modes: unset Default=Auto(Detect OS),
+             or: 1=Normal(Windows8+), 2=Legacy(Win7), 3=Command(WinXP)
+         - Schedule "xxTask" options can also be used without any other options
+         - Options can be set permanently using variables inside script
 
 </pre>
-
