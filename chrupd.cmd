@@ -197,7 +197,7 @@ If ($Args -iMatch "[-/]h") {
 	Write-Host "EXAMPLE: .\$scriptCmd -editor Nik -channel stable [-crTask]", "`r`n"
 	Write-Host "NOTES:   - Options `"editor`" and `"channel`" need an argument (CasE Sensive)"
 <# Write-Host "`t" "Option `"getFile`" is only used if editor is set to `"Nik`"" #>
-  Write-Host "`t", "- Option `"tsMode`" task scheduler modes: unset Default=Auto(Detect OS), "
+  Write-Host "`t", "- Option `"tsMode`" task scheduler modes: default/unset Auto(Detect OS),"
   Write-Host "`t", "    or: 1=Normal(Windows8+), 2=Legacy(Win7), 3=Command(WinXP)"
 	Write-Host "`t", "- Schedule `"xxTask`" options can also be used without any other options"
 	Write-Host "`t", "- Options can be set permanently using variables inside script", "`r`n"
@@ -285,19 +285,15 @@ $confirmParam = $true
 If ( $(Try { -Not (Test-Path variable:local:tsMode) -Or ([string]::IsNullOrWhiteSpace($tsMode)) } Catch { $False }) ) {
 	$tsMode = 1
 }
-If ( $(Try { -Not (&Test-Path $vbsWrapper) } Catch { $False }) ) {
-	Write-Host "VBS Wrapper ($vbsWrapper) missing, creating..."
-	Set-Content $vbsWrapper -Value $vbsContent
-}
-$vbsWrapper = $scriptDir + "chrupd.vbs"
 <# $taskArgs = "-scheduler -editor $editor -channel $channel -autoUpd $autoUpd" #>
+$vbsWrapper = $scriptDir + "\chrupd.vbs"
 $taskArgs = "-scheduler -editor $editor -channel $channel"
-If ($noVbs -eq 1) {
-	$taskCmd = 'powershell.exe'
-	$taskArgs = "-ExecutionPolicy ByPass -NoLogo -NoProfile -WindowStyle Hidden $scriptCmd $taskArgs"
-} Else {
+If ($noVbs -eq 0) {
 	$taskCmd = "$vbsWrapper"
+} Else {
+	$taskCmd = 'powershell.exe'
 }
+$taskArgs = "-ExecutionPolicy ByPass -NoLogo -NoProfile -WindowStyle Hidden $scriptCmd $taskArgs"
 $taskDescr = "Download and install latest Chromium version"
 $createMsg = "Creating Daily Task `"$scriptName`" in Task Scheduler..."
 $crfailMsg = "Creating Scheduled Task failed."
@@ -352,6 +348,14 @@ $xmlContent = @"
 "@
 <# CREATE SCHEDULED TASK #>
 If ($crTask -eq 1) {
+  If ( $(Try { -Not (&Test-Path $vbsWrapper) } Catch { $False }) ) {
+  	Write-Host "VBS Wrapper ($vbsWrapper) missing, creating...`r`n"
+  	Set-Content $vbsWrapper -ErrorAction Stop -WarningAction Stop -Value $vbsContent
+	  If ( $(Try { -Not (&Test-Path $vbsWrapper) } Catch { $False }) ) {
+			Write-Host "Could not create VBS Wrapper, try again or use `"-noVbs`" to skip"
+			Exit 1
+		}
+  }
 	Switch ($tsMode) {
 		<# NORMAL MODE #>
 		1 {
