@@ -274,7 +274,7 @@ $vbsContent = @"
 '
 Dim WinScriptHost
 For i = 0 to (WScript.Arguments.Count - 1)
-				Args = Args & " " & WScript.Arguments(i)
+	Args = Args & " " & WScript.Arguments(i)
 Next
 Set WinScriptHost = CreateObject("WScript.Shell")
 WinScriptHost.Run Chr(34) & "${scriptDir}$scriptCmd" & Chr(34) & " " & Args, 0
@@ -292,8 +292,8 @@ If ($noVbs -eq 0) {
 	$taskCmd = "$vbsWrapper"
 } Else {
 	$taskCmd = 'powershell.exe'
+	$taskArgs = "-ExecutionPolicy ByPass -NoLogo -NoProfile -WindowStyle Hidden $scriptCmd $taskArgs"
 }
-$taskArgs = "-ExecutionPolicy ByPass -NoLogo -NoProfile -WindowStyle Hidden $scriptCmd $taskArgs"
 $taskDescr = "Download and install latest Chromium version"
 $createMsg = "Creating Daily Task `"$scriptName`" in Task Scheduler..."
 $crfailMsg = "Creating Scheduled Task failed."
