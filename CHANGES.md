@@ -1,5 +1,3 @@
-# Simple Chromium Updater (chrupd.cmd)
-
 ### Changes:
 
 **2019-01-26** Added `UseBasicParsing` parameter to `Invoke-Webrequest` (fixes issue [#4](https://github.com/mkorthof/chrupd/issues/4))
