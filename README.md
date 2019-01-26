@@ -9,7 +9,7 @@ Uses RSS feed from https://chromium.woolyss.com to download and install latest C
 
 ### Changes:
 
-Moved to [CHANGES.md](CHANGES.md])
+Moved to [CHANGES.md](CHANGES.md)
 
 ### Configuration:
 
