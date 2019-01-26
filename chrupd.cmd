@@ -7,7 +7,7 @@ GOTO :EOF
 #>
 
 <# ------------------------------------------------------------------------- #>
-<# 20180808 MK: Simple Chromium Updater (chrupd.cmd)                         #>
+<# 20190126 MK: Simple Chromium Updater (chrupd.cmd)                         #>
 <# ------------------------------------------------------------------------- #>
 <# Uses RSS feed from "chromium.woolyss.com" to download and install latest  #>
 <# Chromium version, if a newer version is available. Options can be set     #>
@@ -68,18 +68,18 @@ $items = @{
 }
 
 <#
-  "Windows Version"         = @(majorVer, minorVer, osType[1=ws,3=server], tsMode)
+  "Windows Version" = @(majorVer, minorVer, osType[1=ws,3=server], tsMode)
 #>
 $windowsVersions = @{
-	"Windows 10" 							= @(10, 0, 1, 1);
-	"Windows 8.1" 						= @( 6, 3, 1, 1);
-	"Windows 8" 							= @( 6, 2, 1, 1);
-	"Windows 7" 							= @( 6, 1, 1, 2);
-	"Windows Vista" 					= @( 6, 0, 1, 2);
-	"Windows XP 64bit"				= @( 5, 2, 1, 3);
-	"Windows XP" 							= @( 5, 1, 1, 3);
-  "Windows Server 2019" 		= @(10, 0, 3, 1);
-  "Windows Server 2016" 		= @(10, 0, 3, 1);
+	"Windows 10" 				= @(10, 0, 1, 1);
+	"Windows 8.1" 				= @( 6, 3, 1, 1);
+	"Windows 8" 				= @( 6, 2, 1, 1);
+	"Windows 7" 				= @( 6, 1, 1, 2);
+	"Windows Vista" 			= @( 6, 0, 1, 2);
+	"Windows XP 64bit"			= @( 5, 2, 1, 3);
+	"Windows XP" 				= @( 5, 1, 1, 3);
+	"Windows Server 2019" 		= @(10, 0, 3, 1);
+	"Windows Server 2016" 		= @(10, 0, 3, 1);
 	"Windows Server 2012 R2" 	= @( 6, 3, 3, 1);
 	"Windows Server 2012" 		= @( 6, 2, 3, 1);
 	"Windows Server 2008 R2"	= @( 6, 1, 3, 2);
@@ -100,9 +100,12 @@ $tsList = @{
 
 Write-Host -ForeGroundColor White -NoNewLine "`r`n$scriptName"; Write-Host " ($scriptCmd)"; Write-Host ("-" * 36)"`r`n"
 
-<#
-TODO: selfupdater
- (!) retain user settings/vars from current version
+<# TODO: selfupdater
+- (!) retain user settings/vars from current version
+- get SHA from gh:
+	GET /repos/:owner/:repo/contents/:path
+	GET /repos/<owner>/<repo>/git/trees/url_encode(<branch_name>:<parent_path>)
+	e.g. https://api.github.com/repos/libgit2/libgit2sharp/git/trees/master:Lib%2FMoQ
 #>
 $autoUpd = 1
 If ($Args -iMatch "-testUpd") {
@@ -110,11 +113,11 @@ If ($Args -iMatch "-testUpd") {
 	Return
   If ($autoUpd -eq 1) {
   	$loBlob = "blob $((Get-Item $scriptCmd).Length)`0" + $(Get-Content "$scriptCmd"|Out-string)
-		#TEST: $scriptCmd = "README.md"; $loblob = "blob $((Get-Item ${scriptDir}$scriptCmd).Length)`0" + Get-Content "${scriptDir}$scriptCmd"
+	#TEST: $scriptCmd = "README.md"; $loblob = "blob $((Get-Item ${scriptDir}$scriptCmd).Length)`0" + Get-Content "${scriptDir}$scriptCmd"
   	$loSha = (Get-FileHash -Algorithm SHA1 -InputStream ([System.IO.MemoryStream]::new([System.Text.Encoding]::UTF8.GetBytes((($loBlob)))))).Hash
     [System.Net.ServicePointManager]::SecurityProtocol = @("Tls12","Tls11","Tls")
   	$ghApi = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String("aHR0cHM6Ly9hcGkuZ2l0aHViLmNvbS9yZXBvcy9ta29ydGhvZi9jaHJ1cGQvY29udGVudHMvY2hydXBkLmNtZA=="))
-  	$ghJson = (ConvertFrom-Json(Invoke-WebRequest $ghApi))
+  	$ghJson = (ConvertFrom-Json(Invoke-WebRequest -UseBasicParsing -TimeoutSec 300 -Uri $ghApi))
     #$ghContent = ($ghJson).content
   	#$ghTmp  = [System.Text.Encoding]::UTF8.GetBytes.(($ghJson).content)
   	#$ghStr = [System.Convert]::ToBase64String($ghTmp)
@@ -193,12 +196,12 @@ If ($Args -iMatch "[-/]h") {
 	Write-Host "`t", "-confirm to answer Y on prompt about removing scheduled task", "`r`n"
 <# Write-Host "`t" "-ignVer  (!) ignore version mismatch between feed and filename" "`r`n" #>
 <# Write-Host "EXAMPLE: .\$scriptCmd -editor Nik -channel stable -getFile chromium-nosync.exe #>
-<#	Write-Host "EXAMPLE: .\$scriptCmd -editor Nik -channel stable [-autoUpd 1] [-crTask]", "`r`n" #>
+<# Write-Host "EXAMPLE: .\$scriptCmd -editor Nik -channel stable [-autoUpd 1] [-crTask]", "`r`n" #>
 	Write-Host "EXAMPLE: .\$scriptCmd -editor Nik -channel stable [-crTask]", "`r`n"
 	Write-Host "NOTES:   - Options `"editor`" and `"channel`" need an argument (CasE Sensive)"
 <# Write-Host "`t" "Option `"getFile`" is only used if editor is set to `"Nik`"" #>
-  Write-Host "`t", "- Option `"tsMode`" task scheduler modes: default/unset Auto(Detect OS),"
-  Write-Host "`t", "    or: 1=Normal(Windows8+), 2=Legacy(Win7), 3=Command(WinXP)"
+	Write-Host "`t", "- Option `"tsMode`" task scheduler modes: default/unset Auto(Detect OS),"
+	Write-Host "`t", "    or: 1=Normal(Windows8+), 2=Legacy(Win7), 3=Command(WinXP)"
 	Write-Host "`t", "- Schedule `"xxTask`" options can also be used without any other options"
 	Write-Host "`t", "- Options can be set permanently using variables inside script", "`r`n"
 	Exit 0
@@ -356,120 +359,120 @@ If ($crTask -eq 1) {
 			Exit 1
 		}
   }
-	Switch ($tsMode) {
-		<# NORMAL MODE #>
-		1 {
-    	$action = New-ScheduledTaskAction -Execute $taskCmd -Argument "$taskArgs" -WorkingDirectory "$scriptDir"
-    	$trigger = New-ScheduledTaskTrigger -RandomDelay (New-TimeSpan -Hour 1) -Daily -At 17:00
-    	If (-Not (&Get-ScheduledTask -ErrorAction SilentlyContinue -TaskName "$scriptName")) {
-    		Write-Host $createMsg
-    		Try { (Register-ScheduledTask -Action $action -Trigger $trigger -TaskName "$scriptName" -Description "$taskDescr") | Out-Null }
+  Switch ($tsMode) {
+	<# NORMAL MODE #>
+	1 {
+		$action = New-ScheduledTaskAction -Execute $taskCmd -Argument "$taskArgs" -WorkingDirectory "$scriptDir"
+		$trigger = New-ScheduledTaskTrigger -RandomDelay (New-TimeSpan -Hour 1) -Daily -At 17:00
+		If (-Not (&Get-ScheduledTask -ErrorAction SilentlyContinue -TaskName "$scriptName")) {
+			Write-Host $createMsg
+			Try { (Register-ScheduledTask -Action $action -Trigger $trigger -TaskName "$scriptName" -Description "$taskDescr") | Out-Null }
 				Catch { Write-Host "$swrongMsg`r`nError: `"$($_.Exception.Message)`"" }
-    	} Else {
-    		Write-Host $existsMsg
-    	}
-   	  If (&Get-ScheduledTask -ErrorAction SilentlyContinue -TaskName "$scriptName" -OutVariable task) {
-				If ( $(Try { (Test-Path variable:local:task) -And (-Not [string]::IsNullOrWhiteSpace($task)) } Catch { $False }) ) {
-			   	Write-Host ("Task: `"{0}{1}`"`r`nDescription: `"{2}`", State: {3}`r`n" -f ($task).TaskPath, ($task).TaskName, ($task).Description, ($task).State)
-				} Else {
-					Write-Host "$crfailMsg"
-				}
-			}	Else {
-				Write-Host ("{0}`r`n`r`n  {1}`r`n  {2}`r`n" -f $crfailMsg, $manualMsg, $exportMsg)
-			}
+		} Else {
+			Write-Host $existsMsg
 		}
-		<# LEGACY MODE #>
-		2 {
-      $taskService = New-Object -ComObject("Schedule.Service")
-      $taskService.Connect()
-      $taskFolder = $taskService.GetFolder("\")
-			If (-Not $(Try { $taskFolder.GetTask("$scriptName") } Catch { $False }) ) {
- 				Write-Host $createMsg
-        $taskDef = $taskService.NewTask(0) 
-        $taskDef.RegistrationInfo.Description = "$TaskDescr"
-        $taskDef.Settings.Enabled = $true
-        $taskDef.Settings.AllowDemandStart = $true
-
-        $trigCollection = $taskDef.Triggers
-        $trigger = $trigCollection.Create(2)
-
-        $trigger.StartBoundary = ((Get-Date).toString("yyyy-MM-dd'T'17:00:00"))
-        $trigger.RandomDelay = "PT1H"
-        $trigger.DaysInterval = 1
-        $trigger.Enabled = $true
-
-				$execAction = $taskDef.Actions.Create(0)
-        $execAction.Path = "$taskCmd"
-        $execAction.Arguments = "$taskArgs"
-        $execAction.WorkingDirectory = "$scriptDir"
-    		Try { $x = $taskFolder.RegisterTaskDefinition("$scriptName", $taskDef, 6, "", "", 3, "") }
-				Catch { Write-Host "$swrongMsg Error: `"$($_.Exception.Message)`"" }
-				If ( $(Try { -Not (Test-Path variable:local:x) -Or ( [string]::IsNullOrWhiteSpace($x)) } Catch { $False }) ) {
-					Write-Host ("{0}`r`n`r`n  {1}`r`n  {2}`r`n" -f $crfailMsg, $manualMsg, $exportMsg)
-				}
-    	} Else {
-    		Write-Host $existsMsg
-    	}
-			If ( $(Try { $taskFolder.GetTask("$scriptName") } Catch { $False }) ) {
-				$task = $taskFolder.GetTask("$scriptName")
-	  		Write-Host ("Task: `"{0}{1}`"`r`nDescription: `"{2}`", State: {3}.`r`n" -f $($task.Path), "", $($task.Definition.RegistrationInfo.Description), $($task.State))
-			}
-		}
-	<# CMD MODE #>
-	3 {
-			Write-Host "$createMsg`r`n"
-			Write-Host "Creating Task XML File..."
-			Set-Content "$env:TEMP\chrupd.xml" -Value $xmlContent
-			$delay = (Get-Random -minimum 0 -maximum 59).ToString("00")
-			<# $a = "/Create /SC DAILY /ST 17:${delay} /TN \\`"$scriptName`" /TR `"'$vbsWrapper' $taskArgs`"" #>
-			$a = "/Create /TN \\`"$scriptName`" /XML `"$env:TEMP\chrupd.xml`""
-			If ($confirm -eq 1) { $a = "$a /F" }
-			$p = Start-Process -FilePath "$env:SystemRoot\system32\schtasks.exe" -ArgumentList $a -Wait -NoNewWindow -PassThru
-			$handle = $p.Handle
-			$p.WaitForExit()
-			If ($p.ExitCode -eq 0) {
-				Write-Host
+		If (&Get-ScheduledTask -ErrorAction SilentlyContinue -TaskName "$scriptName" -OutVariable task) {
+			If ( $(Try { (Test-Path variable:local:task) -And (-Not [string]::IsNullOrWhiteSpace($task)) } Catch { $False }) ) {
+			Write-Host ("Task: `"{0}{1}`"`r`nDescription: `"{2}`", State: {3}`r`n" -f ($task).TaskPath, ($task).TaskName, ($task).Description, ($task).State)
 			} Else {
-				Write-Host ("`r`n{0}`r`n`r`n  {1}`r`n  {2}`r`n" -f $crfailMsg, $manualMsg, $exportMsg)
+				Write-Host "$crfailMsg"
 			}
-			Try { Remove-Item -ErrorAction SilentlyContinue -WarningAction SilentlyContinue -Force "$env:TEMP\chrupd.xml" } Catch { $False }
+		}	Else {
+			Write-Host ("{0}`r`n`r`n  {1}`r`n  {2}`r`n" -f $crfailMsg, $manualMsg, $exportMsg)
 		}
 	}
- 	Exit 0
+	<# LEGACY MODE #>
+	2 {
+		$taskService = New-Object -ComObject("Schedule.Service")
+		$taskService.Connect()
+		$taskFolder = $taskService.GetFolder("\")
+		If (-Not $(Try { $taskFolder.GetTask("$scriptName") } Catch { $False }) ) {
+			Write-Host $createMsg
+			$taskDef = $taskService.NewTask(0) 
+			$taskDef.RegistrationInfo.Description = "$TaskDescr"
+			$taskDef.Settings.Enabled = $true
+			$taskDef.Settings.AllowDemandStart = $true
+
+			$trigCollection = $taskDef.Triggers
+			$trigger = $trigCollection.Create(2)
+
+			$trigger.StartBoundary = ((Get-Date).toString("yyyy-MM-dd'T'17:00:00"))
+			$trigger.RandomDelay = "PT1H"
+			$trigger.DaysInterval = 1
+			$trigger.Enabled = $true
+
+			$execAction = $taskDef.Actions.Create(0)
+			$execAction.Path = "$taskCmd"
+			$execAction.Arguments = "$taskArgs"
+			$execAction.WorkingDirectory = "$scriptDir"
+			Try { $x = $taskFolder.RegisterTaskDefinition("$scriptName", $taskDef, 6, "", "", 3, "") }
+			Catch { Write-Host "$swrongMsg Error: `"$($_.Exception.Message)`"" }
+			If ( $(Try { -Not (Test-Path variable:local:x) -Or ( [string]::IsNullOrWhiteSpace($x)) } Catch { $False }) ) {
+				Write-Host ("{0}`r`n`r`n  {1}`r`n  {2}`r`n" -f $crfailMsg, $manualMsg, $exportMsg)
+			}
+		} Else {
+			Write-Host $existsMsg
+		}
+		If ( $(Try { $taskFolder.GetTask("$scriptName") } Catch { $False }) ) {
+			$task = $taskFolder.GetTask("$scriptName")
+			Write-Host ("Task: `"{0}{1}`"`r`nDescription: `"{2}`", State: {3}.`r`n" -f $($task.Path), "", $($task.Definition.RegistrationInfo.Description), $($task.State))
+		}
+	}
+	<# CMD MODE #>
+	3 {
+		Write-Host "$createMsg`r`n"
+		Write-Host "Creating Task XML File..."
+		Set-Content "$env:TEMP\chrupd.xml" -Value $xmlContent
+		$delay = (Get-Random -minimum 0 -maximum 59).ToString("00")
+		<# $a = "/Create /SC DAILY /ST 17:${delay} /TN \\`"$scriptName`" /TR `"'$vbsWrapper' $taskArgs`"" #>
+		$a = "/Create /TN \\`"$scriptName`" /XML `"$env:TEMP\chrupd.xml`""
+		If ($confirm -eq 1) { $a = "$a /F" }
+		$p = Start-Process -FilePath "$env:SystemRoot\system32\schtasks.exe" -ArgumentList $a -Wait -NoNewWindow -PassThru
+		$handle = $p.Handle
+		$p.WaitForExit()
+		If ($p.ExitCode -eq 0) {
+			Write-Host
+		} Else {
+			Write-Host ("`r`n{0}`r`n`r`n  {1}`r`n  {2}`r`n" -f $crfailMsg, $manualMsg, $exportMsg)
+		}
+		Try { Remove-Item -ErrorAction SilentlyContinue -WarningAction SilentlyContinue -Force "$env:TEMP\chrupd.xml" } Catch { $False }
+	}
+}
+Exit 0
 <# REMOVE SCHEDULED TASK #>
 } ElseIf ($rmTask -eq 1) {
 	Switch ($tsMode) {
 		<# NORMAL MODE #>
-  	1 {
+  		1 {
 			If ($confirm -eq 1) {	$confirmParam = $false }
-    	If (&Get-ScheduledTask -ErrorAction SilentlyContinue -TaskName "$scriptName") {
-    		Write-Host "$removeMsg`r`n"
-    		Try { UnRegister-ScheduledTask -confirm:${confirmParam} -TaskName "$scriptName" } Catch { Write-Host "${wrongMsg}... $($_.Exception.Message)" }
-    	} Else {
-    		Write-Host "$notaskMsg`r`n"
-    	}
-    	If (&Get-ScheduledTask -ErrorAction SilentlyContinue -TaskName "$scriptName" -OutVariable task) {
+			If (&Get-ScheduledTask -ErrorAction SilentlyContinue -TaskName "$scriptName") {
+				Write-Host "$removeMsg`r`n"
+				Try { UnRegister-ScheduledTask -confirm:${confirmParam} -TaskName "$scriptName" } Catch { Write-Host "${wrongMsg}... $($_.Exception.Message)" }
+			} Else {
+				Write-Host "$notaskMsg`r`n"
+			}
+			If (&Get-ScheduledTask -ErrorAction SilentlyContinue -TaskName "$scriptName" -OutVariable task) {
 				If ( $(Try { (Test-Path variable:local:task) -And (-Not [string]::IsNullOrWhiteSpace($task)) } Catch { $False }) ) {
-    			Write-Host ("Could not remove Task: `"{0}{1}`", Description: `"{2}`", State: {3}`r`n" -f ($task).TaskPath, ($task).TaskName, ($task).Description, ($task).State)
-    			Write-Host ("{0}`r`n`r`n{1}`r`n" -f $rmfailMsg, $manualMsg)
+					Write-Host ("Could not remove Task: `"{0}{1}`", Description: `"{2}`", State: {3}`r`n" -f ($task).TaskPath, ($task).TaskName, ($task).Description, ($task).State)
+					Write-Host ("{0}`r`n`r`n{1}`r`n" -f $rmfailMsg, $manualMsg)
 				}
-    	}
+			}
 		}
 		<# LEGACY MODE #>
 		2 {
-      $taskService = New-Object -ComObject("Schedule.Service")
-      $taskService.Connect()
-      $taskFolder = $taskService.GetFolder("\")
+			$taskService = New-Object -ComObject("Schedule.Service")
+			$taskService.Connect()
+			$taskFolder = $taskService.GetFolder("\")
 			If ( $(Try { $taskFolder.GetTask("$scriptName") } Catch { $False }) ) {
-	    	Write-Host "$removeMsg`r`n"
+				Write-Host "$removeMsg`r`n"
 				Try { $taskFolder.DeleteTask("$scriptName", 0) } Catch { Write-Host "${wrongMsg}... $($_.Exception.Message)" }
-    	} Else {
-    		Write-Host "$notaskMsg`r`n"
-    	}
+    		} Else {
+    			Write-Host "$notaskMsg`r`n"
+    		}
 			If ( $(Try { $taskFolder.GetTask("$scriptName") } Catch { $False }) ) {
 				$task = $taskFolder.GetTask("$scriptName")
-  			Write-Host ("Could not remove Task: `"{0}{1}`", Description: `"{2}`", State: {3}`r`n" -f "", ($task).TaskName, ($task).Description, ($task).State)
-   			Write-Host ("{0}`r`n`r`n{1}`r`n" -f $rmfailMsg, $manualMsg)
+  				Write-Host ("Could not remove Task: `"{0}{1}`", Description: `"{2}`", State: {3}`r`n" -f "", ($task).TaskName, ($task).Description, ($task).State)
+   				Write-Host ("{0}`r`n`r`n{1}`r`n" -f $rmfailMsg, $manualMsg)
 			}
 		}
 		<# COMMAND MODE #>
@@ -492,31 +495,31 @@ If ($crTask -eq 1) {
 
 	Switch ($tsMode) {
 		<# NORMAL MODE #>
-  	1 {
-    	If (&Get-ScheduledTask -ErrorAction SilentlyContinue -TaskName "$scriptName" -OutVariable task) {
+  		1 {
+			If (&Get-ScheduledTask -ErrorAction SilentlyContinue -TaskName "$scriptName" -OutVariable task) {
 				If ( $(Try { (Test-Path variable:local:task) -And (-Not [string]::IsNullOrWhiteSpace($task)) } Catch { $False }) ) {
-	    		$taskinfo = (&Get-ScheduledTaskInfo -TaskName "$scriptName")
-    			Write-Host ("Task: `"{0}{1}`"`r`nDescription: `"{2}`", State: {3}." -f ($task).TaskPath, ($task).TaskName, ($task).Description, ($task).State)
-    			Write-Host ("Actions: WorkingDirectory: `"{0}`", Execute: `"{1}`", Arguments: `"{2}`"" -f ($task).actions.WorkingDirectory, ($task).actions.Execute, ($task).actions.Arguments)
-    			Write-Host ("TaskInfo: LastRunTime: `"{0}`", NextRunTime: `"{1}`", NumberOfMissedRuns: {2}`r`n" -f ($taskinfo).LastRunTime, ($taskinfo).NextRunTime, ($taskinfo).NumberOfMissedRuns)
+					$taskinfo = (&Get-ScheduledTaskInfo -TaskName "$scriptName")
+					Write-Host ("Task: `"{0}{1}`"`r`nDescription: `"{2}`", State: {3}." -f ($task).TaskPath, ($task).TaskName, ($task).Description, ($task).State)
+					Write-Host ("Actions: WorkingDirectory: `"{0}`", Execute: `"{1}`", Arguments: `"{2}`"" -f ($task).actions.WorkingDirectory, ($task).actions.Execute, ($task).actions.Arguments)
+					Write-Host ("TaskInfo: LastRunTime: `"{0}`", NextRunTime: `"{1}`", NumberOfMissedRuns: {2}`r`n" -f ($taskinfo).LastRunTime, ($taskinfo).NextRunTime, ($taskinfo).NumberOfMissedRuns)
 				}
-    	} Else {
-    		Write-Host "$nfoundMsg`r`n"
-    	}
-  	}
+			} Else {
+				Write-Host "$nfoundMsg`r`n"
+			}
+  		}
 		<# LEGACY MODE #>
 		2 {
-      $taskService = New-Object -ComObject("Schedule.Service")
-      $taskService.Connect()
-      $taskFolder = $taskService.GetFolder("\")
-  		If ( $(Try { $taskFolder.GetTask("$scriptName") } Catch { $False }) ) {
+			$taskService = New-Object -ComObject("Schedule.Service")
+			$taskService.Connect()
+			$taskFolder = $taskService.GetFolder("\")
+			If ( $(Try { $taskFolder.GetTask("$scriptName") } Catch { $False }) ) {
 				$task = $taskFolder.GetTask("$scriptName")
-    		Write-Host ("Task: `"{0}{1}`"`r`nDescription: `"{2}`", State: {3}." -f $($task.Path), "", $($task.Definition.RegistrationInfo.Description), $($task.State))
-    		Write-Host ("Actions: WorkingDirectory: `"{0}`", Execute: `"{1}`", Arguments: `"{2}`"" -f $($($task.Definition.Actions).WorkingDirectory), $($($task.Definition.Actions).Path), $($($task.Definition.Actions).Arguments))
-    		Write-Host ("TaskInfo: LastRunTime: `"{0}`", NextRunTime: `"{1}`", NumberOfMissedRuns: {2}`r`n" -f $($task.LastRunTime), $($task.NextRunTime), $($task.NumberOfMissedRuns))
-    	} Else {
-    		Write-Host "$nfoundMsg`r`n"
-    	}
+				Write-Host ("Task: `"{0}{1}`"`r`nDescription: `"{2}`", State: {3}." -f $($task.Path), "", $($task.Definition.RegistrationInfo.Description), $($task.State))
+				Write-Host ("Actions: WorkingDirectory: `"{0}`", Execute: `"{1}`", Arguments: `"{2}`"" -f $($($task.Definition.Actions).WorkingDirectory), $($($task.Definition.Actions).Path), $($($task.Definition.Actions).Arguments))
+				Write-Host ("TaskInfo: LastRunTime: `"{0}`", NextRunTime: `"{1}`", NumberOfMissedRuns: {2}`r`n" -f $($task.LastRunTime), $($task.NextRunTime), $($task.NumberOfMissedRuns))
+	    	} Else {
+    			Write-Host "$nfoundMsg`r`n"
+    		}
 		}
 		<# CMD MODE #>
 		3 {
@@ -524,28 +527,28 @@ If ($crTask -eq 1) {
 			# $p = Start-Process -FilePath "$env:SystemRoot\system32\schtasks.exe" -ArgumentList $a -Wait -NoNewWindow -PassThru
 			# $handle = $p.Handle	
 			# $p.WaitForExit()
-      $pinfo = New-Object System.Diagnostics.ProcessStartInfo
-      $pinfo.FileName = "$env:SystemRoot\system32\schtasks.exe"
-      $pinfo.RedirectStandardError = $true
-      $pinfo.RedirectStandardOutput = $true
-      $pinfo.UseShellExecute = $false
-      $pinfo.Arguments = "$a"
-      $p = New-Object System.Diagnostics.Process
-      $p.StartInfo = $pinfo
-      $p.Start() | Out-Null
-      $p.WaitForExit()
-      [xml]$stdout = $p.StandardOutput.ReadToEnd()
-      $stderr = $p.StandardError.ReadToEnd()
+			$pinfo = New-Object System.Diagnostics.ProcessStartInfo
+			$pinfo.FileName = "$env:SystemRoot\system32\schtasks.exe"
+			$pinfo.RedirectStandardError = $true
+			$pinfo.RedirectStandardOutput = $true
+			$pinfo.UseShellExecute = $false
+			$pinfo.Arguments = "$a"
+			$p = New-Object System.Diagnostics.Process
+			$p.StartInfo = $pinfo
+			$p.Start() | Out-Null
+			$p.WaitForExit()
+			[xml]$stdout = $p.StandardOutput.ReadToEnd()
+			$stderr = $p.StandardError.ReadToEnd()
 			If ($p.ExitCode -eq 0) {
 				$stOut = (&$env:SystemRoot\system32\schtasks.exe /Query /TN `"$scriptName`" /FO LIST /V)
 				$State = $(($stOut | Select-String -Pattern "^Status") -Replace '.*: +(.*)$', '$1')
 				$LastRunTime = $(($stOut | Select-String -Pattern "^Last Run Time") -Replace '.*: +(.*)$', '$1')
 				$NextRunTime = $(($stOut | Select-String -Pattern "^Next Run Time") -Replace '.*: +(.*)$', '$1')
-    		Write-Host ("Task: `"{0}{1}`"`r`nDescription: `"{2}`", State: {3}." -f $($stdout.Task.RegistrationInfo.URI), "", $($stdout.Task.RegistrationInfo.Description), $State)
-     		Write-Host ("Actions: WorkingDirectory: `"{0}`", Execute: `"{1}`", Arguments: `"{2}`"" -f $($stdout.Task.Actions.Exec.WorkingDirectory), $($stdout.Task.Actions.Exec.Command), $($stdout.Task.Actions.Exec.Arguments))
-     		Write-Host ("TaskInfo: LastRunTime: `"{0}`", NextRunTime: `"{1}`", NumberOfMissedRuns: {2}`r`n" -f $LastRunTime, $NextRunTime, "?")
+				Write-Host ("Task: `"{0}{1}`"`r`nDescription: `"{2}`", State: {3}." -f $($stdout.Task.RegistrationInfo.URI), "", $($stdout.Task.RegistrationInfo.Description), $State)
+				Write-Host ("Actions: WorkingDirectory: `"{0}`", Execute: `"{1}`", Arguments: `"{2}`"" -f $($stdout.Task.Actions.Exec.WorkingDirectory), $($stdout.Task.Actions.Exec.Command), $($stdout.Task.Actions.Exec.Arguments))
+				Write-Host ("TaskInfo: LastRunTime: `"{0}`", NextRunTime: `"{1}`", NumberOfMissedRuns: {2}`r`n" -f $LastRunTime, $NextRunTime, "?")
 			} Else {
-    		Write-Host "$nfoundMsg`r`nError: $stderr"
+	    		Write-Host "$nfoundMsg`r`nError: $stderr"
 			}
 		}
 	}
@@ -555,7 +558,7 @@ If ($crTask -eq 1) {
 	Write-Host "manually by going to: `"Start > Task Scheduler`" or `"Run taskschd.msc`".`r`n"
 	Write-Host "These settings can be used when creating a New Task :`r`n"
 	Write-Host ("  Name: `"{0}`"`r`n    Description `"{1}`"`r`n    Trigger: Daily 17:00 (1H random delay)`r`n    Action: `"{2}`"`r`n    Arguments: `"{3}`"`r`n    WorkDir: `"{4}`"`r`n" `
-								-f $scriptName, $taskDescr, $taskCmd, $taskArgs, $scriptDir)
+				-f $scriptName, $taskDescr, $taskCmd, $taskArgs, $scriptDir)
 	Exit 0
 } ElseIf ($xmlTask -eq 1) {
 	Set-Content "$env:TEMP\chrupd.xml" -Value $xmlContent
@@ -613,7 +616,7 @@ $cMsg = "Checking: `"$checkSite`", Editor: `"$editor`", Channel: `"$channel`""
 Write-Host "Using the folowing settings:`r`n$cMsg`r`n"; Write-Log "$cMsg"
 
 <# MAIN OUTER WHILE LOOP: XML #>
-$xml = [xml](Invoke-WebRequest $rssFeed); $i = 0; While ($xml.rss.channel.item[$i]) {
+$xml = [xml](Invoke-WebRequest -UseBasicParsing -TimeoutSec 300 -Uri $rssFeed); $i = 0; While ($xml.rss.channel.item[$i]) {
 	$editorMatch = 0; $archMatch = 0; $chanMatch = 0; $urlMatch = 0; $hashMatch = 0
 	If ($debug -eq 1) {
 		Write-Host "DEBUG: $i xml title: $($xml.rss.channel.item[$i].title)"
