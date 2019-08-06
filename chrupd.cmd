@@ -1,6 +1,6 @@
 <# :
 @echo off
-SETLOCAL & SET "PS_BAT_ARGS=%~dp0 %*"
+SETLOCAL & SET PS_BAT_ARGS="%~dp0" %*
 IF DEFINED PS_BAT_ARGS SET "PS_BAT_ARGS=%PS_BAT_ARGS:"="""%"
 ENDLOCAL & powershell.exe -NoLogo -NoProfile -Command "&(Invoke-Command {[ScriptBlock]::Create('$Args = @( &{$Args} %PS_BAT_ARGS% );'+[String]::Join([char]10,(Get-Content \"%~f0\")))})"
 GOTO :EOF
@@ -49,7 +49,7 @@ If ( $(Try { (Test-Path variable:local:scriptDir) -And (&Test-Path $scriptDir) -
 	$scriptDir = ($ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath('.\'))
 }
 
-$logFile = $scriptDir + "\chrupd.log"
+$logFile = $scriptDir + "chrupd.log"
 $scriptName = "Simple Chromium Updater"; $scriptCmd = "chrupd.cmd"
 $installLog = "$env:TEMP\chromium_installer.log"
 $checkSite = "chromium.woolyss.com"
