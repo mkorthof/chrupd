@@ -1,8 +1,7 @@
 <# :
 @echo off
-SETLOCAL & SET "PS_BAT_ARGS=%~dp0 %*"
-IF DEFINED PS_BAT_ARGS SET "PS_BAT_ARGS=%PS_BAT_ARGS:"="""%"
-ENDLOCAL & powershell.exe -NoLogo -NoProfile -Command "&(Invoke-Command {[ScriptBlock]::Create('$Args = @( &{$Args} %PS_BAT_ARGS% );'+[String]::Join([char]10,(Get-Content \"%~f0\")))})"
+SETLOCAL & SET "PS_BAT_ARGS=\""%~dp0|"\" %*"
+ENDLOCAL & powershell.exe -NoLogo -NoProfile -Command "&(Invoke-Command {[ScriptBlock]::Create('$Args = @( &{$Args} %PS_BAT_ARGS%" );'+[String]::Join([char]10,(Get-Content \"%~f0\")))})"
 GOTO :EOF
 #>
 
@@ -41,9 +40,11 @@ $log = 1
 
 <# END OF CONFIGURATION ---------------------------------------------------- #>
 
+$Args = $Args -Replace '\|', ''
 $autoUpd = 0
 $scriptDir = $Args[0]
-If ( $(Try { (Test-Path variable:local:scriptDir) -And (&Test-Path $scriptDir) -And (-Not [string]::IsNullOrWhiteSpace($scriptDir)) } Catch { $False }) ) {
+If ( $(Try { (Test-Path variable:local:scriptDir) -And	(&Test-Path $scriptDir -ErrorAction Ignore -WarningAction Ignore) -And
+			 (-Not [string]::IsNullOrWhiteSpace($scriptDir)) } Catch { $False }) ) {
 	$rm = ($Args[0]); $Args = ($Args) | Where-Object { $_ -ne $rm }
 } Else {
 	$scriptDir = ($ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath('.\'))
@@ -635,13 +636,15 @@ $xml = [xml](Invoke-WebRequest -UseBasicParsing -TimeoutSec 300 -Uri $rssFeed); 
 		$revision = [regex]::Replace($_, '.*(?i)' + $channel + '.*?Revision: (?:<[^>]+>)?(\d{6})<[^>]+>.*', '$1')
 		$date = [regex]::Replace($_, '.*(?i)' + $channel + '.*?Date: <abbr title="Date format: YYYY-MM-DD">([\d-]{10})</abbr>.*', '$1')
 		$url = [regex]::Replace($_, '.*?(?i)' + $channel + '.*?Download from.*?repository: .*?<li><a href="(' + $fileSrc + '(?:v' + $version + '-r)?' + $revision + '(?:-win64)?/' + $getFile + ')".*', '$1')
-		If ($($xml.rss.channel.item[$i].title) -Match "ThumbApps") {
-			$getFile = "${getFile}${version}_Dev_32_64_bit.paf.exe"
-			$revision = "thumbapps"
-			$ignHash = 1
-			$url = [regex]::Replace($_, '.*?(?i)' + $channel + '.*?Download from.*?repository: .*?<li><a href="(' + $fileSrc + $getFile + ')".*', '$1')
-			$hMsg = "There is no hash provided for this installer"
-			Write-Host "$hMsg"; Write-Log "$hMsg"
+		If ($editor -Match "ThumbApps") {
+			If ($($xml.rss.channel.item[$i].title) -Match "ThumbApps") {
+				$getFile = "${getFile}${version}_Dev_32_64_bit.paf.exe"
+				$revision = "thumbapps"
+				$ignHash = 1
+				$url = [regex]::Replace($_, '.*?(?i)' + $channel + '.*?Download from.*?repository: .*?<li><a href="(' + $fileSrc + $getFile + ')".*', '$1')
+				$hMsg = "There is no hash provided for this installer"
+				Write-Host "$hMsg"; Write-Log "$hMsg"
+			}
 		}
 		If ($ignVer -eq 1) {
 			$url = [regex]::Replace($_, '.*?(?i)' + $channel + '.*?Download from.*?repository: .*?<li><a href="(' + $fileSrc + '(?:v[\d.]+-r)?\d{6}(?:-win64)?/' + $getFile + ')".*', '$1')
