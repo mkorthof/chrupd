@@ -17,10 +17,11 @@ Make sure the combination of editor and channel is correct. You can also use  th
 
 | Editor       | Channel      |
 |:-------------|:-------------|
-| Nik          | stable, dev  |
+| Marmaduke    | stable, dev  |
 | RobRich      | dev          |
 | Chromium     | dev          |
 | ThumbApps    | dev          |
+| Ungoogled    | stable       |
 
 ### Scheduled Task
 
