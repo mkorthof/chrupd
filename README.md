@@ -1,4 +1,4 @@
-# Simple Chromium Updater / chrupd.cmd
+# Simple Chromium Updater (chrupd.cmd)
 
 #### *Self executable PowerShell script to auto update Chromium for Windows*
 
