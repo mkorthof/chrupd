@@ -61,6 +61,7 @@ $scheduler = $getVer = $list = $rss = 0
 <# Editors: items[$editor] = @{ url, format, repositoy, filemask } #>
 $items = @{
 	"Chromium" =	@{url="https://www.chromium.org"; 				fmt="XML"; 	repo="https://storage.googleapis.com/chromium-browser-snapshots/Win_x64/";		fmask="mini_installer.exe"};
+	"Hibbiki" = 	@{url="https://$woolyss";						fmt="XML";	repo="https://github.com/Hibbiki/chromium-win64/releases/download/";			fmask="mini_installer.sync.exe"};
 	"Marmaduke" = 	@{url="https://$woolyss";						fmt="XML";	repo="https://github.com/macchrome/winchrome/releases/download/";				fmask="mini_installer.exe"};
 	"Ungoogled" = 	@{url="https://$woolyss";						fmt="XML";	repo="https://github.com/macchrome/winchrome/releases/download/";				fmask="ungoogled-chromium-.*"};
 	"RobRich" = 	@{url="https://$woolyss"; 						fmt="XML"; 	repo="https://github.com/RobRich999/Chromium_Clang/releases/download/"; 		fmask="mini_installer.exe"};
@@ -107,7 +108,7 @@ If ($Args -iMatch "[-/]h") {
 	Write-Host "USAGE: $scriptCmd -[editor|arch|channel|force|getVer|list]"
 	Write-Host "`t`t", " -[taskMode|crTask|rmTask|shTask|noVbs|confirm]", "`r`n"
 	Write-Host "`t", "-editor  must be set to one of:"
-	Write-Host "`t`t"," <Chromium|Marmaduke|Ungloogled|RobRich|ThumbApps>"
+	Write-Host "`t`t"," <Chromium|Hibbiki|Marmaduke|Ungloogled|RobRich|ThumbApps>"
 	Write-Host "`t", "-arch    must be set to <64bit|32bit>"
 	Write-Host "`t", "-channel must be set to <stable|dev>"
 <# Write-Host "`t", "-autoUpd can set to <0|1> to turn off|on auto updating $scriptCmd" #>
@@ -203,6 +204,7 @@ If ($list -eq 1) {
 }
 If ($rss -eq 1) {	
 	Write-Host "Available from Woolyss RSS Feed:"
+	Write-Host
 	$xml = [xml](Invoke-WebRequest -UseBasicParsing -TimeoutSec 300 -Uri "https://${woolyss}/feed/windows-${arch}") 
 	$xml.rss.channel.item | Select-Object @{N='Title'; E='title'}, @{N='Link'; E='link'} | Out-String
 	Exit 0
@@ -816,14 +818,16 @@ If (($editorMatch -eq 1) -And ($archMatch -eq 1) -And ($chanMatch -eq 1) -And ($
 			If (&Test-Path "$saveAs") {
 				Remove-Item "$saveAs"
 			}
-			Write-Host "Downloading `"$url`" to `"$saveAs`""
+			Write-Host "Downloading `"$url`""
+			Write-Host "Saving as: `"$saveAs`""
 			[System.Net.ServicePointManager]::SecurityProtocol = @("Tls12","Tls11","Tls")
 			$wc = New-Object System.Net.WebClient
 			If ($proxy) {
 				$wc.Proxy = $webproxy
 			}
 			$wc.DownloadFile($url, "$saveAs")
-			Write-Log "Downloading: `"$url`" to: `"$saveAs`""
+			Write-Log "Downloading: `"$url`""
+			Write-Log "Saving as: `"$saveAs`""
 		}
 	} Else {
 		$lMsg = "Latest Chromium version already installed"
