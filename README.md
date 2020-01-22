@@ -22,7 +22,7 @@ Make sure the combination of editor and channel is correct. You can also use  th
 | Chromium     | dev          |
 | ThumbApps    | dev          |
 | Ungoogled    | stable       |
-| Hibbiki      | stable, dev  |
+| **Hibbiki**      | **stable**, dev  |
 
 ## Scheduled Task
 
@@ -44,7 +44,7 @@ To update Simple Chromium Updater to a newer version just replace "chrupd.cmd" (
 
 Options are case senstive: e.g. use `-shTask` _not_ `-shtask`
 
-```batchfile
+```text
 Simple Chromium Updater (chrupd.cmd)
 ------------------------------------
 
