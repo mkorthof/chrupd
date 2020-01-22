@@ -1,12 +1,12 @@
 <# :
 @echo off
-SETLOCAL & SET "PS_BAT_ARGS=\""%~dp0|"\" %*"
+SET "PS_BAT_ARGS=\""%~dp0|"\" %*"
 ENDLOCAL & powershell.exe -NoLogo -NoProfile -Command "&(Invoke-Command {[ScriptBlock]::Create('$Args = @( &{$Args} %PS_BAT_ARGS%" );'+[String]::Join([char]10,(Get-Content \"%~f0\")))})"
 GOTO :EOF
 #>
 
 <# ------------------------------------------------------------------------- #>
-<# 20190929 MK: Simple Chromium Updater (chrupd.cmd)                         #>
+<# 20200122 MK: Simple Chromium Updater (chrupd.cmd)                         #>
 <# ------------------------------------------------------------------------- #>
 <# Uses RSS feed from "chromium.woolyss.com" to download and install latest  #>
 <# Chromium version, if a newer version is available. Options can be set     #>
@@ -31,8 +31,7 @@ GOTO :EOF
 <# See "chrupd.cmd -h" or README.md for more possible settings               #>
 <# ------------------------------------------------------------------------- #>
 
-$editor = "Marmaduke"
-#$editor = "Ungoogled"
+$editor = "Hibbiki"
 $arch = "64bit"
 $channel = "stable"
 $log = 1
@@ -56,7 +55,7 @@ $woolyss = "chromium.woolyss.com"
 
 $debug = $fakeVer = $force = $ignVer = $script:ignHash = 0
 $tsMode = $crTask = $rmTask = $shTask = $xmlTask = $manTask = $noVbs = $confirm = 0
-$scheduler = $getVer = $list = $rss = 0
+$scheduler = $list = 0
 
 <# Editors: items[$editor] = @{ url, format, repositoy, filemask } #>
 $items = @{
@@ -99,13 +98,16 @@ $tsList = @{
 	3 = "Schtasks Command"
 }
 
+<# CURRENT VERSION #>
+$curVersion = (Get-ItemProperty -ErrorAction SilentlyContinue -WarningAction SilentlyContinue HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Chromium).Version
+
 Write-Host -ForeGroundColor White -NoNewLine "`r`n$scriptName"; Write-Host " ($scriptCmd)"; Write-Host ("-" * 36)"`r`n"
 
 <# SHOW HELP, HANDLE ARGUMENTS #>
 If ($Args -iMatch "[-/]h") {
 	Write-Host "Uses RSS feed from `"$woolyss`" to download and install latest"
-	Write-Host "Chromium version, if a newer version is available.", "`r`n"
-	Write-Host "USAGE: $scriptCmd -[editor|arch|channel|force|getVer|list]"
+	Write-Host "Chromium version, if a newer version is 4able.", "`r`n"
+	Write-Host "USAGE: $scriptCmd -[editor|arch|channel|force|list]"
 	Write-Host "`t`t", " -[taskMode|crTask|rmTask|shTask|noVbs|confirm]", "`r`n"
 	Write-Host "`t", "-editor  must be set to one of:"
 	Write-Host "`t`t"," <Chromium|Hibbiki|Marmaduke|Ungloogled|RobRich|ThumbApps>"
@@ -114,9 +116,7 @@ If ($Args -iMatch "[-/]h") {
 <# Write-Host "`t", "-autoUpd can set to <0|1> to turn off|on auto updating $scriptCmd" #>
 	Write-Host "`t", "-proxy   can be set to <uri> to use a http proxy server"
 	Write-Host "`t", "-force   always (re)install, even if latest Chromium is installed"
-	Write-Host "`t", "-getVer  lists currently installed Chromium version"
-	Write-Host "`t", "-list    lists editors website, repository and installer"
-	Write-Host "`t", "-rss     lists rss feeds from $woolyss", "`r`n"
+	Write-Host "`t", "-list    show version, editors and rss feeds from $woolyss", "`r`n"
 	Write-Host "`t", "-tsMode  can be set to <1|2|3> or `"auto`" if unset, details below"
 	Write-Host "`t", "-crTask  to create a daily scheduled task"
 	Write-Host "`t", "-rmTask  to remove scheduled task"
@@ -126,14 +126,15 @@ If ($Args -iMatch "[-/]h") {
 <# Write-Host "`t" "-ignVer  (!) ignore version mismatch between feed and filename" "`r`n" #>
 	Write-Host "EXAMPLE: .\$scriptCmd -editor Marmaduke -arch 64bit -channel stable [-crTask]", "`r`n"
 	Write-Host "NOTES:   - Options `"editor`" and `"channel`" need an argument (CasE Sensive)"
-	Write-Host "`t", "- Option `"tsMode`" task scheduler modes: default/unset=Auto(Detect OS)"
-	Write-Host "`t", "    Or use: 1=Normal (Windows8+), 2=Legacy (Win7), 3=Command (WinXP)"
-	Write-Host "`t", "- Schedule `"xxTask`" options can also be used without any other options"
+	Write-Host "`t", "- Option `"tsMode`" task scheduler modes:"
+	Write-Host "`t", "    Unset: OS will be auto detected (Default)"
+	Write-Host "`t", "    Or set: 1=Normal (Windows8+), 2=Legacy (Win7), 3=Command (WinXP)"
+	Write-Host "`t", "- Schedule `"xxTask`" options can also be used without other settings"
 	Write-Host "`t", "- Options can be set permanently using variables inside script", "`r`n"
 	Exit 0
 } Else {
 	ForEach ($a in $Args) {
-		$p = "[-/](debug|force|fakeVer|getVer|list|rss|crTask|rmTask|shTask|xmlTask|manTask|noVbs|confirm|scheduler|ignHash|ignVer)"
+		$p = "[-/](force|fakeVer|list|rss|crTask|rmTask|shTask|xmlTask|manTask|noVbs|confirm|scheduler|ignHash|ignVer)"
 		If ($m = $(Select-String -CaseSensitive -Pattern $p -AllMatches -InputObject $a)) {
 			Invoke-Expression ('{0}="{1}"' -f ($m -Replace "^-", "$"), 1);
 			$Args = ($Args) | Where-Object { $_ -ne $m }
@@ -141,8 +142,8 @@ If ($Args -iMatch "[-/]h") {
 	}
 	If (($Args.length % 2) -eq 0) {
 		$i = 0; While ($Args -Is [Object[]] -And $i -lt $Args.length) {
+		If ((($Args[$i] -Match "^-debug") -And ($Args[($i+1)] -Match "^\d")) -Or (($Args[$i] -Match "^-") -And ($Args[($i+1)] -Match "^[\w\.]"))) {
 		<# $i = 0; While ($i -lt $Args.length) { #>
-			If (($Args[$i] -Match "^-") -And ($Args[($i+1)] -Match "^[\w\.]")) {
 				Invoke-Expression ('{0}="{1}"' -f ($Args[$i] -Replace "^-", "$"), ($Args[++$i]|Out-String).Trim());
 			}
 		$i++
@@ -165,7 +166,11 @@ If ($editor -eq "The Chromium Authors") { $editor = "Chromium" }
 <# DETECT WINDOWS VERSION #>
 $osVer = (([System.Environment]::OSVersion).Version)
 $osType = (Get-WmiObject Win32_OperatingSystem).ProductType
-<# TEST: $osVer = @{ Major = 6; Minor = 1; }; $osType = 3 #>
+<# TEST #>
+If ($debug -eq 3) {
+	$osVer = @{ Major = 6; Minor = 1; }; $osType = 3
+}
+
 $osFound = 0; $windowsVersions.GetEnumerator() | ForEach-Object {
 	If ( ($(($osVer).Major) -eq $($_.Value[0])) -And ($(($osVer).Minor) -eq $($_.Value[1])) -And ($($osType) -eq $($_.Value[2])) ) {
 		$osFound = 1
@@ -185,27 +190,21 @@ If (-Not ($tsMode -Match '^[1-3]$')) {
 }
 Write-Host "OS Detected: $osFullName`r`nTask Scheduler Mode: ${tsMode}, $($tsList.[int]$tsMode)`r`n"
 
-<# LIST VERSION #>
-If ($getVer -eq 1) {
-	Write-Host -NoNewLine "Currently installed Chromium version: "
-	Write-Host $(Get-ItemProperty -ErrorAction SilentlyContinue -WarningAction SilentlyContinue HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Chromium).Version
-	Exit 0
-}
-<# LIST EDITOR ITEMS #>
+<# LIST VERSION, EDITORS, RSS #>
 If ($list -eq 1) {
+	Write-Host -NoNewLine "Currently installed Chromium version: "
+	Write-Host $curVersion
+	Write-Host
+	Write-Host "Available Editors:"
 	#$items.GetEnumerator() | Where-Object Value | Format-Table @{l='editor:';e={$_.Name}}, @{l='website, repository, file:';e={$_.Value}} -AutoSize
 	$items.GetEnumerator() | Where-Object Value | `
-		Format-Table @{l='Editor:';e={$_.Name}}, `
-					 @{l='Website:';e={$_.Value.url}}, `
-					 @{l='Repository:';e={$_.Value.repo}}, `
-					 <# @{l='format:';e={$_.Value.fmt}}, ` #>
-					 @{l='Filemask:';e={$_.Value.fmask}} -AutoSize
-	Exit 0
-}
-If ($rss -eq 1) {	
+		Format-Table @{l='Editor';e={$_.Name}}, `
+					 @{l='Website';e={$_.Value.url}}, `
+					 @{l='Repository';e={$_.Value.repo}}, `
+					 <# @{l='Format';e={$_.Value.fmt}}, ` #>
+					 @{l='Filemask';e={$_.Value.fmask}} -AutoSize
 	Write-Host "Available from Woolyss RSS Feed:"
-	Write-Host
-	$xml = [xml](Invoke-WebRequest -UseBasicParsing -TimeoutSec 300 -Uri "https://${woolyss}/feed/windows-${arch}") 
+	$xml = [xml](Invoke-WebRequest -UseBasicParsing -TimeoutSec 5 -Uri "https://${woolyss}/feed/windows-${arch}") 
 	$xml.rss.channel.item | Select-Object @{N='Title'; E='title'}, @{N='Link'; E='link'} | Out-String
 	Exit 0
 }
@@ -556,7 +555,7 @@ Function Write-Log($msg) {
 
 If ($debug -ge 1) {
 	'__DEBUG_OPTIONS', 'fakeVer', 'log', 'proxy', 'ignVer', 'ignHash', 'autoUpd',
-	'__STANDARD_OPTIONS', 'editor', 'arch', 'channel', 'force', 'getVer', 'list', 'rss', 
+	'__STANDARD_OPTIONS', 'editor', 'arch', 'channel', 'force', 'list', 
 	'__ITEM_OPTIONS', 'items[$editor].url', 'items[$editor].fmt', 'items[$editor].repo', 'items[$editor].fmask',
 	'__SCHEDULER_OPTIONS', 'crTask', 'rmTask', 'shTask', 'xmlTask', 'manTask', 'noVbs', 'confirm', 'scheduler' | ForEach-Object { Write-Host "DEBUG: ${_} =" $(Invoke-Expression `$$_) }
 }
@@ -564,7 +563,6 @@ If ($debug -ge 1) {
 Write-Log "Start (pid:$pid name:$($(Get-PSHostProcessInfo | Where-Object ProcessId -eq $pid).ProcessName) scheduler:$scheduler)"
 
 <# VERIFY CURRENT VERSION #>
-$curVersion = (Get-ItemProperty -ErrorAction SilentlyContinue -WarningAction SilentlyContinue HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Chromium).Version
 If (!$curVersion) {
 	$curVersion = (Get-ChildItem ${env:LocalAppData}\Chromium\Application -ErrorAction SilentlyContinue -WarningAction SilentlyContinue |
 					Where-Object { $_.Name -Match "\d\d.\d.\d{4}\.\d{1,3}" } ).Name | 
@@ -707,7 +705,7 @@ Function parseRss ($rssFeed) {
 				Write-Host "DEBUG: i = $i xml description = : $($xml.rss.channel.item[$i].description."#cdata-section")" #>
 			}
 			<# DEBUG MATCHES: call after '-Match' with '&matches' #>
-			matches = {
+			$matches = {
 				If ($xml.rss.channel.item[$i].title -Match ".*?(Marmaduke)") {$Matches[1]; $editorMatch = 1}
 				If ($debug -ge 2) {Write-Host "DEBUG: Matches[0], [1] = "; % {$Matches[0]}; % {$Matches[1]}}
 			}
@@ -755,7 +753,7 @@ Function parseRss ($rssFeed) {
 					Write-Host ("{0}`r`n{1}`r`n{0}" -f ("-"*80), "DEBUG: 'TITLE' -MATCHES 'EDITOR'")
 				}
 				'editorMatch', 'archMatch', 'chanMatch', 'version', 'channel', 'revision', 'date', 'url' | ForEach-Object {
-					Write-Host "DEBUG: i = $i cdata ${_} = " $(Invoke-Expression `$$_)
+					Write-Host "DEBUG: i = $i 	${_} = " $(Invoke-Expression `$$_)
 				}
 			}
 			<# CHECK URL, HASH AND BREAK LOOP #>

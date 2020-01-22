@@ -1,5 +1,7 @@
 # Changes
 
+**2020-01-22** Changed default Editor to "Hibbiki"
+
 **2019-09-27** Changed default Editor to "Marmaduke", added support for "Ungoogled" version, added arch(itecture) option, added proxy server option
 
 **2019-08-19** Fixed issue [#5](https://github.com/mkorthof/chrupd/issues/5) (spaces in path)
