@@ -4,7 +4,7 @@ _**Self executable PowerShell script to auto update Chromium for Windows**_
 
 Uses RSS feed from <https://chromium.woolyss.com> to download and install latest Chromium version, if a newer version is available. Options can be set in script or using command line arguments ( try `chrupd.cmd -h` )
 
-- default is to get the "stable" 64-bit Installer by "Marmaduke"
+- default is to get the "stable" 64-bit Installer by "Hibbiki"
 - verifies SHA1/MD5 hash and runs installer
 
 ## Changes
