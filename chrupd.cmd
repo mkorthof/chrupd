@@ -55,7 +55,7 @@ $woolyss = "chromium.woolyss.com"
 
 $debug = $fakeVer = $force = $ignVer = $script:ignHash = 0
 $tsMode = $crTask = $rmTask = $shTask = $xmlTask = $manTask = $noVbs = $confirm = 0
-$scheduler = $list = 0
+$scheduler = $list = $proxy = 0
 
 <# Editors: items[$editor] = @{ url, format, repositoy, filemask } #>
 $items = @{
@@ -717,7 +717,7 @@ Function parseRss ($rssFeed) {
 			$script:archMatch =  $_ -Match '(?i)' + $channel + '.*?(Architecture: ' + $arch + ').*(?i)' + $channel
 			$script:chanMatch = $_ -Match '(?i)' + $channel + '.*?(Channel: ' + $channel + ')'
 			$script:version = $_ -Replace ".*(?i)$channel.*?Version: ([\d.]+).*", '$1'
-			$revision = $_ -Replace ".*(?i)$channel.*?Revision: (?:<[^>]+>)?(\d{6})<[^>]+>.*", '$1'
+			$revision = $_ -Replace ".*(?i)$channel.*?Revision: (?:<[^>]+>)?(\d{3}|\d{6})<[^>]+>.*", '$1'
 			$script:date = $_ -Replace ".*(?i)$channel.*?Date: <abbr title=`"Date format: YYYY-MM-DD`">([\d-]{10})</abbr>.*", '$1'
 			$script:url = $_ -Replace ".*?(?i)$channel.*?Download from.*?repository:.*?<li><a href=`"($($items[$editor].repo)(?:v$script:version-r)?$revision(?:-win$($arch.replace('-bit','')))?/$($items[$editor].fmask))`".*", '$1'
 			<# SET NON-MATCHES TO NULL #>

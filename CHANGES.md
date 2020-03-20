@@ -1,5 +1,7 @@
 # Changes
 
+**2020-03-20** Changed Revision to also match 3 digits
+
 **2020-01-22** Changed default Editor to "Hibbiki"
 
 **2019-09-27** Changed default Editor to "Marmaduke", added support for "Ungoogled" version, added arch(itecture) option, added proxy server option
