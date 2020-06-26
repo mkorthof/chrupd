@@ -6,7 +6,7 @@ GOTO :EOF
 #>
 
 <# ------------------------------------------------------------------------- #>
-<# 20200122 MK: Simple Chromium Updater (chrupd.cmd)                         #>
+<# 20200626 MK: Simple Chromium Updater (chrupd.cmd)                         #>
 <# ------------------------------------------------------------------------- #>
 <# Uses RSS feed from "chromium.woolyss.com" to download and install latest  #>
 <# Chromium version, if a newer version is available. Options can be set     #>
@@ -759,7 +759,7 @@ Function parseRss ($rssFeed) {
 			<# CHECK URL, HASH AND BREAK LOOP #>
 			If ($script:url -Match ('^https://.*' + '(' + $version + ')?.*' + $revision + '.*' + $items[$editor].fmask + '$') ) {
 				$script:urlMatch = 1
-				$hashFeed = $_ -Replace  ".*?(?i)$channel.*?<a href=`"$url`">$($items[$editor].fmask)</a> - (?:(sha1|md5): ([0-9a-f]{32}|[0-9a-f]{40}))</li>.*", '$1 $2'
+				$hashFeed = $_ -Replace  ".*?(?i)$channel.*?<a href=`"$url`">$($items[$editor].fmask)</a><br />(?:(sha1|md5): ([0-9a-f]{32}|[0-9a-f]{40}))</li>.*", '$1 $2'
 				$script:hashAlgo, $script:hash = $hashFeed.ToUpper().Split(' ')
 				hashPreCheck "$script:hashAlgo" "$script:hash"
 				Break

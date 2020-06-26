@@ -1,5 +1,7 @@
 # Changes
 
+**2020-06-26** Small change to regex for matching hash (#8)
+
 **2020-03-20** Changed Revision to also match 3 digits
 
 **2020-01-22** Changed default Editor to "Hibbiki"
