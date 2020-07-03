@@ -7,10 +7,6 @@ Uses RSS feed from <https://chromium.woolyss.com> to download and install latest
 - default is to get the "stable" 64-bit Installer by "Hibbiki"
 - verifies SHA1/MD5 hash and runs installer
 
-## Changes
-
-Moved to [CHANGES.md](CHANGES.md)
-
 ## Configuration
 
 Make sure the combination of editor and channel is correct. You can also use  the `list` option. For more information about versions check: [chromium.woolyss.com](https://chromium.woolyss.com/?cut=1&ago=1) (RSS atom [feed](https://chromium.woolyss.com/feed/windows-64-bit)).
@@ -31,6 +27,10 @@ You can add a Scheduled Task with ```crTask```. A VBS wrapper will be written to
 ## Updating
 
 To update Simple Chromium Updater to a newer version just replace "chrupd.cmd" (copy "editor" and "channel" if set). If you have Scheduled Task setup you do not need to change the task. 
+
+## Changes
+
+Moved to [CHANGES.md](CHANGES.md)
 
 ---
 
