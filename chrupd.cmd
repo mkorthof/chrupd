@@ -6,12 +6,12 @@ GOTO :EOF
 #>
 
 <# ------------------------------------------------------------------------- #>
-<# 20200626 MK: Simple Chromium Updater (chrupd.cmd)                         #>
+<# 20201007 MK: Simple Chromium Updater (chrupd.cmd)                         #>
 <# ------------------------------------------------------------------------- #>
 <# Uses RSS feed from "chromium.woolyss.com" to download and install latest  #>
 <# Chromium version, if a newer version is available. Options can be set     #>
 <# below or using command line arguments (try "chrupd.cmd -h")               #>
-<#  - default is to get the "64bit" "stable" Installer by "Marmaduke"        #>
+<#  - default is to get the "64bit" "stable" Installer by "Hibbiki"        	 #>
 <#  - verifies sha1/md5 hash and runs installer                              #>
 <# ------------------------------------------------------------------------- #>
 <# NOTES:                                                                    #>
@@ -98,17 +98,17 @@ $tsList = @{
 	3 = "Schtasks Command"
 }
 
-<# CURRENT VERSION #>
+<# CURRENT CHROMIUM VERSION #>
 $curVersion = (Get-ItemProperty -ErrorAction SilentlyContinue -WarningAction SilentlyContinue HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Chromium).Version
 
 Write-Host -ForeGroundColor White -NoNewLine "`r`n$scriptName"; Write-Host " ($scriptCmd)"; Write-Host ("-" * 36)"`r`n"
 
 <# SHOW HELP, HANDLE ARGUMENTS #>
-If ($Args -iMatch "[-/]h") {
+If ($Args -iMatch "[-/][h?]") {
 	Write-Host "Uses RSS feed from `"$woolyss`" to download and install latest"
-	Write-Host "Chromium version, if a newer version is 4able.", "`r`n"
+	Write-Host "Chromium version, if a newer version is available.", "`r`n"
 	Write-Host "USAGE: $scriptCmd -[editor|arch|channel|force|list]"
-	Write-Host "`t`t", " -[taskMode|crTask|rmTask|shTask|noVbs|confirm]", "`r`n"
+	Write-Host "`t`t", " -[tsMode|crTask|rmTask|shTask|noVbs|confirm]", "`r`n"
 	Write-Host "`t", "-editor  must be set to one of:"
 	Write-Host "`t`t"," <Chromium|Hibbiki|Marmaduke|Ungloogled|RobRich|ThumbApps>"
 	Write-Host "`t", "-arch    must be set to <64bit|32bit>"
@@ -523,7 +523,7 @@ If ($crTask -eq 1) {
 	}
  	Exit 0
 } ElseIf ($manTask -eq 1) {
-	Write-Host "Check settings and retry, use a different taskMode (see help) or try"
+	Write-Host "Check settings and retry, use a different Task Scheduler Mode (see help) or try"
 	Write-Host "manually by going to: `"Start > Task Scheduler`" or `"Run taskschd.msc`".`r`n"
 	Write-Host "These settings can be used when creating a New Task :`r`n"
 	Write-Host ("  Name: `"{0}`"`r`n    Description `"{1}`"`r`n    Trigger: Daily 17:00 (1H random delay)`r`n    Action: `"{2}`"`r`n    Arguments: `"{3}`"`r`n    WorkDir: `"{4}`"`r`n" `
@@ -570,7 +570,8 @@ If (!$curVersion) {
 }
 If ($force -eq 1) {
 	$vMsg = "Forcing update, ignoring currently installed Chromium version `"$curVersion`""
-	Write-Host "$vMsg" "`r`n";	Write-Log "$vMsg"
+	Write-Host "$vMsg" "`r`n"
+	Write-Log "$vMsg"
 	$curVersion = "00.0.0000.000"
 } ElseIf ($fakeVer -eq 1) {
 	Write-Host "DEBUG: Changing real current Chromium version `"$curVersion`" to fake value"
@@ -578,10 +579,12 @@ If ($force -eq 1) {
 } Else {
 	If ( $(Try { (Test-Path variable:local:curVersion) -And (-Not [string]::IsNullOrWhiteSpace($curVersion)) } Catch { $False }) ) {
 		$vMsg = "Currently installed Chromium version: `"$curVersion`""
-		Write-Host "$vMsg" "`r`n"; Write-Log "$vMsg"
+		Write-Host "$vMsg" "`r`n"
+		Write-Log "$vMsg"
 	} Else {
 		$vMsg = "Could not find Chromium, initial installation will be done by the downloaded installer..."
-		Write-Host -ForeGroundColor Yellow "$vMsg"; Write-Log "$vMsg"
+		Write-Host -ForeGroundColor Yellow "$vMsg"
+		Write-Log "$vMsg"
 		$curVersion = "00.0.0000.000"
 	}
 }
@@ -596,7 +599,8 @@ Function hashPreCheck ($hashAlgo, $hash) {
 			$script:hashMatch = 1
 		} Else {
 			$hMsg = "ERROR: No valid hash for installer/archive file found, exiting..."
-			Write-Host -ForeGroundColor Red "$hMsg"; Write-Log "$hMsg"
+			Write-Host -ForeGroundColor Red "$hMsg"
+			Write-Log "$hMsg"
 			Exit 0
 		}
 		If ($debug -ge 1) { Write-Host "DEBUG: i = $i cdata hash = $hash`r`n" }
@@ -614,7 +618,8 @@ Function hashPreCheck ($hashAlgo, $hash) {
 		If ($host.ui.RawUI.KeyAvailable) {
 			$x = $host.ui.RawUI.ReadKey("IncludeKeyDown, NoEcho")
 			If ($x.VirtualKeyCode -ne "67") {
-				Write-Host "Aborting..."; Write-Log "Aborting..."
+				Write-Host "Aborting..."
+				Write-Log "Aborting..."
 				Exit 1
 			}
 		}
@@ -630,7 +635,8 @@ Function sevenZip ([string]$action, [string]$7zArgs) {
 		$7z = "$env:ProgramFiles\7-Zip\7z.exe"  
 	} Else {
 		$sMsg =  "7-Zip (`"7z.exe`") not found"
-		Write-Host -ForeGroundColor Red "ERROR: $sMsg, exiting..."; Write-Log "$ssg"
+		Write-Host -ForeGroundColor Red "ERROR: $sMsg, exiting..."
+		Write-Log "$ssg"
 		Exit 1
 	}
 	<# Source: http://www.mobzystems.com/code/7-zip-powershell-module/ #>
@@ -686,7 +692,8 @@ Function createShortcut ([string]$srcExe, [string]$srcExeArgs, [string]$dstPath)
 		$Shortcut.Save()
 	} Else {
 		$sMsg = "Shortcut target `"$srcExe`" does not exist"
-		Write-Host -ForeGroundColor Red "ERROR: $sMsg"; Write-Log "$sMsg"
+		Write-Host -ForeGroundColor Red "ERROR: $sMsg"
+		Write-Log "$sMsg"
 		Return $false
 	}
 	Return $true
@@ -740,13 +747,15 @@ Function parseRss ($rssFeed) {
 				$script:url = $_ -Replace ".*?(?i)$channel.*?Download from.*?repository: .*?<li><a href=`"($($items[$editor].repo)$($items[$editor].fmask))`".*", '$1'
 				$script:ignHash = 1
 				$hMsg = "There is no hash provided for this installer"
-				Write-Host "$hMsg"; Write-Log "$hMsg"
+				Write-Host "$hMsg"
+				Write-Log "$hMsg"
 			}
 			If ($ignVer -eq 1) {
 				$revision = '\d{6}'
 				$script:url = $_ -Replace ".*?(?i)$channel.*?Download from.*?repository:.*?<li><a href=`"($($items[$editor].repo)(?:v[\d.]+-r)?$revision(?:-win$($arch.replace('-bit','')))?/$($items[$editor].fmask))`".*", '$1'
 				$vMsg = "Ignoring version mismatch between RSS feed and filename"
-				Write-Host -NoNewLine -ForeGroundColor Yellow "`r`n(!) $vMsg"; Write-Host; fbertWrite-Log "$vMsg"
+				Write-Host -NoNewLine -ForeGroundColor Yellow "`r`n(!) $vMsg"; Write-Host 
+				Write-Log "$vMsg"
 			}
 			If ($debug -ge 1) {
 				If ($($xml.rss.channel.item[$i].title) -Match $editor) {
@@ -759,7 +768,9 @@ Function parseRss ($rssFeed) {
 			<# CHECK URL, HASH AND BREAK LOOP #>
 			If ($script:url -Match ('^https://.*' + '(' + $version + ')?.*' + $revision + '.*' + $items[$editor].fmask + '$') ) {
 				$script:urlMatch = 1
-				$hashFeed = $_ -Replace  ".*?(?i)$channel.*?<a href=`"$url`">$($items[$editor].fmask)</a><br />(?:(sha1|md5): ([0-9a-f]{32}|[0-9a-f]{40}))</li>.*", '$1 $2'
+				$hashFeed = $_ -Replace ".*?(?i)$channel.*?<a href=`"$url`">$($items[$editor].fmask)</a><br />(?:(sha1|md5): ([0-9a-f]{32}|[0-9a-f]{40}))</li>.*", '$1 $2'
+				Write-Host "DEBUG: --> $hashFeed"
+				#exit
 				$script:hashAlgo, $script:hash = $hashFeed.ToUpper().Split(' ')
 				hashPreCheck "$script:hashAlgo" "$script:hash"
 				Break
@@ -777,12 +788,14 @@ If ($items[$editor].fmt -eq "XML") {
 	If ("$($items[$editor].repo).*" -Match "^https://api.github.com" ) {
 		parseJsonGh $items[$editor].repo
 	} Else {
-		Write-Host -ForeGroundColor Red "ERROR: $rMsg, exiting..."; Write-Log "$rMsg"
+		Write-Host -ForeGroundColor Red "ERROR: $rMsg, exiting..."
+		Write-Log "$rMsg"
 		Exit 1
 	}
 #>
 } Else {
-	Write-Host -ForeGroundColor Red "ERROR: $rMsg, exiting..."; Write-Log "$rMsg"
+	Write-Host -ForeGroundColor Red "ERROR: $rMsg, exiting..."
+	Write-Log "$rMsg"
 	Exit 1
 }
 
@@ -804,7 +817,8 @@ If (($editorMatch -eq 1) -And ($archMatch -eq 1) -And ($chanMatch -eq 1) -And ($
 			$agoTxt = ($ago.Days, "days")
 		}
 		$nMsg = "New Chromium version `"$version`" from $date is available ($agoTxt ago)"
-		Write-Host $nMsg; Write-Log $nMsg
+		Write-Host $nMsg
+		Write-Log $nMsg
 		If ($debug -ge 1) {
 			If (&Test-Path "$saveAs") {
 				Write-Host "DEBUG: Would have deleted $saveAs"
@@ -842,25 +856,29 @@ If (($editorMatch -eq 1) -And ($archMatch -eq 1) -And ($chanMatch -eq 1) -And ($
 If ($script:ignHash -eq 1) {
 	$script:hash = (Get-FileHash -Algorithm $hashAlgo "$saveAs").Hash
 	$hMsg = "Ignoring hash, using hash from downloaded installer: `"$hash`""
-	Write-Host "$hMsg"; Write-Log "$hMsg"
+	Write-Host "$hMsg"
+	Write-Log "$hMsg"
 }
 
 <# VERIFY HASH AND INSTALL/EXTRACT #>
 If ( $(Try { -Not (Test-Path variable:script:hashAlgo) -Or ([string]::IsNullOrWhiteSpace($script:hashAlgo)) } Catch { $False }) ) {
 	$hMsg = "Hash Algorithm is missing"
-	Write-Host -ForeGroundColor Red "ERROR: $hMsg, exiting..."; Write-Log "$hMsg"
+	Write-Host -ForeGroundColor Red "ERROR: $hMsg, exiting..."
+	Write-Log "$hMsg"
 	Exit 1
 }
 If ( $(Try { -Not (Test-Path variable:script:hash) -Or ([string]::IsNullOrWhiteSpace($script:hash)) } Catch { $False }) ) {
 	$hMsg = "Hash is missing"
-	Write-Host -ForeGroundColor Red "ERROR: $hMsg, exiting..."; Write-Log "$hMsg"
+	Write-Host -ForeGroundColor Red "ERROR: $hMsg, exiting..."
+	Write-Log "$hMsg"
 	Exit 1
 }
 If ((Get-FileHash -Algorithm $hashAlgo "$saveAs").Hash -eq $hash) {
 	$hMsg = "$hashAlgo Hash matches `"$hash`""
 	If ($saveAs -Match ".*.exe$") {
 		$fileFmt = "exe"; $eMsg = "Executing `"$($items[$editor].fmask)`""
-		Write-Host "${hMsg}`r`n${eMsg}..."; Write-Log "$hMsg"; Write-Log "$eMsg"
+		Write-Host "${hMsg}`r`n${eMsg}..."
+		Write-Log "$hMsg"; Write-Log "$eMsg"
 	} ElseIf ($saveAs -Match ".*.(7z|zip)$") {
 		$fileFmt = "arc"
 		$i=0; $extrTo = ""
@@ -874,7 +892,8 @@ If ((Get-FileHash -Algorithm $hashAlgo "$saveAs").Hash -eq $hash) {
 			$eMsg = "Extracting `"$($items[$editor].fmask)`" to `"$extrTo`""
 		} Else {
 			$xMsg = "Could not find dir to extract to"
-			Write-Host -ForeGroundColor Red "ERROR: $xMsg, exiting..."; Write-Log "$xMsg"
+			Write-Host -ForeGroundColor Red "ERROR: $xMsg, exiting..."
+			Write-Log "$xMsg"
 			Exit 1
 		}
 	}
@@ -903,7 +922,8 @@ If ((Get-FileHash -Algorithm $hashAlgo "$saveAs").Hash -eq $hash) {
 		}
 		If (&Test-Path $installLog) {
 			$ilogMsg = "Installer logfile: $installLog"
-			Write-Host -ForeGroundColor Red -NoNewLine "`r`n$ilogMsg"; Write-Log "$ilogMsg"
+			Write-Host -ForeGroundColor Red -NoNewLine "`r`n$ilogMsg"
+			Write-Log "$ilogMsg"
 		}
 	} ElseIf ($fileFmt -eq "arc") {
 		$retArcDir = &sevenZip "listdir" "$saveAs"
@@ -924,30 +944,35 @@ If ((Get-FileHash -Algorithm $hashAlgo "$saveAs").Hash -eq $hash) {
 					$retShortcut = &createShortcut "$lnkTarget" "" "$lnkName"
 					If (-Not $retShortcut) {
 						$eMsg = "Could not create shortcut on Desktop"
-						Write-Host -ForeGroundColor Red "ERROR: $eMsg"; Write-Log "$eMsg"
+						Write-Host -ForeGroundColor Red "ERROR: $eMsg"
+						Write-Log "$eMsg"
 					} Else {
 						$rMsg += " and shortcut created on Desktop"
 					}
 					& $doneMsg
 				} Else {
 					$eMsg = "Could not extract `"$saveAs`""
-					Write-Host -ForeGroundColor Red "ERROR: $eMsg, exiting..."; Write-Log "$eMsg"
+					Write-Host -ForeGroundColor Red "ERROR: $eMsg, exiting..."
+					Write-Log "$eMsg"
 					Exit 1
 				}
 			} Else {
 				$lMsg = "No directory to extract found inside archive `"$saveAs`""
-				Write-Host -ForeGroundColor Red "ERROR: $lMsg, exiting..."; Write-Log "$lMsg"
+				Write-Host -ForeGroundColor Red "ERROR: $lMsg, exiting..."
+				Write-Log "$lMsg"
 				Exit 1
 			}
 		} Else {
 			$eMsg = "Directory `"${extrTo}\${retArcDir}`" already exists"
-			Write-Host -ForeGroundColor Red "ERROR: $eMsg, exiting..."; Write-Log "$eMsg"
+			Write-Host -ForeGroundColor Red "ERROR: $eMsg, exiting..."
+			Write-Log "$eMsg"
 			Exit 1
 		}
 	}
 } Else {
 	$hMsg = "$hashAlgo Hash does NOT match: `"$hash`""
-	Write-Host -ForeGroundColor Red "ERROR: $hMsg, exiting..."; Write-Log "$hMsg"
+	Write-Host -ForeGroundColor Red "ERROR: $hMsg, exiting..."
+	Write-Log "$hMsg"
 	Exit 1
 }
 Write-Host

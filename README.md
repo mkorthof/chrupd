@@ -22,7 +22,25 @@ Make sure the combination of editor and channel is correct. You can also use  th
 | Chromium     | dev          |
 | ThumbApps    | dev          |
 | Ungoogled    | stable       |
-| **Hibbiki**      | **stable**, dev  |
+| **Hibbiki**  | **stable**, dev  |
+
+_( defaults in **bold**  )_
+
+## Installation
+
+Usually Chromium installation is automatically taken care of by running the downloaded Installer ('mini_installer.exe'). In case the installer left a logfile it's path is shown (and logged to chrupd.log).
+
+If the Editor releases Chromium as an zip or 7z archive, the script will to try to extract it to these paths:
+
+| Path                                   | Example                                   |
+|:---------------------------------------|:------------------------------------------|
+| %LocalAppData%\Chromium\Application    | C:\Users\\<User\>\Appdata\Local\Chromium  |
+| Desktop                                | C:\Users\\<User\>\Desktop                 |
+| %TEMP%                                 | C:\Users\\\<User\>\TEMP                   |
+
+_(in that order, top to bottom)_
+
+The folder that was used will be shown/logged and a shortcut will be created on the Desktop called 'Chromium', which links to chrome.exe
 
 ## Scheduled Task
 
@@ -30,7 +48,7 @@ You can add a Scheduled Task with ```crTask```. A VBS wrapper will be written to
 
 ## Updating
 
-To update Simple Chromium Updater to a newer version just replace "chrupd.cmd" (copy "editor" and "channel" if set). If you have Scheduled Task setup you do not need to change the task. 
+To update Simple Chromium Updater to a newer version just replace "chrupd.cmd" (copy "editor" and "channel" if set). If you have Scheduled Task setup you do not need to change the task.
 
 ---
 
@@ -52,7 +70,7 @@ Uses RSS feed from "chromium.woolyss.com" to download and install latest
 Chromium version, if a newer version is 4able.
 
 USAGE: chrupd.cmd -[editor|arch|channel|force|list]
-                  -[taskMode|crTask|rmTask|shTask|noVbs|confirm]
+                  -[tsMode|crTask|rmTask|shTask|noVbs|confirm]
 
          -editor  must be set to one of:
                   <Chromium|Hibbiki|Marmaduke|Ungloogled|RobRich|ThumbApps>
