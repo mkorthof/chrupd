@@ -2,14 +2,12 @@
 
 _**Self executable PowerShell script to auto update Chromium for Windows**_
 
-Uses RSS feed from <https://chromium.woolyss.com> to download and install latest Chromium version, if a newer version is available. Options can be set in script or using command line arguments ( try `chrupd.cmd -h` )
+Uses RSS feed from <https://chromium.woolyss.com> to download and install latest Chromium version, if a newer version is available. Options can be set in script or using command line arguments.
 
 - default is to get the "stable" 64-bit Installer by "Hibbiki"
 - verifies SHA1/MD5 hash and runs installer
 
-## Changes
-
-Moved to [CHANGES.md](CHANGES.md)
+Run `chrupd.cmd` or see below for details.
 
 ## Configuration
 
@@ -50,6 +48,10 @@ You can add a Scheduled Task with ```crTask```. A VBS wrapper will be written to
 
 To update Simple Chromium Updater to a newer version just replace "chrupd.cmd" (copy "editor" and "channel" if set). If you have Scheduled Task setup you do not need to change the task.
 
+## Changes
+
+Moved to [CHANGES.md](CHANGES.md)
+
 ---
 
 *For easy execution this PowerShell script is embedded in a Batch .CMD file using a "polyglot wrapper". It can be renamed to chrupd.ps1. More info: [blogs.msdn.microsoft.com](https://blogs.msdn.microsoft.com/jaybaz_ms/2007/04/26/powershell-polyglot) and [stackoverflow.com](https://stackoverflow.com/questions/29645).*
@@ -61,6 +63,8 @@ To update Simple Chromium Updater to a newer version just replace "chrupd.cmd" (
 ## Command Line Options
 
 Options are case senstive: e.g. use `-shTask` _not_ `-shtask`
+
+`chrupd.cmd -h`
 
 ```text
 Simple Chromium Updater (chrupd.cmd)
