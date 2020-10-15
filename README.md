@@ -1,5 +1,11 @@
 # Simple Chromium Updater (chrupd.cmd)
 
+---
+
+**2020-10-15 (NOTE) ISSUES WITH EDITORS OTHER THAN 'Hibbiki' WILL BE FIXED IN NEXT COMMIT/VERSION**
+
+---
+
 _**Self executable PowerShell script to auto update Chromium for Windows**_
 
 ---
