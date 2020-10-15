@@ -6,12 +6,12 @@ GOTO :EOF
 #>
 
 <# ------------------------------------------------------------------------- #>
-<# 20201007 MK: Simple Chromium Updater (chrupd.cmd)                         #>
+<# 20201017 MK: Simple Chromium Updater (chrupd.cmd)                         #>
 <# ------------------------------------------------------------------------- #>
 <# Uses RSS feed from "chromium.woolyss.com" to download and install latest  #>
 <# Chromium version, if a newer version is available. Options can be set     #>
 <# below or using command line arguments (try "chrupd.cmd -h")               #>
-<#  - default is to get the "64bit" "stable" Installer by "Hibbiki"        	 #>
+<#  - default is to get the "64bit" "stable" Installer by "Hibbiki"          #>
 <#  - verifies sha1/md5 hash and runs installer                              #>
 <# ------------------------------------------------------------------------- #>
 <# NOTES:                                                                    #>
@@ -35,6 +35,7 @@ $editor = "Hibbiki"
 $arch = "64bit"
 $channel = "stable"
 $log = 1
+$lnkArgs = "" 	# see '.\chrupdate.cmd -advhelp'
 
 <# END OF CONFIGURATION ---------------------------------------------------- #>
 
@@ -49,13 +50,14 @@ If ( $(Try { (Test-Path variable:local:scriptDir) -And	(&Test-Path $scriptDir -E
 }
 
 $logFile = $scriptDir + "\chrupd.log"
+#$shaFile = $scriptDir + "\chrupd.sha"
 $scriptName = "Simple Chromium Updater"; $scriptCmd = "chrupd.cmd"
 $installLog = "$env:TEMP\chromium_installer.log"
 $woolyss = "chromium.woolyss.com"
 
 $debug = $fakeVer = $force = $ignVer = $script:ignHash = 0
 $tsMode = $crTask = $rmTask = $shTask = $xmlTask = $manTask = $noVbs = $confirm = 0
-$scheduler = $list = $proxy = 0
+$scheduler = $list = $proxy = $aDir = $lnkArgs = 0
 
 <# Editors: items[$editor] = @{ url, format, repositoy, filemask } #>
 $items = @{
@@ -104,37 +106,43 @@ $curVersion = (Get-ItemProperty -ErrorAction SilentlyContinue -WarningAction Sil
 Write-Host -ForeGroundColor White -NoNewLine "`r`n$scriptName"; Write-Host " ($scriptCmd)"; Write-Host ("-" * 36)"`r`n"
 
 <# SHOW HELP, HANDLE ARGUMENTS #>
-If ($Args -iMatch "[-/][h?]") {
-	Write-Host "Uses RSS feed from `"$woolyss`" to download and install latest"
-	Write-Host "Chromium version, if a newer version is available.", "`r`n"
+If ($Args -iMatch "[-/?]h") {
+	Write-Host "Uses RSS feed from `"$woolyss`" to install latest Chromium version", "`r`n"
 	Write-Host "USAGE: $scriptCmd -[editor|arch|channel|force|list]"
-	Write-Host "`t`t", " -[tsMode|crTask|rmTask|shTask|noVbs|confirm]", "`r`n"
-	Write-Host "`t", "-editor  must be set to one of:"
+	Write-Host "`t`t", " -[crTask|rmTask|shTask]", "`r`n"
+	Write-Host "`t", "-editor  option must be set to one of:"
 	Write-Host "`t`t"," <Chromium|Hibbiki|Marmaduke|Ungloogled|RobRich|ThumbApps>"
-	Write-Host "`t", "-arch    must be set to <64bit|32bit>"
-	Write-Host "`t", "-channel must be set to <stable|dev>"
-<# Write-Host "`t", "-autoUpd can set to <0|1> to turn off|on auto updating $scriptCmd" #>
-	Write-Host "`t", "-proxy   can be set to <uri> to use a http proxy server"
-	Write-Host "`t", "-force   always (re)install, even if latest Chromium is installed"
-	Write-Host "`t", "-list    show version, editors and rss feeds from $woolyss", "`r`n"
-	Write-Host "`t", "-tsMode  can be set to <1|2|3> or `"auto`" if unset, details below"
-	Write-Host "`t", "-crTask  to create a daily scheduled task"
-	Write-Host "`t", "-rmTask  to remove scheduled task"
-	Write-Host "`t", "-shTask  to show scheduled task details"
-	Write-Host "`t", "-noVbs   to not use vbs wrapper to hide window when creating task"
-	Write-Host "`t", "-confirm to answer Y on prompt about removing scheduled task", "`r`n"
-<# Write-Host "`t" "-ignVer  (!) ignore version mismatch between feed and filename" "`r`n" #>
-	Write-Host "EXAMPLE: .\$scriptCmd -editor Marmaduke -arch 64bit -channel stable [-crTask]", "`r`n"
-	Write-Host "NOTES:   - Options `"editor`" and `"channel`" need an argument (CasE Sensive)"
-	Write-Host "`t", "- Option `"tsMode`" task scheduler modes:"
-	Write-Host "`t", "    Unset: OS will be auto detected (Default)"
-	Write-Host "`t", "    Or set: 1=Normal (Windows8+), 2=Legacy (Win7), 3=Command (WinXP)"
-	Write-Host "`t", "- Schedule `"xxTask`" options can also be used without other settings"
-	Write-Host "`t", "- Options can be set permanently using variables inside script", "`r`n"
+	Write-Host "`t", "-arch    option must be set to <64bit|32bit>"
+	Write-Host "`t", "-channel option must be set to <stable|dev>"
+	Write-Host "`t", "-force   flag to always (re)install, even if latest ver is installed"
+	Write-Host "`t", "-list    flag to show version, editors and rss feeds from woolyss.com", "`r`n"
+	Write-Host "`t", "-crTask  flag to create a daily scheduled task"
+	Write-Host "`t", "-rmTask  flag to remove scheduled task"
+	Write-Host "`t", "-shTask  flag to show scheduled task details", "`r`n"
+	Write-Host "EXAMPLE: `".\$scriptCmd -editor Marmaduke -arch 64bit -channel stable [-crTask]`""
+	Write-Host "NOTES:   > Options `"editor`" and `"channel`" need an argument (CasE Sensive)"
+	Write-Host "EXTRA:   > See `".\$scriptCmd -advhelp`" for `"advanced`" options"
+	Exit 0
+}
+If ($Args -iMatch "[-/?]ad?v?he?l?p?") {
+	Write-Host "USAGE: $scriptCmd -[proxy|tsMode|rmTask|noVbs|lnkArgs|confirm|aDir|lnkArgs]", "`r`n"
+	Write-Host "`t", "-proxy   option can be set to <uri> to use a http proxy server", "`r`n"
+	Write-Host "`t", "-tsMode  option can be set to <1|2|3> or `"auto`" if unset, see below"
+	Write-Host "`t", "-noVbs   flag to not use vbs wrapper to hide window when creating task"
+	Write-Host "`t", "-confirm flag to answer 'Y' on prompt about removing scheduled task", "`r`n"
+	Write-Host "`t", "-aDir    flag to use %AppData%\Chromium\Application\`$editor for Zips"
+	Write-Host "`t", "-lnkArgs option sets <arguments> for chrome.exe in Chromium shortcut", "`r`n"
+	<# Write-Host "`t", "-autoUpd can set to <0|1> to turn off|on auto updating $scriptCmd" #>
+	<# Write-Host "`t" "-ignVer  (!) ignore version mismatch between feed and filename" "`r`n" #>
+	Write-Host "NOTES:   Option `"tsMode`" supports these task scheduler modes:", "`r`n"
+	Write-Host "`t", "  - Unset: OS will be auto detected (Default)"
+	Write-Host "`t", "  - Or set: 1=Normal (Windows8+), 2=Legacy (Win7), 3=Command (WinXP)", "`r`n"
+	Write-Host "`t", "Flags `"xxTask`" can also be used without other settings"
+	Write-Host "`t", "All options can be set permanently using variables inside script", "`r`n"
 	Exit 0
 } Else {
 	ForEach ($a in $Args) {
-		$p = "[-/](force|fakeVer|list|rss|crTask|rmTask|shTask|xmlTask|manTask|noVbs|confirm|scheduler|ignHash|ignVer)"
+		$p = "[-/](force|fakeVer|list|rss|crTask|rmTask|shTask|xmlTask|manTask|noVbs|confirm|scheduler|ignHash|ignVer|aDir)"
 		If ($m = $(Select-String -CaseSensitive -Pattern $p -AllMatches -InputObject $a)) {
 			Invoke-Expression ('{0}="{1}"' -f ($m -Replace "^-", "$"), 1);
 			$Args = ($Args) | Where-Object { $_ -ne $m }
@@ -155,6 +163,10 @@ If ($proxy) {
 	$PSDefaultParameterValues.Add("Invoke-WebRequest:Proxy", "$proxy")
 	$webproxy = New-Object System.Net.WebProxy
 	$webproxy.Address = $proxy
+}
+
+If ($lnkArgs) {
+	$srcExeArgs = "$lnkArgs"
 }
 
 <# ALIASES #>
@@ -226,6 +238,7 @@ If (-Not ($channel -cMatch "^(stable|dev)$")) { Write-Host -ForeGroundColor Red 
 If (-Not ($autoUpd -Match "^(0|1)$")) { Write-Host -ForeGroundColor Red "ERROR: Invalid autoUpd setting `"$autoUpd`" - must be 0 or 1, exiting..."; Exit 1 }
 #>
 
+<# MANDATORY ARGS #>
 If (-Not ($items[$editor])) { Write-Host -ForeGroundColor Red "ERROR: Settings incorrect - check editor `"$editor`" (CasE Sensive), exiting..."; Exit 1 }
 If (-Not ($items[$editor].fmt -cMatch "^(XML|JSON)$")) { Write-Host -ForeGroundColor Red "ERROR: Invalid format `"${items[$editor].fmt}`", exiting..."; Exit 1 }
 If (-Not ($arch -cMatch "^(32-bit|64-bit)$")) { Write-Host -ForeGroundColor Red "ERROR: Invalid channel `"$arch`" - must be 32-bit or 64-bit), exiting..."; Exit 1 }
@@ -498,8 +511,8 @@ If ($crTask -eq 1) {
 			<# $p.WaitForExit() #>
 			$pinfo = New-Object System.Diagnostics.ProcessStartInfo
 			$pinfo.FileName = "$env:SystemRoot\system32\schtasks.exe"
-			$pinfo.RedirectStandardError = $true
-			$pinfo.RedirectStandardOutput = $true
+			$pinfo.RaDirectStandardError = $true
+			$pinfo.RaDirectStandardOutput = $true
 			$pinfo.UseShellExecute = $false
 			$pinfo.Arguments = "$a"
 			$p = New-Object System.Diagnostics.Process
@@ -555,7 +568,7 @@ Function Write-Log($msg) {
 
 If ($debug -ge 1) {
 	'__DEBUG_OPTIONS', 'fakeVer', 'log', 'proxy', 'ignVer', 'ignHash', 'autoUpd',
-	'__STANDARD_OPTIONS', 'editor', 'arch', 'channel', 'force', 'list', 
+	'__STANDARD_OPTIONS', 'editor', 'arch', 'channel', 'force', 'list', 'aDir', 'lnkArgs'
 	'__ITEM_OPTIONS', 'items[$editor].url', 'items[$editor].fmt', 'items[$editor].repo', 'items[$editor].fmask',
 	'__SCHEDULER_OPTIONS', 'crTask', 'rmTask', 'shTask', 'xmlTask', 'manTask', 'noVbs', 'confirm', 'scheduler' | ForEach-Object { Write-Host "DEBUG: ${_} =" $(Invoke-Expression `$$_) }
 }
@@ -594,6 +607,7 @@ Write-Host "Using the folowing settings:`r`n$cMsg`r`n"
 Write-Log "$cMsg"
 
 Function hashPreCheck ($hashAlgo, $hash) {
+	If ($debug -ge 1) { Write-Host "DEBUG: hash = $hash"; } #Exit
 	If ($script:ignHash -eq 0) {
 		If (($hashAlgo -Match "SHA1|MD5") -And ($hash -Match "[0-9a-f]{32}|[0-9a-f]{40}")) {
 			$script:hashMatch = 1
@@ -720,13 +734,18 @@ Function parseRss ($rssFeed) {
 		<# INNER WHILE LOOP: HTML #>
 		$xml.rss.channel.item[$i].description."#cdata-section" | ForEach-Object {
 			<# If ($debug) {Write-Host "DEBUG: HTML `$_ = `r`n" $_} #>
+			If ($debug) {Write-Host "DEBUG: HTML `$_ = `r`n" $_}
 			$script:editorMatch = $_ -Match '(?i)' + $channel + '.*?(Editor: <a href="' + $items[$editor].url + '/">' + $editor + '</a>).*(?i)' + $channel
 			$script:archMatch =  $_ -Match '(?i)' + $channel + '.*?(Architecture: ' + $arch + ').*(?i)' + $channel
 			$script:chanMatch = $_ -Match '(?i)' + $channel + '.*?(Channel: ' + $channel + ')'
 			$script:version = $_ -Replace ".*(?i)$channel.*?Version: ([\d.]+).*", '$1'
 			$revision = $_ -Replace ".*(?i)$channel.*?Revision: (?:<[^>]+>)?(\d{3}|\d{6})<[^>]+>.*", '$1'
 			$script:date = $_ -Replace ".*(?i)$channel.*?Date: <abbr title=`"Date format: YYYY-MM-DD`">([\d-]{10})</abbr>.*", '$1'
-			$script:url = $_ -Replace ".*?(?i)$channel.*?Download from.*?repository:.*?<li><a href=`"($($items[$editor].repo)(?:v$script:version-r)?$revision(?:-win$($arch.replace('-bit','')))?/$($items[$editor].fmask))`".*", '$1'
+			$urlReText = ".*?(?i)$channel.*?Download from.*?repository:.*?<li>"
+			$urlReLink = "<a href=`"($($items[$editor].repo)(?:v$script:version-r)?$revision(?i:-win$($arch.replace('-bit','')))?/"
+			$urlReFile = "$($($items[$editor].fmask).replace('.*',''))($version.*\.7z)?)`">.*"
+			$script:url = $_ -Replace "${urlReText}${urlReLink}${urlReFile}", '$1'
+
 			<# SET NON-MATCHES TO NULL #>
 			ForEach ($var in "script:version", "revision", "script:date", "script:url") {
 				If ($(Invoke-Expression `$$var) -eq $_) {
@@ -759,7 +778,7 @@ Function parseRss ($rssFeed) {
 			}
 			If ($debug -ge 1) {
 				If ($($xml.rss.channel.item[$i].title) -Match $editor) {
-					Write-Host ("{0}`r`n{1}`r`n{0}" -f ("-"*80), "DEBUG: 'TITLE' -MATCHES 'EDITOR'")
+					Write-Host -ForeGroundColor Yellow ("{0}`r`n{1}`r`n{0}" -f ("-"*80), "DEBUG: 'TITLE' -MATCHES 'EDITOR'")
 				}
 				'editorMatch', 'archMatch', 'chanMatch', 'version', 'channel', 'revision', 'date', 'url' | ForEach-Object {
 					Write-Host "DEBUG: i = $i 	${_} = " $(Invoke-Expression `$$_)
@@ -769,8 +788,6 @@ Function parseRss ($rssFeed) {
 			If ($script:url -Match ('^https://.*' + '(' + $version + ')?.*' + $revision + '.*' + $items[$editor].fmask + '$') ) {
 				$script:urlMatch = 1
 				$hashFeed = $_ -Replace ".*?(?i)$channel.*?<a href=`"$url`">$($items[$editor].fmask)</a><br />(?:(sha1|md5): ([0-9a-f]{32}|[0-9a-f]{40}))</li>.*", '$1 $2'
-				Write-Host "DEBUG: --> $hashFeed"
-				#exit
 				$script:hashAlgo, $script:hash = $hashFeed.ToUpper().Split(' ')
 				hashPreCheck "$script:hashAlgo" "$script:hash"
 				Break
@@ -927,6 +944,12 @@ If ((Get-FileHash -Algorithm $hashAlgo "$saveAs").Hash -eq $hash) {
 		}
 	} ElseIf ($fileFmt -eq "arc") {
 		$retArcDir = &sevenZip "listdir" "$saveAs"
+		If ( $(Try { (Test-Path variable:local:aDir) -And (-Not [string]::IsNullOrWhiteSpace($aDir)) } Catch { $False }) ) {
+			If (&Test-Path "$retArcDir") {
+				$retArcDir = "$items[$editor]"
+				Write-Host "DEBUG: Remove-Item `"$retArcDir`" -ErrorAction SilentlyContinue -WarningAction SilentlyContinue -Force"
+			}
+		} 
 		If ($debug -ge 1) {
 			Write-Host "DEBUG: extrTo\retArcdir = ${extrTo}\${retArcdir}"
 		}
@@ -941,7 +964,7 @@ If ((Get-FileHash -Algorithm $hashAlgo "$saveAs").Hash -eq $hash) {
 					If ($debug -ge 1) {
 						Write-Host "DEBUG: lnkTarget = `"$lnkTarget`" linkName = `"$lnkName`""
 					}
-					$retShortcut = &createShortcut "$lnkTarget" "" "$lnkName"
+					$retShortcut = &createShortcut "$lnkTarget" "$lnkExecArgs" "$lnkName"
 					If (-Not $retShortcut) {
 						$eMsg = "Could not create shortcut on Desktop"
 						Write-Host -ForeGroundColor Red "ERROR: $eMsg"
