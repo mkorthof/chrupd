@@ -727,7 +727,7 @@ Function parseRss ($rssFeed) {
 			}
 			<# DEBUG MATCHES: call after '-Match' with '&matches' #>
 			$matches = {
-				If ($xml.rss.channel.item[$i].title -Match ".*?(Marmaduke)") {$Matches[1]; $editorMatch = 1}
+				If ($xml.rss.channel.item[$i].title -Match ".*?(Marmaduke)") {$Matches[1]; $script:editorMatch = 1}
 				If ($debug -ge 2) {Write-Host "DEBUG: Matches[0], [1] = "; % {$Matches[0]}; % {$Matches[1]}}
 			}
 		}
@@ -943,13 +943,14 @@ If ((Get-FileHash -Algorithm $hashAlgo "$saveAs").Hash -eq $hash) {
 			Write-Log "$ilogMsg"
 		}
 	} ElseIf ($fileFmt -eq "arc") {
-		$retArcDir = &sevenZip "listdir" "$saveAs"
-		If ( $(Try { (Test-Path variable:local:aDir) -And (-Not [string]::IsNullOrWhiteSpace($aDir)) } Catch { $False }) ) {
+		If ($aDir -eq 1) {
 			If (&Test-Path "$retArcDir") {
 				$retArcDir = "$items[$editor]"
-				Write-Host "DEBUG: Remove-Item `"$retArcDir`" -ErrorAction SilentlyContinue -WarningAction SilentlyContinue -Force"
+				Remove-Item `"$retArcDir`" -ErrorAction SilentlyContinue -WarningAction SilentlyContinue -Recurse -Force
 			}
-		} 
+		} Else {
+			$retArcDir = &sevenZip "listdir" "$saveAs"
+		}
 		If ($debug -ge 1) {
 			Write-Host "DEBUG: extrTo\retArcdir = ${extrTo}\${retArcdir}"
 		}
