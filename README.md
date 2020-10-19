@@ -17,28 +17,28 @@ Run `chrupd.cmd` or see below for details.
 
 ## Configuration
 
-Make sure the combination of editor and channel is correct. You can also use  the `list` option. For more information about versions check: [chromium.woolyss.com](https://chromium.woolyss.com/?cut=1&ago=1) and it's RSS atom [feed](https://chromium.woolyss.com/feed/windows-64-bit).
+Make sure the combination of editor and channel is correct. You can also use the `-list` option. For more information about versions check [chromium.woolyss.com](https://chromium.woolyss.com/?cut=1&ago=1) and it's [RSS feed](https://chromium.woolyss.com/feed/windows-64-bit).
 
-| Editor       | Channel      |
-|:-------------|:-------------|
-| Marmaduke    | stable, dev  |
-| RobRich      | dev          |
-| Chromium     | dev          |
-| ThumbApps    | dev          |
-| Ungoogled    | stable       |
+| Editor       | Channel          |
+|:-------------|:-----------------|
+| Marmaduke    | stable, dev      |
+| RobRich      | dev              |
+| Chromium     | dev              |
+| ThumbApps    | dev              |
+| Ungoogled    | stable           |
 | **Hibbiki**  | **stable**, dev  |
 
 _( defaults in **bold**  )_
 
 ## Usage
 
-Usually Chromium installation is automatically taken care of by running the downloaded Installer ('mini_installer.exe'). In case the installer left a logfile it's path wil be shown.
+Usually Chromium installation is automatically taken care of by running the downloaded Installer ('mini_installer.exe'). In case the installer left a log it's path wil be shown.
 
 If the Editor releases Chromium as an zip or 7z archive, the script will to try to extract it to these paths:
 
 | Path                                   | Example                                   |
 |:---------------------------------------|:------------------------------------------|
-| %LocalAppData%\Chromium\Application    | C:\Users\\<User\>\Appdata\Local\Chromium  |
+| %LocalAppData%\Chromium                | C:\Users\\<User\>\Appdata\Local\Chromium  |
 | Desktop                                | C:\Users\\<User\>\Desktop                 |
 | %TEMP%                                 | C:\Users\\\<User\>\TEMP                   |
 
@@ -46,11 +46,11 @@ _(in that order, top to bottom)_
 
 The folder that was used will be shown and a shortcut will be created on the Desktop called 'Chromium', which links to chrome.exe
 
-A log is saved to "chrupd.log" in the same dir as the script.
+A log file is saved to "chrupd.log" in the same dir as the script.
 
 ## Scheduled Task
 
-You can add a Scheduled Task with ```crTask```. A VBS wrapper will be written to **chrupd.vbs** which is used to hide it's window. Option ```noVbs``` disables the wrapper, this will however cause a flashing window when the task runs.
+You can add a Scheduled Task with `-crTask`. A VBS wrapper will be written to "chrupd.vbs" which is used to hide it's window. Option `-noVbs` disables the wrapper, this will however cause a flashing window when the task runs.
 
 ## Updating
 
