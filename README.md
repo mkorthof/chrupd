@@ -19,16 +19,16 @@ Run `chrupd.cmd` or see below for details.
 
 Make sure the combination of editor and channel is correct. You can also use  the `list` option. For more information about versions check: [chromium.woolyss.com](https://chromium.woolyss.com/?cut=1&ago=1) and it's RSS atom [feed](https://chromium.woolyss.com/feed/windows-64-bit).
 
-| Editor       | Channel      |
-|:-------------|:-------------|
-| Marmaduke    | stable, dev  |
-| RobRich      | dev          |
-| Chromium     | dev          |
-| ThumbApps    | dev          |
-| Ungoogled    | stable       |
-| **Hibbiki**  | **stable**, dev  |
+| Editor               | Channel         |
+|:---------------------|:----------------|
+| Marmaduke            | stable, dev     |
+| Marmaduke-Ungoogled  | stable          |
+| RobRich              | dev             |
+| The Chromium Authors | dev             |
+| ThumbApps            | dev             |
+| **Hibbiki**          | **stable**, dev |
 
-_( defaults in **bold**  )_
+( _defaults in **bold**_  )
 
 ## Usage
 
@@ -42,7 +42,7 @@ If the Editor releases Chromium as an zip or 7z archive, the script will to try 
 | Desktop                                | C:\Users\\<User\>\Desktop                 |
 | %TEMP%                                 | C:\Users\\\<User\>\TEMP                   |
 
-_(in that order, top to bottom)_
+( _in that order, top to bottom_ )
 
 The folder that was used will be shown and a shortcut will be created on the Desktop called 'Chromium', which links to chrome.exe
 
@@ -62,9 +62,7 @@ For a changelog see [CHANGES.md](CHANGES.md)
 
 For easy execution this PowerShell script is embedded in a Batch .CMD file using a *"polyglot wrapper"*. It can be renamed to `chrupd.ps1`. More info can be found on [blogs.msdn.microsoft.com](https://blogs.msdn.microsoft.com/jaybaz_ms/2007/04/26/powershell-polyglot) and [stackoverflow.com](https://stackoverflow.com/questions/29645).
 
-###### *Note that this script has no connection to the preexisting [ChrUpdWin.cmd](https://gist.github.com/mikhaelkh/12dec36d4a1c4136628b#file-chrupdwin-cmd) Batch file by [Michael Kharitonov](https://github.com/mikhaelkh)*
-
----
+> *Note: this script has no connection to the preexisting [ChrUpdWin.cmd](https://gist.github.com/mikhaelkh/>12dec36d4a1c4136628b#file-chrupdwin-cmd) Batch file by [Michael Kharitonov](https://github.com/mikhaelkh)*
 
 ## Command Line Options
 
@@ -83,7 +81,7 @@ USAGE: chrupd.cmd -[editor|arch|channel|force|list]
                   -[crTask|rmTask|shTask]
 
          -editor  option must be set to one of:
-                  <Chromium|Hibbiki|Marmaduke|Ungloogled|RobRich|ThumbApps>
+                  <Chromium|Hibbiki|Marmaduke|Marmaduke-Ungloogled|RobRich|ThumbApps>
          -arch    option must be set to <64bit|32bit>
          -channel option must be set to <stable|dev>
          -force   flag to always (re)install, even if latest ver is installed
