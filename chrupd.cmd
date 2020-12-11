@@ -787,7 +787,7 @@ Function parseRss ($rssFeed) {
 			<# CHECK URL, HASH AND BREAK LOOP #>
 			If ($script:url -Match ('^https://.*' + '(' + $version + ')?.*' + $revision + '.*' + $items[$editor].fmask + '$') ) {
 				$script:urlMatch = 1
-				$hashFeed = $_ -Replace ".*?(?i)$channel.*?<a href=`"$url`">$($items[$editor].fmask)</a><br />(?:(sha1|md5): ([0-9a-f]{32}|[0-9a-f]{40}))</li>.*", '$1 $2'
+				$hashFeed = $_ -Replace ".*?(?i)$channel.*?<a href=`"$url`">$($items[$editor].fmask)</a><br />(?:(sha1|md5): ([0-9a-f]{32}|[0-9a-f]{40})) .*", '$1 $2'
 				$script:hashAlgo, $script:hash = $hashFeed.ToUpper().Split(' ')
 				hashPreCheck "$script:hashAlgo" "$script:hash"
 				Break
