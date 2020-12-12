@@ -1,5 +1,7 @@
 # Changes
 
+**2020-12-12** Fixed hash regex (#11)
+
 **2020-10-17** Fixed regex matching Zip/7z url's (Ungoogled, Marmaduke), new options: `eDir` and `lnkArgs` (#7), added advanced help
 
 **2020-10-07** Typos/small fixes (#10)
