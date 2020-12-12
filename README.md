@@ -4,7 +4,7 @@ _**Self executable PowerShell script to auto update Chromium for Windows**_
 
 ---
 
-**Latest version: 20201017 ([CHANGES.md](CHANGES.md))**
+**Latest version: 20201212 ([CHANGES.md](CHANGES.md))**
 
 ---
 
