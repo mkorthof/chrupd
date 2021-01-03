@@ -6,7 +6,7 @@ GOTO :EOF
 #>
 
 <# ------------------------------------------------------------------------- #>
-<# 20201017 MK: Simple Chromium Updater (chrupd.cmd)                         #>
+<# 20201212 MK: Simple Chromium Updater (chrupd.cmd)                         #>
 <# ------------------------------------------------------------------------- #>
 <# Uses RSS feed from "chromium.woolyss.com" to download and install latest  #>
 <# Chromium version, if a newer version is available. Options can be set     #>
