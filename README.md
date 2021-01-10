@@ -40,7 +40,7 @@ Optionally you can add a Scheduled Task by using `chrupd.cmd -crTask`. A VBS wra
 
 ## Updating
 
-The script auto updates (since v20210109). 
+The script auto updates (since v20210109).
 
 To manually update to a newer version just replace "chrupd.cmd". Copy "editor" and "channel" if set. If you have Scheduled Task setup you do not need to change the task.
 
@@ -48,7 +48,7 @@ To manually update to a newer version just replace "chrupd.cmd". Copy "editor" a
 
 For easy execution this PowerShell script is embedded in a Batch .CMD file, which can be renamed to .PS1.
 
-See [docs/Formats.md](docs/Formats.md) for details  .
+See [docs/Formats.md](/docs/Formats.md) for details.
 
 > *Note: this script has no connection to the preexisting [ChrUpdWin.cmd](https://gist.github.com/mikhaelkh/>12dec36d4a1c4136628b#file-chrupdwin-cmd) Batch file by [Michael Kharitonov](https://github.com/mikhaelkh)*
 
@@ -83,3 +83,5 @@ NOTES:   Options "editor" and "channel" need an argument (CasE Sensive)
          See ".\chrupd.cmd -advhelp" for 'advanced' options
 
 ```
+
+See [docs/Options.md](/docs/Options.md) for 'advanced' options.

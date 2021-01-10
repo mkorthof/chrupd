@@ -4,6 +4,8 @@ Besides the normal options (`chrupd.cmd -h`), there's some extra options you'll 
 
 For example if you use proxy or are having issues with scheduled tasks.
 
+There also options `appDir` and `linkArgs` which are related to [archive installs](/docs/Archives.md).
+
 `chrupd.cmd -ah`
 
 ``` text

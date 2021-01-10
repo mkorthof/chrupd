@@ -18,17 +18,17 @@ Chromium • Windows (64-bit only) By: Woolyss
 - Version: 99.0.1234.321
 - Revision: 987654
 - Codecs: all audio/video formats
-- Date: 2021-01-01
+- Date: 2021-01-08
 
 Download from Github repository:
 
-- [mini_installer.sync.exe](ttps://github.com/Hibbiki/chromium-win64/releases/download/v99.0.1234.321-r987654/mini_installer.sync.exe)
-
-  sha1: abcdef123456789abcdef123456789abcdef1234
+- [mini_installer.sync.exe](https://github.com/Hibbiki/chromium-win64/releases/download/v99.0.1234.321-r987654/mini_installer.sync.exe)
+s
+  sha1: abcdef123456789abcdef123456789abcdef1234 <small>([virus?](https://www.virustotal.com/gui/file/abcdef123456789abcdef123456789abcdef1234/detection))</small>
 
 - [chrome.sync.7z](https://github.com/Hibbiki/chromium-win64/releases/download/v99.0.1234.321-r987654/chrome.sync.7z)
 
-  sha1: 0987654321fedcba0987654321fedcba09876543
+  sha1: 0987654321fedcba0987654321fedcba09876543 <small>([virus?](https://www.virustotal.com/gui/file/abcdef123456789abcdef123456789abcdef1234/detection))</small>
 
 Source: https://chromium.woolyss.com/
 
@@ -42,11 +42,12 @@ Source: https://chromium.woolyss.com/
   <title>Chromium 64-bit on Windows (Hibbiki)</title>
   <link>https://chromium.woolyss.com/#win64-stable-sync-hibbiki</link>
   <description>
-    <![CDATA[ <strong>Stable version</strong>: <ul><li>Editor: <a href="https://chromium.woolyss.com/">Hibbiki</a></li><li>Architecture: 64-bit</li><li>Channel: stable</li><li>Version: 99.0.1234.321</li><li>Revision: 987654</li><li>Codecs: all audio/video formats</li><li>Date: <abbr title="Date format: YYYY-MM-DD">2021-01-01</abbr></li></ul> Download from Github repository: <ul><li><a href="https://github.com/Hibbiki/chromium-win64/releases/download/v99.0.1234.321-r987654/mini_installer.sync.exe">mini_installer.sync.exe</a><br />sha1: abcdef123456789abcdef123456789abcdef1234</li><li><a href="https://github.com/Hibbiki/chromium-win64/releases/download/v99.0.1234.321-r987654/chrome.sync.7z">chrome.sync.7z</a><br />sha1: 0987654321fedcba0987654321fedcba09876543</li></ul><small>Source: <a href="https://chromium.woolyss.com/">https://chromium.woolyss.com/</a></small> ]]>
+    <![CDATA[ <strong>Stable version</strong>: <ul><li>Editor: <a href="https://chromium.woolyss.com/">Hibbiki</a></li><li>Architecture: 64-bit</li><li>Channel: stable</li><li>Version: 99.0.1234.321</li><li>Revision: 987654</li><li>Codecs: all audio/video formats</li><li>Date: <abbr title="Date format: YYYY-MM-DD">2021-01-01</abbr></li></ul> Download from Github repository: <ul><li><a href="https://github.com/Hibbiki/chromium-win64/releases/download/v99.0.1234.321-r987654/mini_installer.sync.exe">mini_installer.sync.exe</a><br />sha1: abcdef123456789abcdef123456789abcdef1234 <small>(<a href="https://www.virustotal.com/gui/file/abcdef123456789abcdef123456789abcdef1234/detection" target="_blank" rel="noopener oreferrer">virus?</a>)</small></li><li><a href="https://github.com/Hibbiki/chromium-win64/releases/download/v99.0.1234.321-r987654/chrome.sync.7z">chrome.sync.7z</a><br />sha1: 0987654321fedcba0987654321fedcba09876543 <small>(<a href="https://www.virustotal.com/gui/file/0987654321fedcba0987654321fedcba09876543/detection" target="_blank" rel="noopener oreferrer">virus?</a>)</small></li></ul><small>Source: <a href="https://chromium.woolyss.com/">https://chromium.woolyss.com/</a></small> ]]>
  </description>
-  <pubDate>Wed, 01 Jan 2021 01:12:11 +0100</pubDate>
-  <dc:creator>Woolyss</dc:creator>
-  <dc:rights>Creative Commons Attribution-ShareAlike (CC BY-SA)</dc:rights>
+ <guid isPermaLink="false">1610146099</guid>
+ <pubDate>Fri, 08 Jan 2021 23:48:19 +0100</pubDate>
+ <dc:creator>Woolyss</dc:creator>
+ <dc:rights>Creative Commons Attribution-ShareAlike (CC BY-SA)</dc:rights>
 </item>
 
 ```
