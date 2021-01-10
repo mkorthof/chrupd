@@ -40,7 +40,9 @@ Optionally you can add a Scheduled Task by using `chrupd.cmd -crTask`. A VBS wra
 
 ## Updating
 
-The script auto updates. To manually update to a newer version just replace "chrupd.cmd". Copy "editor" and "channel" if set. If you have Scheduled Task setup you do not need to change the task.
+The script auto updates (since v20210109). 
+
+To manually update to a newer version just replace "chrupd.cmd". Copy "editor" and "channel" if set. If you have Scheduled Task setup you do not need to change the task.
 
 ## File Formats
 
