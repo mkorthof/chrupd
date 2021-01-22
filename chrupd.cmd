@@ -5,7 +5,7 @@ ENDLOCAL & dir "%~f0.tmp" >nul 2>&1 && move /Y "%~f0" "%~f0.bak" >nul 2>&1 && mo
 #>
 
 <# ----------------------------------------------------------------------------
-.SYNOPSIS 20210109 MK: Simple Chromium Updater (chrupd.cmd)
+.SYNOPSIS 20210122 MK: Simple Chromium Updater (chrupd.cmd)
 <# ----------------------------------------------------------------------------
 
 .DESCRIPTION
@@ -1468,6 +1468,9 @@ If (!($cdataObj.editorMatch -And $cdataObj.urlMatch)) {
 <##############################>
 
 $saveAs = "$env:TEMP\$($items[$editor].filemask)"
+If ($saveAs -NotMatch "\.(exe|7z|zip)$") {
+	$saveAs = ("{0}\{1}" -f $env:TEMP, $cdataObj.url.Substring($cdataObj.url.LastIndexOf("/") + 1))
+}
 If ( ($cdataObj.editorMatch -eq 1) -And ($cdataObj.archMatch -eq 1) -And ($cdataObj.channelMatch -eq 1) -And ($cdataObj.urlMatch -eq 1) -And ($cdataObj.hashFmtMatch -eq 1) )	{
 	If (($cdataObj.url) -And ($cdataObj.url -NotMatch ".*$curVersion.*")) {
 		$ago = ((Get-Date) - ([DateTime]::ParseExact($cdataObj.date, 'yyyy-MM-dd', $null)))
@@ -1483,7 +1486,7 @@ If ( ($cdataObj.editorMatch -eq 1) -And ($cdataObj.archMatch -eq 1) -And ($cdata
 			}
 			Write-Msg -o dbg,1		   "Would have Downloaded: `"$($cdataObj.url)`""
 			Write-Msg -o dbg,1 		   "Using following Path : `"$saveAs`""
-			Write-Msg -o dbg,1,Yellow ("{0}`r`n(!) Make sure `"$saveAs`" ALREADY EXISTS to continue debugging`r`n{0}" -f ("-" * 80))
+			Write-Msg -o 1,Yellow ("{0}`r`n(!) Make sure `"$saveAs`" ALREADY EXISTS to continue debugging`r`n{0}" -f ("-" * 80))
 		} Else {
 			If (&Test-Path "$saveAs") {
 				Remove-Item "$saveAs"
@@ -1606,7 +1609,7 @@ If (( $(Try { (Test-Path variable:local:fileHash) -And (-Not [string]::IsNullOrW
 					} Else {
 						$_dMsg += " and shortcut created on Desktop"
 					}
-					& $doneMsg
+					& $_doneMsg
 				} Else {
 					Write-Msg -o err,tee "Could not extract `"$saveAs`", exiting..."
 					Exit 1
