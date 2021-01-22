@@ -1,5 +1,7 @@
 # Changes
 
+**2021-01-22** Fix Ungoogled filename (#12)
+
 **2021-01-09** Added auto script updater (or manually: `-cUpdate`)
 
 **2020-12-02** Pretty big update:
