@@ -21,12 +21,12 @@ Download and run `chrupd.cmd` or see below for details.
 
 ## Configuration
 
-Make sure the combination of editor and channel is correct. You can also use `chrupd.cmd -list`. For more information about versions check [chromium.woolyss.com](https://chromium.woolyss.com/?cut=1&ago=1), it's [feed](https://chromium.woolyss.com/feed/windows-64-bit) and [chromium.org](https://www.chromium.org).
+Make sure the combination of editor and channel is correct. You can also use `chrupd.cmd -list`. For more information about versions check [chromium.woolyss.com](https://chromium.woolyss.com/?cut=1&ago=1), it's [feed](https://chromium.woolyss.com/feed/windows-64-bit) and [chromium.org](https://www.chromium.org). Note that using `-editor Ungoogled` still works (now done by Marmaduke).
 
 | Editor               | Channel         |
 |:---------------------|:----------------|
 | Marmaduke            | stable, dev     |
-| Marmaduke-Ungoogled  | stable          |
+| Ungoogled(Marmaduke) | stable          |
 | RobRich              | dev             |
 | The Chromium Authors | dev             |
 | ThumbApps            | dev             |
