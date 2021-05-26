@@ -53,9 +53,9 @@ $_Args = $Args
 <# SCRIPTDIR #>
 $scriptDir = $_Args[0]
 If ( $(Try {
-			(Test-Path variable:local:scriptDir) -And	(&Test-Path $scriptDir -EA 4 -WA 4) -And
-			(-Not [string]::IsNullOrWhiteSpace($scriptDir))
-		} Catch { $False }) ) {
+		(Test-Path variable:local:scriptDir) -And (&Test-Path $scriptDir -EA 4 -WA 4) -And
+		(-Not [string]::IsNullOrWhiteSpace($scriptDir))
+	} Catch { $False }) ) {
 	$rm = ($_Args[0])
 	$_Args = ($_Args) | Where-Object { $_ -ne $rm }
 } Else {
@@ -136,6 +136,15 @@ $items = @{
 		repo     = "https://github.com/macchrome/winchrome/releases/download/";
 		filemask = "ungoogled-chromium-"
 		alias    = "Ungoogled-Marmaduke"
+	};
+	"Ungoogled-Portable" = @{
+		title    = "Ungoogled-Portable";
+		editor   = "Portapps";
+		fmt      = "XML";
+		url      = "https://$woolyss";
+		repo     = "https://github.com/portapps/ungoogled-chromium-portable/releases/";
+		filemask = "ungoogled-chromium-"
+		alias    = "Ungoogled-Portapps"
 	};
 	"RobRich"   =	@{
 		title    = "RobRich";
@@ -433,12 +442,12 @@ If ($list -eq 1) {
 	Write-Msg "Available Editors:"
 	<#$items.GetEnumerator() | Where-Object Value | Format-Table @{l='editor:';e={$_.Key}}, @{l='website, repository, file:';e={$_.Value}} -AutoSize#>
 	$items.GetEnumerator() | Where-Object Value | `
-		Format-Table @{l = 'Name'; e = { $_.Key } }, `
-	@{l = 'Editor'; e = { $_.Value.editor } }, `
-	@{l = 'Website'; e = { $_.Value.url } }, `
-	@{l = 'Repository'; e = { $_.Value.repo } }, `
-		<# @{l='Format';e={$_.Value.fmt}}, ` #>
-	@{l = 'Filemask'; e = { $_.Value.filemask } } -AutoSize
+		Format-Table @{l = ''; e = { $_.Key } }, `
+					 @{l = 'Editor'; e = { $_.Value.editor } }, `
+					 @{l = 'Website'; e = { $_.Value.url } }, `
+					 @{l = 'Repository'; e = { $_.Value.repo } }, `
+					<# @{l='Format';e={$_.Value.fmt}}, ` #>
+					@{l = 'Filemask'; e = { $_.Value.filemask } } -AutoSize
 	Write-Msg "Available from Woolyss RSS Feed:"
 	$xml = [xml](Invoke-WebRequest -UseBasicParsing -TimeoutSec 5 -Uri "https://${woolyss}/feed/windows-$($arch)")
 	$xml.rss.channel.Item | Select-Object @{N = 'Title'; E = 'title' }, @{N = 'Link'; E = 'link' } | Out-String
