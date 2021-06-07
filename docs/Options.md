@@ -1,6 +1,6 @@
 # Advanced Options
 
-Besides the normal options (`chrupd.cmd -h`), there's some extra options you'll normally won't need but are available in case you need them.
+Besides the normal options (`chrupd.cmd -h`), there's some extra options you'll normally won't need but are available in case you do need them.
 
 For example if you use proxy or are having issues with scheduled tasks.
 
