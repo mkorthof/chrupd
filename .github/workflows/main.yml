@@ -25,13 +25,14 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
 
-      # Runs a single command using the runners shell
+      # Runs a set of commands using the runners shell
       - name: Run chrupd.cmd and check log
         run: |
-         pwsh.exe -File chrupd.cmd || true
-         grep 'Latest Chromium version already installed\|New Chromium version\|Done\.' chrupd.log
+          pwsh.exe -File chrupd.cmd || true
+          grep 'Latest Chromium version already installed\|New Chromium version\|Done\.' chrupd.log
       
       # Runs a set of commands using the runners shell
       - name: PSScriptAnalyzer
         run: |
-          pwsh.exe -Command 'Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Confirm:$false -Force; Invoke-ScriptAnalyzer -Path chrupd.cmd'
+          copy chrupd.cmd chrupd-test.ps1
+          pwsh.exe -Command 'Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Confirm:$false -Force; Invoke-ScriptAnalyzer -Path chrupd-test.ps1'
