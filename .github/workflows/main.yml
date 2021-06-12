@@ -16,7 +16,7 @@ on:
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   # This workflow contains a single job called "build"
-  build:
+  test:
     # The type of runner that the job will run on
     runs-on: windows-latest
 
@@ -34,4 +34,4 @@ jobs:
       # Runs a set of commands using the runners shell
       - name: PSScriptAnalyzer
         run: |
-          pwsh.exe -Command 'Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Confirm:$false -Force; Invoke-ScriptAnalyzer -Path chrupd.ps1'
+          pwsh.exe -Command 'Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Confirm:$false -Force; Invoke-ScriptAnalyzer -Path chrupd.cmd'
