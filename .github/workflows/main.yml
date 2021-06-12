@@ -28,10 +28,10 @@ jobs:
       # Runs a single command using the runners shell
       - name: Run chrupd.cmd and check log
         run: |
-         powershell.exe -File chrupd.cmd || true
+         pwsh.exe -File chrupd.ps1 || true
          grep 'Latest Chromium version already installed\|New Chromium version\|Done\.' chrupd.log
       
       # Runs a set of commands using the runners shell
       - name: PSScriptAnalyzer
         run: |
-          powershell.exe -Command 'Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Confirm:$false -Force; Invoke-ScriptAnalyzer -Path chrupd.ps1'
+          pwsh.exe -Command 'Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Confirm:$false -Force; Invoke-ScriptAnalyzer -Path chrupd.ps1'
