@@ -1232,7 +1232,16 @@ Function virusTotal($cdataObj) {
 Function cdataHtml($i, $cdata, $cfg, $items, $cdataObj) {
 	Write-Msg -o dbg,1 "cdataHtml `$i=$i"
 	$html = New-Object -ComObject "htmlfile"
-	$html.IHTMLDocument2_write($cdata)
+	# https://stackoverflow.com/a/48859819
+	Try {
+		# This works in PowerShell with Office installed
+		$html.IHTMLDocument2_write($cdata)
+	}
+	Catch {
+		# This works when Office is not installed    
+		$_src = [System.Text.Encoding]::Unicode.GetBytes($cdata)
+		$html.write($_src)
+	}
 	$html.getElementsByTagName('li') | ForEach-Object {
 		$_name = $_.innerText.split(':')[0].ToLower() -Replace '(\n|\r\n)', '_'
 		$_value = $_.innerText.split(':')[1] -Replace '^ ' -Replace ' ?\(virus\?\)'
