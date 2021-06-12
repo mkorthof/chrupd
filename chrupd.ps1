@@ -1,1 +1,0 @@
-C:/users/silver/dev/chrupd/chrupd.cmd
