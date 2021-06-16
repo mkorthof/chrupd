@@ -5,7 +5,7 @@ ENDLOCAL & dir "%~f0.tmp" >nul 2>&1 && move /Y "%~f0" "%~f0.bak" >nul 2>&1 && mo
 #>
 
 <# ----------------------------------------------------------------------------
-.SYNOPSIS 20210616 MK: Simple Chromium Updater (chrupd.cmd)
+.SYNOPSIS 20210616a MK: Simple Chromium Updater (chrupd.cmd)
 <# ----------------------------------------------------------------------------
 
 .DESCRIPTION
@@ -670,7 +670,7 @@ If ( $(Try { -Not (Test-Path variable:local:tsMode) -Or ([string]::IsNullOrWhite
 	$tsMode = 1
 }
 $vbsWrapper = $scriptDir + "\chrupd.vbs"
-$taskArgs = "-scheduler -editor $($items[$editor].editor) -arch $arch -channel $channel -cAutoUp $AutoUp"
+$taskArgs = "-scheduler -editor $($items[$editor].editor) -arch $arch -channel $channel -cAutoUp $cAutoUp"
 If ($noVbs -eq 0) {
 	$taskCmd = "$vbsWrapper"
 } Else {
@@ -688,7 +688,7 @@ For i = 0 to (WScript.Arguments.Count - 1)
 	Args = Args & " " & WScript.Arguments(i)
 Next
 Set WinScriptHost = CreateObject("WScript.Shell")
-WinScriptHost.Run Chr(34) & "${scriptDir}$scriptCmd" & Chr(34) & " " & Args, 0
+WinScriptHost.Run Chr(34) & "${scriptDir}\\${scriptCmd}" & Chr(34) & " " & Args, 0
 Set WinScriptHost = Nothing
 "@
 
