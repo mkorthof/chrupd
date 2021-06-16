@@ -1,6 +1,14 @@
 # Changes
 
-**2021-01-22** Fix Ungoogled filename (#12)
+**2021-06-16** Added tests (wip)
+
+**2021-06-01** Fixed `-appDir` ([#14](https://github.com/mkorthof/chrupd/issues/14))
+
+**2021-05-26** Cosmetic: "title" and "editor" are shown differently in `-list` and in current settings ([#13](https://github.com/mkorthof/chrupd/issues/13))
+
+**2021-05-25** Architecture 64bit is now default
+
+**2021-01-22** Fix Ungoogled filename ([#12](https://github.com/mkorthof/chrupd/issues/12))
 
 **2021-01-09** Added auto script updater (or manually: `-cUpdate`)
 

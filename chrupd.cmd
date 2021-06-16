@@ -5,7 +5,7 @@ ENDLOCAL & dir "%~f0.tmp" >nul 2>&1 && move /Y "%~f0" "%~f0.bak" >nul 2>&1 && mo
 #>
 
 <# ----------------------------------------------------------------------------
-.SYNOPSIS 20210122 MK: Simple Chromium Updater (chrupd.cmd)
+.SYNOPSIS 20210616 MK: Simple Chromium Updater (chrupd.cmd)
 <# ----------------------------------------------------------------------------
 
 .DESCRIPTION
@@ -31,7 +31,7 @@ ENDLOCAL & dir "%~f0.tmp" >nul 2>&1 && move /Y "%~f0" "%~f0.bak" >nul 2>&1 && mo
 <# ------------------------------------------------------------------------- #>
 $cfg = @{
   editor   = "Hibbiki";       <# Editor of Chromium release                  #>
-  arch     = "64bit";         <# 32bit or 64bit architecture                 #>
+  arch     = "64bit";         <# Architecture: 32bit or 64bit (default)      #>
   channel  = "stable";        <# dev, stable                                 #>
   proxy    = "";              <# set <uri> to use a http proxy               #>
   linkArgs = "";              <# see '.\chrupd.cmd -advhelp'                 #>
@@ -94,7 +94,7 @@ $proxy = $linkArgs = ""
 $cAutoUp = 1
 
 <# ARCHIVE EXTRACT PATHS #>
-$arcInstDirs = @(
+$arcInstPaths = @(
 	"$env:LocalAppData\Chromium\Application",
 	"$([Environment]::GetFolderPath('Desktop'))",
 	"$env:USERPROFILE\Desktop",
@@ -236,8 +236,8 @@ If ($_Args -iMatch "[-/?]h") {
 	Write-Host "`t`t", " -[crTask|rmTask|shTask] or [-list]", "`r`n"
 	Write-Host "`t", "-editor  option must be set to one of:"
 	Write-Host "`t`t", " <Official|Hibbiki|Marmaduke|Ungoogled|RobRich>"
-	Write-Host "`t", "-arch    option must be set to <64bit|32bit>"
 	Write-Host "`t", "-channel option must be set to <stable|dev>"
+	Write-Host "`t", "-arch    can be set to <64bit|32bit> default: 64bit"
 	Write-Host "`t", "-force   always (re)install, even if latest ver is installed", "`r`n"
 	Write-Host "`t", "-list    show version, editors and rss feeds from woolyss.com", "`r`n"
 	Write-Host "`t", "-crTask  create a daily scheduled task"
@@ -259,7 +259,7 @@ If ($_Args -iMatch "[-/?]ad?v?he?l?p?") {
 	Write-Host "`t", "-confirm   answer 'Y' on prompt about removing scheduled task", "`r`n"
 	Write-Host "`t", "-proxy     use a http proxy server, set option to <uri> "
 	Write-Host "`t", "-cAutoUp   auto update this script, set option to <0|1> (default=1)"
-	Write-Host "`t", "-appDir    extract archives to %AppData%\Chromium\Application\`$editor"
+	Write-Host "`t", "-appDir    extract archives to %AppData%\Chromium\Application\`$title"
 	Write-Host "`t", "-linkArgs  option sets <arguments> for chrome.exe in Chromium shortcut"
 	Write-Host "`t", "-ignVer    ignore version mismatch between feed and filename", "`r`n"
 	Write-Host "`t", "-cUpdate   manually update this script", "`r`n"
@@ -334,7 +334,7 @@ $items.GetEnumerator() | ForEach-Object {
 	}
 }
 @{ "32bit|32|x86" = "32-bit";
-	"64bit|64|x64"   = "64-bit";
+   "64bit|64|x64" = "64-bit";
 }.GetEnumerator() | ForEach-Object {
 	If ($_.Key -Match $arch) { $arch = $_.Value }
 }
@@ -346,6 +346,7 @@ $getWinVer = {
 		[hashtable]$osTypeName,
 		[int]$tsMode
 	)
+	Write-Msg -o dbg,3 "`$ostTypeName[1]=$($osTypeName[1])"
 	<# DEBUG: TEST WINVER
 	If ($debug -ge 3) {
 		$osVer = @{ Major = 6; Minor = 1; }
@@ -362,7 +363,7 @@ $getWinVer = {
 			Return $osFound, $osFullName, $osTsMode
 		}
 	} | Out-Null
-If (-Not $osFound) {
+	If (-Not $osFound) {
 		$osFullName = "Unknown Windows Version"
 	}
 	If ($tsMode -NotMatch '^[1-3]$') {
@@ -379,44 +380,63 @@ If (-Not $osFound) {
 <# FUNC: MSG #>
 <#############>
 
-<# OLD: Function Write-Err ($msg) {
-	Write-Host -ForeGroundColor Red "ERROR: $msg"
-} #>
-<# OLD: Function Write-Log ($msg) {
-	If ($cfg.log) {
-		Add-Content $logFile -Value (((Get-Date).toString("yyyy-MM-dd HH:mm:ss")) + " $msg")
-	}
-} #>
+<#	Write-Msg [-o dbg,(int)lvl,err,wrn,log,nnl,tee,fgColor|fgColor,bgColor] "String" #>
 
 <# SYNTAX: #>
-<# Write-Msg [-o dbg,(int)lvl|err|wrn|log|nnl|tee|bgColor|fgColor] "Text 123" #>
+
+<# 	-o [option] :																	 #>
+<# 		dbg					"DEBUG: some msg"									 	 #>
+<# 		dbg,1				If ($debug -ge 1) { "DEBUG:level 1" }				 	 #>
+<# 		err					"ERROR: some msg"	(Red)								 #>
+<# 		wrn					"WARNING: some msg"	(Yellow)			 				 #>
+<# 		nnl					NoNewLine												 #>
+<#	 	log					log msg to file	 	 									 #>
+<#	 	tee 				log msg to file AND stdout								 #>
+<# 		fgColor				e.g. Blue												 #>
+<#		fgColor,bgColor		e.g. White,DarkGray										 #>
+
+<# EXAMPLE: #>
+<# Write-Msg -o dbg,1,Magenta,tee "some debugging text" #>
+
+<# OLD:
+	Function Write-Err ($msg) {	Write-Host -ForeGroundColor Red "ERROR: $msg" }
+	Function Write-Log ($msg) {	If ($cfg.log) { Add-Content $logFile -Value (((Get-Date).toString("yyyy-MM-dd HH:mm:ss")) + " $msg") } }
+	[ValidatePattern("dbg|warn|err|nnl|log|tee|^[0-9]$|^(?-i:[A-Z][a-zA-Z]{2,})")]
+#>
 
 Function Write-Msg {
 	[CmdletBinding()]
 	param (
 		[alias("f")]
+		[ValidateScript({
+			If ("$_" -match "dbg|warn|err|nnl|log|tee|^[0-9]$|^(?-i:[A-Z][a-zA-Z]{2,})") {
+				$True
+			} Else {
+				Throw "Invalid value is: `"$_`""
+			}
+		})]
 		$options,
-		[Parameter(Position = 1)]
+		[Parameter(Position = 1, ValueFromRemainingArguments=$true)]
 		$msg
 	)
 	$dbg = $log = $tee = $False
 	$lvl = 0
-	$params = @{}
+	$msgParams = @{}
 	$cnt = 0
 	ForEach ($opt in $options) {
-		switch -Regex ($opt) {
+		Switch -Regex ($opt) {
 			'dbg' { $pf = "DEBUG: "; $dbg = $True; }
-			'warn' { $pf = "WARNING: "; $params += @{ForegroundColor = "Yellow" } }
-			'err' { $pf = "ERROR: "; $params += @{ForegroundColor = "Red" } }
-			'nnl' { $params += @{NoNewLine = $True } }
+			'warn' { $pf = "WARNING: "; $msgParams += @{ForegroundColor = "Yellow" } }
+			'err' { $pf = "ERROR: "; $msgParams += @{ForegroundColor = "Red" } }
+			'nnl' { $msgParams += @{NoNewLine = $True } }
 			'log' { $log = $True }
 			'tee' { $tee = $True }
 			'^[0-9]$'	{ $lvl = $($matches[0]) }
 			'^(?-i:[A-Z][a-zA-Z]{2,})' {
 				If ($cnt -ge 1) {
-					$params += @{BackgroundColor = $($matches[0]) }
+					$msgParams += @{BackgroundColor = $($matches[0]) }
 				} Else {
-					$params += @{ForegroundColor = $($matches[0]) }
+					$msgParams += @{ForegroundColor = $($matches[0]) }
 				}
 				$cnt++
 			}
@@ -424,7 +444,7 @@ Function Write-Msg {
 	}
 	<# log to stdout (check debug level) and/or log to file with date #>
 	If (!$log -And ((!$dbg) -Or (($dbg) -And ($debug -ge $lvl)))) {
-		Write-Host @params ("{0}$msg" -f $pf)
+		Write-Host @msgParams ("{0}$msg" -f $pf)
 	}
 	If ($cfg.log -And ($log -Or $tee)) {
 		Add-Content $logFile -Value (((Get-Date).toString("yyyy-MM-dd HH:mm:ss")) + " $msg")
@@ -442,8 +462,7 @@ If ($list -eq 1) {
 	Write-Msg "Available Editors:"
 	<#$items.GetEnumerator() | Where-Object Value | Format-Table @{l='editor:';e={$_.Key}}, @{l='website, repository, file:';e={$_.Value}} -AutoSize#>
 	$items.GetEnumerator() | Where-Object Value | `
-		Format-Table @{l = ''; e = { $_.Key } }, `
-					 @{l = 'Editor'; e = { $_.Value.editor } }, `
+		Format-Table @{l = 'Editor'; e = { if ($_.Value.editor -eq $_.Key) {$_.Value.editor} else {$_.Value.editor, $_.Key}} }, `
 					 @{l = 'Website'; e = { $_.Value.url } }, `
 					 @{l = 'Repository'; e = { $_.Value.repo } }, `
 					<# @{l='Format';e={$_.Value.fmt}}, ` #>
@@ -493,8 +512,10 @@ If (-Not ($items.Keys -eq $editor)) {
 	}
 }
 If ($arch -cNotMatch "^(32-bit|64-bit)$") {
-	Write-Msg -o err "Invalid architecture `"$arch`", must be `"32-bit`" or `"64-bit`". Exiting ..."
-	Exit 1
+	#Write-Msg -o err "Invalid architecture `"$arch`", must be `"32-bit`" or `"64-bit`". Exiting ..."
+	#Exit 1
+	$arch = "64-bit"
+	Write-Msg -o "Using default architecture (64-bit)"
 }
 If ($channel -cNotMatch "^(stable|dev)$") {
 	Write-Msg -o err "Invalid channel `"$channel`", must be `"stable`" or `"dev`" (CasE Sensive). Exiting ..."
@@ -541,16 +562,16 @@ Function updateScript () {
 	<# TEST: $params += @{ Verbose = $True } #>
 	If ($debug -ge 1) {
 		$params += @{ WhatIf = $True }
-		Write-Msg -o dbg,1 "updateScript (!) not changing files (!)"
+		Write-Msg -o dbg,1,Yellow "updateScript /!\ NOT CHANGING FILES /!\"
 	}
-	<# get date/version from readme #>
+	<# Get date/version from readme #>
 	[System.Net.ServicePointManager]::SecurityProtocol = @("Tls12", "Tls11", "Tls")
 	$ghApi = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String("aHR0cHM6Ly9hcGkuZ2l0aHViLmNvbS9yZXBvcy9ta29ydGhvZi9jaHJ1cGQ="))
 	$ghJson = (ConvertFrom-Json(Invoke-WebRequest -UseBasicParsing -TimeoutSec 300 -Uri "$ghApi/contents/README.md"))
 	$ghReadmeContent = [System.Text.Encoding]::UTF8.GetString(([System.Convert]::FromBase64String((($ghJson).content)))) -split "`n"
 	$newDate = ($ghReadmeContent | Select-String -Pattern "Latest version.* 202\d{5} ") -Replace '.*Latest version: (202\d{5}) .*', '$1'
 	Write-Msg -o dbg,1 "updateScript curScriptDate=$curScriptDate newDate=$newDate"
-	<# compare date in remote README.md with local chdupd.cmd script #>
+	<# Compare date in remote README.md with local chdupd.cmd script #>
 	If ($newDate -And (([DateTime]::ParseExact($newDate, 'yyyyMMdd', $null)) -gt ([DateTime]::ParseExact($curScriptDate, 'yyyyMMdd', $null)))) {
 		Write-Msg -o tee "New chrupd version `"$newDate`" available, updating script..."
 		<# SPLIT: current script file #>
@@ -570,7 +591,7 @@ Function updateScript () {
 			Write-Msg -o err,tee "Could not download new script, skipped update"
 			Break
 		}
-		<# merge current local config if found, else just write new script #>
+		<# Merge current local config if found, else just write new script #>
 		If ($ghSplit) {
 			If ($loSplit) {
 				$newContent = $ghSplit.head, $loSplit.config, $ghSplit.script
@@ -732,7 +753,7 @@ If ($crTask -eq 1) {
 			If (-Not (&Get-ScheduledTask -EA 0 -TaskName "$scriptName")) {
 				Write-Msg $($taskMsg.create)
 				Try { (Register-ScheduledTask -Action $action -Trigger $trigger -TaskName "$scriptName" -Description "$taskMsg.descr") | Out-Null }
-				Catch { Write-Msg "$($taskMsg.problem)`r`nError: `"$($_.Exception.Message)`"" }
+				Catch { Write-Msg "$($taskMsg.problem)`r`nERROR: `"$($_.Exception.Message)`"" }
 			} Else {
 				Write-Msg $($taskMsg.exists)
 			}
@@ -771,7 +792,7 @@ If ($crTask -eq 1) {
 				$execAction.Arguments = "$taskArgs"
 				$execAction.WorkingDirectory = "$scriptDir"
 				Try { $_t = $taskFolder.RegisterTaskDefinition("$scriptName", $taskDef, 6, "", "", 3, "") }
-				Catch { Write-Msg "$($taskMsg.problem) Error: `"$($_.Exception.Message)`"" }
+				Catch { Write-Msg "$($taskMsg.problem) ERROR: `"$($_.Exception.Message)`"" }
 				If ( $(Try { -Not (Test-Path variable:local:_t) -Or ( [string]::IsNullOrWhiteSpace($_t)) } Catch { $False }) ) {
 					Write-Msg ("{0}`r`n`r`n  {1}`r`n  {2}`r`n" -f $taskMsg.failed, $taskMsg.manual, $taskMsg.export)
 				}
@@ -795,7 +816,7 @@ If ($crTask -eq 1) {
 				$a = "$a /F"
 			}
 			$p = Start-Process -FilePath "$env:SystemRoot\system32\schtasks.exe" -ArgumentList $a -Wait -NoNewWindow -PassThru
-			$handle = $p.Handle
+			$handle = $p.Handle # cache proc.Handle
 			$p.WaitForExit()
 			If ($p.ExitCode -eq 0) {
 				Write-Msg
@@ -807,7 +828,7 @@ If ($crTask -eq 1) {
 			} Catch {
 				$False
 			}
-			Write-Msg dbg, 1 "handle=$handle"
+			Write-Msg dbg,1 "handle=$handle"
 		}
 	}
 	Exit 0
@@ -856,7 +877,7 @@ If ($crTask -eq 1) {
 			Write-Msg "$taskMsg.remove`r`n"
 			$a = "/Delete /TN \\`"$scriptName`""
 			$p = Start-Process -FilePath "$env:SystemRoot\system32\schtasks.exe" -ArgumentList $a -Wait -NoNewWindow -PassThru
-			$handle = $p.Handle
+			$handle = $p.Handle # cache proc.Handle
 			$p.WaitForExit()
 			If ($p.ExitCode -eq 0) {
 				Write-Msg
@@ -900,7 +921,7 @@ If ($crTask -eq 1) {
 		3 {
 			$a = "/Query /TN \\`"${scriptName}`" /XML"
 			<# $p = Start-Process -FilePath "$env:SystemRoot\system32\schtasks.exe" -ArgumentList $a -Wait -NoNewWindow -PassThru #>
-			<# $handle = $p.Handle	#>
+			<# $handle = $p.Handle # cache proc.Handle	#>
 			<# $p.WaitForExit() #>
 			$pinfo = New-Object System.Diagnostics.ProcessStartInfo
 			$pinfo.FileName = "$env:SystemRoot\system32\schtasks.exe"
@@ -923,7 +944,7 @@ If ($crTask -eq 1) {
 				Write-Msg ("Actions: WorkingDirectory: `"{0}`", Execute: `"{1}`", Arguments: `"{2}`"" -f $($stdout.Task.Actions.Exec.WorkingDirectory), $($stdout.Task.Actions.Exec.Command), $($stdout.Task.Actions.Exec.Arguments))
 				Write-Msg ("TaskInfo: LastRunTime: `"{0}`", NextRunTime: `"{1}`", NumberOfMissedRuns: {2}`r`n" -f $LastRunTime, $NextRunTime, "?")
 			} Else {
-				Write-Msg "$($taskMsg.notfound)`r`nError: $stderr"
+				Write-Msg "$($taskMsg.notfound)`r`nERROR: $stderr"
 			}
 		}
 	}
@@ -956,7 +977,7 @@ Write-Msg -o log "Start (pid:$pid name:$($(Get-PSHostProcessInfo | Where-Object 
 If (!$curVersion) {
 	$curVersion = (Get-ChildItem ${env:LocalAppData}\Chromium\Application -EA 0 -WA 0 |
 		Where-Object { $_.Key -Match "\d\d.\d.\d{4}\.\d{1,3}" } ).Key | 
-	Sort-Object | Select-Object -Last 1
+		Sort-Object | Select-Object -Last 1
 }
 If ($force -eq 1) {
 	Write-Msg -o tee "Forcing update, ignoring currently installed Chromium version `"$curVersion`""
@@ -978,13 +999,21 @@ If ($force -eq 1) {
 
 Write-Msg "Using the following settings:"
 $i = 0
-$_arr = $('Feed', 'name', 'editor', 'architecture', 'channel')
-ForEach ($_conf in $woolyss, $(($items.GetEnumerator() | Where-Object { $_.Key -eq $editor }).Name), $($items[$editor].editor), $arch, $channel) {
-	Write-Msg -o nnl $_arr[$i]
-	Write-Msg -o nnl ' "'
-	Write-Msg -o nnl,DarkGray $_conf
-	Write-Msg -o nnl '" '
-	$cMsg += '{0} "{1}" ' -f $_arr[$i], $_conf
+$_name = $(($items.GetEnumerator() | Where-Object { $_.Key -eq $editor }).Name)
+$_editor = $($items[$editor].editor)
+If (-Not ($_name -eq $($items[$editor].editor))) {
+	$_tlabel = 'title'
+	$_title = $_name
+}
+$_arr = $('Feed', $_tlabel, 'editor', 'architecture', 'channel')
+ForEach ($_conf in $woolyss, $_title, $_editor, $arch, $channel) {
+	If ($_conf) {
+		Write-Msg -o nnl $_arr[$i]
+		Write-Msg -o nnl ' "'
+		Write-Msg -o nnl,DarkGray $_conf
+		Write-Msg -o nnl '" '
+		$cMsg += '{0} "{1}" ' -f $_arr[$i], $_conf
+	}
 	$i++
 }
 Write-Msg "`r`n"
@@ -1144,6 +1173,9 @@ Function sevenZip ([string]$action, [string]$7zArgs) {
 	} ElseIf ($action -eq "extract") {
 		Write-Msg -o dbg,1 "`$p = Start-Process -FilePath `"$7z`" -ArgumentList $7zArgs -NoNewWindow -PassThru -Wait"
 		$p = Start-Process -FilePath "$7z" -ArgumentList "$7zArgs" -NoNewWindow -PassThru -Wait
+		$handle = $p.Handle # cache proc.Handle
+		Write-Msg dbg,1 "handle=$handle"
+		$p.WaitForExit()
 		Return $p.ExitCode
 	}
 }
@@ -1151,9 +1183,13 @@ Function sevenZip ([string]$action, [string]$7zArgs) {
 <# FUNC: SHORTCUT #>
 
 Function createShortcut ([string]$srcExe, [string]$srcExeArgs, [string]$dstPath) {
+	If ( $(Try { -Not (Test-Path variable:local:srcExe) -And (-Not [string]::IsNullOrWhiteSpace($srcExe)) } Catch { $null }) ) {
+		Write-Msg -o err,tee "Missing source .exe"
+		Return $False
+	}
 	If (&Test-Path $srcExe) {
-		If ( $(Try { (Test-Path variable:local:dstPath) -And (&Test-Path $dstPath) -And (-Not [string]::IsNullOrWhiteSpace($dstPath)) } Catch { $False }) ) {
-			Try { Remove-Item -EA 0 -EA 0 -Force "$dstPath" } Catch { $False }
+		If ( $(Try { (Test-Path variable:local:dstPath) -And (&Test-Path $dstPath) -And (-Not [string]::IsNullOrWhiteSpace($dstPath)) } Catch { $null }) ) {
+			Try { Remove-Item -EA 0 -EA 0 -Force "$dstPath" } Catch { $null }
 		}
 		$WshShell = New-Object -comObject WScript.Shell
 		<# $WshShell.SpecialFolders("Desktop") #>
@@ -1168,8 +1204,7 @@ Function createShortcut ([string]$srcExe, [string]$srcExeArgs, [string]$dstPath)
 		<# $Shortcut.WorkingDirectory #>
 		$Shortcut.Save()
 	} Else {
-		$sMsg = "Shortcut target `"$srcExe`" does not exist"
-		Write-Msg -o err,tee "$sMsg"
+		Write-Msg -o err,tee "Shortcut target `"$srcExe`" does not exist"
 		Return $False
 	}
 	Return $True
@@ -1195,10 +1230,19 @@ Function virusTotal($cdataObj) {
 
 <# FUNC: PARSE CDATA USING 'htmlfile' #>
 
-Function cdataHtml($i, $cdata, $cfg, $items, $cdataObj) {
+Function cdataHtml($idx, $cdata, $cfg, $items, $cdataObj) {
 	Write-Msg -o dbg,1 "cdataHtml `$i=$i"
 	$html = New-Object -ComObject "htmlfile"
-	$html.IHTMLDocument2_write($cdata)
+	# https://stackoverflow.com/a/48859819
+	Try {
+		# This works in PowerShell with Office installed
+		$html.IHTMLDocument2_write($cdata)
+	}
+	Catch {
+		# This works when Office is not installed
+		$_src = [System.Text.Encoding]::Unicode.GetBytes($cdata)
+		$html.write($_src)
+	}
 	$html.getElementsByTagName('li') | ForEach-Object {
 		$_name = $_.innerText.split(':')[0].ToLower() -Replace '(\n|\r\n)', '_'
 		$_value = $_.innerText.split(':')[1] -Replace '^ ' -Replace ' ?\(virus\?\)'
@@ -1217,7 +1261,7 @@ Function cdataHtml($i, $cdata, $cfg, $items, $cdataObj) {
 		}
 	}
 
-	$cdataObj.titleMatch = $xml.rss.channel.Item[$i].title -Match $items[$editor].title
+	$cdataObj.titleMatch = $xml.rss.channel.Item[$idx].title -Match $items[$editor].title
 	$cdataObj.editorMatch = $items[$editor].editor -Match $cdataObj.editor
 	$cdataObj.archMatch = $arch -ieq $cdataObj.architecture
 	$cdataObj.channelMatch = $channel -ieq $cdataObj.channel
@@ -1231,18 +1275,18 @@ Function cdataHtml($i, $cdata, $cfg, $items, $cdataObj) {
 	If ($debug -ge 1) {
 		$cnt = 0
 		If ($cdataObj.titleMatch) {
-			$_tMsg = "cdataHtml `$i=$i title=`"$($items[$editor].title)`" -Match xml.rss.channel.Item.title=`"$($xml.rss.channel.Item[$i].title)`"`r`n"
+			$_tMsg = "cdataHtml `$idx=$idx title=`"$($items[$editor].title)`" -Match xml.rss.channel.Item.title=`"$($xml.rss.channel.Item[$idx].title)`"`r`n"
 			$cnt++
 		}
 		If ($cdataObj.editorMatch) {
-			$_eMsg = "cdataHtml `$i=$i editor=`"$($items[$editor].editor)`" -Match cdataObj.editor=`"$($cdataObj.editor)`"`r`n"
+			$_eMsg = "cdataHtml `$idx=$idx editor=`"$($items[$editor].editor)`" -Match cdataObj.editor=`"$($cdataObj.editor)`"`r`n"
 			$cnt++
 		}
 		If ($cnt -gt 0 ) {
 			Write-Msg -o Yellow ("{0}`r`n{1}{2}{0}" -f ("-" * 80), $_tMsg, $_eMsg)
 		}
 		If ($debug -ge 9) {
-			Write-Msg -o Magenta "DEBUG: `$i=$i outputting 'cdataObj' only, then Exit ..."
+			Write-Msg -o Magenta "DEBUG: `$idx=$idx outputting 'cdataObj' only, then Exit ..."
 			$cdataObj
 			Exit
 		}
@@ -1252,14 +1296,14 @@ Function cdataHtml($i, $cdata, $cfg, $items, $cdataObj) {
 
 <# FUNC: PARSE CDATA USING REGEX #>
 
-Function cdataRegex($i, $cdata, $cfg, $items, $cdataObj) {
-	Write-Msg -o dbg,2 "cdataRegex `$i=$i"
+Function cdataRegex($idx, $cdata, $cfg, $items, $cdataObj) {
+	Write-Msg -o dbg,2 "cdataRegex `$idx=$idx"
 	<# DEBUG: REGEX MATCHES - Call this scriptblock *after* a '-Match' line by using '&matches'
 	$matches = {
 		If ($xml.rss.channel.Item[$i].title -Match ".*?(Marmaduke)") {$Matches[1]; $cdataObj.editorMatch = $True}
 		Write-Msg -o dbg,2 "Matches[0], [1] = "; % {$Matches[0]}; % {$Matches[1]}}
 	} #>
-	$cdataObj.titleMatch = $xml.rss.channel.Item[$i].title -Match $items[$editor].title
+	$cdataObj.titleMatch = $xml.rss.channel.Item[$idx].title -Match $items[$editor].title
 	$cdataObj.editorMatch = $cdata -Match '(?i)' + $channel + '.*?(Editor: <a href="' + $items[$editor].url + '/">' + $editor + '</a>).*(?i)' + $channel
 	$cdataObj.archMatch = $cdata -Match '(?i)' + $channel + '.*?(architecture: ' + $arch + ').*(?i)' + $channel
 	$cdataObj.channelMatch = $cdata -Match '(?i)' + $channel + '.*?(Channel: ' + $channel + ')'
@@ -1282,7 +1326,7 @@ Function cdataRegex($i, $cdata, $cfg, $items, $cdataObj) {
 	}
 
 	<# DISABLED: ## Editor exception: Marmaduke ##
-	If ( ($($xml.rss.channel.Item[$i].title) -Match "Ungoogled") -And
+	If ( ($($xml.rss.channel.Item[$idx].title) -Match "Ungoogled") -And
 		 ($cdata -Match '(?i)' + $channel + '.*?(Editor: <a href="' + $items[$editor].url + '/">' + "Marmaduke" + '</a>).*(?i)' + $channel) )
 	{
 		$cdataObj.titleMatch = $True
@@ -1312,11 +1356,11 @@ Function cdataRegex($i, $cdata, $cfg, $items, $cdataObj) {
 	If ($debug -ge 1) {
 		$cnt = 0
 		If ($cdataObj.titleMatch) {
-			$_tMsg = "cdataRegex `$i=$i editor=`"$($items[$editor].editor)` -Match xml.rss.channel.Item.title=`"$($xml.rss.channel.Item[$i].title)`"`r`n"
+			$_tMsg = "cdataRegex `$idx=$idx editor=`"$($items[$editor].editor)` -Match xml.rss.channel.Item.title=`"$($xml.rss.channel.Item[$idx].title)`"`r`n"
 			$cnt++
 		}
 		If ($cdataObj.editorMatch) {
-			$_eMsg = "cdataRegex `$i=$i cdataObj.editorMatch=`"$($cdataObj.editorMatch)`"`r`n"
+			$_eMsg = "cdataRegex `$idx=$idx cdataObj.editorMatch=`"$($cdataObj.editorMatch)`"`r`n"
 			$cnt++
 		}
 		If ($cnt -gt 0 ) {
@@ -1357,15 +1401,15 @@ Function parseRss ($rssFeed, $cdataMethod) {
 	<# LOOP OVER ITEMS: TITLE, EDITOR #>
 	$i = 0
 	While ($xml.rss.channel.Item[$i]) {
-		Write-Msg -o dbg, 1, Cyan			"`$i=$i xml cdataMethod=$cdataMethod title=$($xml.rss.channel.Item[$i].title)"
+		Write-Msg -o dbg, 1, Cyan		"`$i=$i xml cdataMethod=$cdataMethod title=$($xml.rss.channel.Item[$i].title)"
 		Write-Msg -o dbg, 1				"`$i=$i xml link = $($xml.rss.channel.Item[$i].link)"
 		Write-Msg -o dbg, 2, DarkYellow	"`$i=$i xml description = $($xml.rss.channel.Item[$i].description."#cdata-section")"
 		<# INNER WHILE LOOP: CDATA HTML #>
 		$xml.rss.channel.Item[$i].description."#cdata-section" | ForEach-Object {
 			If ($cdataMethod -eq "htmlfile") {
-				$cdataObj = cdataHtml $i $_ $cfg $items $cdataObj
+				$cdataObj = cdataHtml -idx $i -cdata $_ -cfg $cfg -items $items -cdataObj $cdataObj
 			} ElseIf ($cdataMethod -eq "regexp") {
-				$cdataObj = cdataRegex $i $_ $cfg $items $cdataObj
+				$cdataObj = cdataRegex -idx $i -cdata $_ -cfg $cfg -items $items -cdataObj $cdataObj
 			}
 			If ($cdataObj.url) {
 				$cdataObj.urlMatch = $cdataObj.url -Match ('^https://.*' + '(' + $cdataObj.version + ')?.*' + $cdataObj.revision + '.*' + $items[$editor].filemask)
@@ -1429,21 +1473,21 @@ If ($debug -ge 1) {
 <# SHOW PARSE INFO TO USER #>
 $nm = 0
 If (!$cdataObj.editorMatch) {
-	$nm++; $nmMsg += "  [x] check editor setting: `"$($items[$editor].editor)`""
+	$nm++; $nmMsg += "   [X] check editor setting: `"$($items[$editor].editor)`""
 	If ($cdataObj.editor) {
 		$nmMsg += ", found `"$($cdataObj.editor)`""
 	}
 	$nmMsg += "`r`n"
 }
 If (!$cdataObj.channelMatch) {
-	$nm++; $nmMsg += "  [x] check channel setting: `"$($channel)`""
+	$nm++; $nmMsg += "   [X] check channel setting: `"$($channel)`""
 	If ($cdataObj.channel) {
 		$nmMsg += ", found `"$($cdataObj.channel)`""
 	}
 	$nmMsg += "`r`n"
 }
 If (!$cdataObj.archMatch) {
-	$nm++; $nmMsg += "  [x] check architecture setting: `"$($arch)`""
+	$nm++; $nmMsg += "   [X] check architecture setting: `"$($arch)`""
 	If ($cdataObj.architecture) {
 		$nmMsg += ", found `"$($cdataObj.arch)`""
 	}
@@ -1451,7 +1495,7 @@ If (!$cdataObj.archMatch) {
 }
 If (!$cdataObj.urlMatch) {
 	$nm++
-	$nmMsg += "  [x] unable to find correct url to download install`r`n"
+	$nmMsg += "   [X] unable to find correct url to download install`r`n"
 }
 If ($nm -gt 0) {
 	Write-Msg -o nnl "Found: "
@@ -1476,9 +1520,14 @@ If (!($cdataObj.editorMatch -And $cdataObj.urlMatch)) {
 <# DOWNLOAD AND CHECK VERSION #>
 <##############################>
 
-$saveAs = "$env:TEMP\$($items[$editor].filemask)"
-If ($saveAs -NotMatch "\.(exe|7z|zip)$") {
-	$saveAs = ("{0}\{1}" -f $env:TEMP, $cdataObj.url.Substring($cdataObj.url.LastIndexOf("/") + 1))
+$params = @{}
+If ($debug -gt 2) {
+	$params = @{ Verbose = $True }
+}
+
+$saveAsPath = "$env:TEMP\$($items[$editor].filemask)"
+If ($saveAsPath -NotMatch "\.(exe|7z|zip)$") {
+	$saveAsPath = ("{0}\{1}" -f $env:TEMP, $cdataObj.url.Substring($cdataObj.url.LastIndexOf("/") + 1))
 }
 If ( ($cdataObj.editorMatch -eq 1) -And ($cdataObj.archMatch -eq 1) -And ($cdataObj.channelMatch -eq 1) -And ($cdataObj.urlMatch -eq 1) -And ($cdataObj.hashFmtMatch -eq 1) )	{
 	If (($cdataObj.url) -And ($cdataObj.url -NotMatch ".*$curVersion.*")) {
@@ -1490,24 +1539,24 @@ If ( ($cdataObj.editorMatch -eq 1) -And ($cdataObj.archMatch -eq 1) -And ($cdata
 		}
 		Write-Msg -o tee ("New Chromium version `"{0}`" from {1} is available ({2} ago)" -f $cdataObj.version, $cdataObj.date, $_agoTxt)
 		If ($debug -ge 1) {
-			If (&Test-Path "$saveAs") {
-				Write-Msg -o dbg,1 "Would have deleted $saveAs"
+			If (&Test-Path "$saveAsPath") {
+				Write-Msg -o dbg,1 "Would have Deleted $saveAsPath"
 			}
 			Write-Msg -o dbg,1		   "Would have Downloaded: `"$($cdataObj.url)`""
-			Write-Msg -o dbg,1 		   "Using following Path : `"$saveAs`""
-			Write-Msg -o 1,Yellow ("{0}`r`n(!) Make sure `"$saveAs`" ALREADY EXISTS to continue debugging`r`n{0}" -f ("-" * 80))
+			Write-Msg -o dbg,1 		   "Using following Path : `"$saveAsPath`""
+			Write-Msg -o 1,Yellow ("{0}`r`n(!) Make sure `"$saveAsPath`" ALREADY EXISTS to continue debugging`r`n{0}" -f ("-" * 80))
 		} Else {
-			If (&Test-Path "$saveAs") {
-				Remove-Item "$saveAs"
+			If (&Test-Path "$saveAsPath") {
+				Remove-Item @params "$saveAsPath"
 			}
 			Write-Msg -o tee "Downloading `"$($cdataObj.url)`""
-			Write-Msg -o tee "Saving as: `"$saveAs`""
+			Write-Msg -o tee "Saving as: `"$saveAsPath`""
 			[System.Net.ServicePointManager]::SecurityProtocol = @("Tls12", "Tls11", "Tls")
 			$wc = New-Object System.Net.WebClient
 			If ($proxy) {
 				$wc.Proxy = $webproxy
 			}
-			$wc.DownloadFile($cdataObj.url, "$saveAs")
+			$wc.DownloadFile($cdataObj.url, "$saveAsPath")
 		}
 	} Else {
 		$_lMsg = "Latest Chromium version already installed"
@@ -1529,7 +1578,7 @@ If ( ($cdataObj.editorMatch -eq 1) -And ($cdataObj.archMatch -eq 1) -And ($cdata
 <# VERIFY HASH, INSTALL OR EXTRACT #>
 <###################################>
 
-$fileHash = (Get-FileHash -Algorithm $cdataObj.hashAlgo "$saveAs").Hash
+$fileHash = (Get-FileHash -Algorithm $cdataObj.hashAlgo "$saveAsPath").Hash
 If ($ignHash -eq 1) {
 	$cdataObj.hash = $fileHash
 	Write-Msg -o tee "Ignoring hash, using hash from downloaded installer: `"$($cdataObj.hash)`""
@@ -1544,29 +1593,29 @@ If (-Not ($cdataObj.hash) -Or ([string]::IsNullOrWhiteSpace($cdataObj.hash))) {
 }
 If (( $(Try { (Test-Path variable:local:fileHash) -And (-Not [string]::IsNullOrWhiteSpace($fileHash)) -And ($fileHash -eq $cdataObj.hash) } Catch { $False }) )) {
 	$_hMsg = "$($cdataObj.hashAlgo.ToUpper()) hash matches `"$($cdataObj.hash)`""
-	If ($saveAs -Match ".*\.exe$") {
-		$fileFmt = "exe"
+	If ($saveAsPath -Match ".*\.exe$") {
+		$fileFmt = "EXECUTABLE"
 		Write-Msg -o tee "$_hMsg"
 		Write-Msg -o tee "Executing `"$($items[$editor].filemask)`""
-	} ElseIf ($saveAs -Match ".*\.(7z|zip)$") {
-		$fileFmt = "arc"
-		$extrTo = ""
+	} ElseIf ($saveAsPath -Match ".*\.(7z|zip)$") {
+		$fileFmt = "ARCHIVE"
+		$extractPath = ""
 		$i = 0
-		ForEach ($extrTo in $arcInstDirs) {
-			If (($extrTo -ne "") -And (Test-Path -pathType Container -EA 0 -WA 0 $extrTo)) {
+		ForEach ($extractPath in $arcInstPaths) {
+			If (($extractPath -ne "") -And (Test-Path -pathType Container -EA 0 -WA 0 $extractPath)) {
 				$i++
 				Break
 			}
 		}
 		If ($i -gt 0) {
-			Write-Msg -o tee "Extracting `"$($items[$editor].filemask)`" to `"$extrTo`""
+			Write-Msg -o tee "Extracting to `"$extractPath`""
 		} Else {
 			Write-Msg -o err,tee "Could not find dir to extract to, exiting..."
 			Exit 1
 		}
 	}
 
-	<# TEST: If ($fakeVer -eq 1) { $saveAs += "-FakeVer" } #>
+	<# TEST: If ($fakeVer -eq 1) { $saveAsPath += "-FakeVer" } #>
 
 	<# write [OK] msg in green and optional $_dMsg #>
 	$_doneMsg = {
@@ -1577,10 +1626,10 @@ If (( $(Try { (Test-Path variable:local:fileHash) -And (-Not [string]::IsNullOrW
 		Write-Msg -o log "Done. $_dMsg"
 	}
 
-	If ($fileFmt -eq "exe") {
+	If ($fileFmt -eq "EXECUTABLE") {
 		$exeArgs = "--do-not-launch-chrome"
-		Write-Msg -o dbg,1 "`$p = Start-Process -FilePath `"$saveAs`" -ArgumentList $exeArgs -Wait -NoNewWindow -PassThru"
-		$p = (Start-Process -FilePath "$saveAs" -ArgumentList $exeArgs -Wait -NoNewWindow -PassThru)
+		Write-Msg -o dbg,1 "`$p = Start-Process -FilePath `"$saveAsPath`" -ArgumentList $exeArgs -Wait -NoNewWindow -PassThru"
+		$p = (Start-Process -FilePath "$saveAsPath" -ArgumentList $exeArgs -Wait -NoNewWindow -PassThru)
 		If ($p.ExitCode -eq 0) {
 			$_dMsg = "New Chromium version will be used on next app (re)start"
 			& $_doneMsg
@@ -1593,26 +1642,46 @@ If (( $(Try { (Test-Path variable:local:fileHash) -And (-Not [string]::IsNullOrW
 		If (&Test-Path $installLog) {
 			Write-Msg -o log,Red "Installer logfile: $installLog"
 		}
-	} ElseIf ($fileFmt -eq "arc") {
-		If ($appDir -eq 1) {
-			$retArcDir = "$($items[$editor].editor)"
-			If (&Test-Path -pathType Container "${extrTo}\${retArcdir}") {
-				Remove-Item -EA 0 -WA 0 -Recurse -Force "${extrTo}\${retArcdir}"
-			}
-		} Else {
-			$retArcDir = &sevenZip "listdir" "$saveAs"
-		}
-		Write-Msg -o dbg,1 "extrTo\retArcdir = ${extrTo}\${retArcdir}"
-		If (-Not (&Test-Path "${extrTo}\${retArcdir}")) {
-			If ($retArcDir) {
-				$retExtract = &sevenZip "extract" "x $saveAs -o${extrTo} -y"
-				If ($retExtract -eq 0) {
-					$_dMsg = "New Chromium version extracted to `"${extrTo}\${retArcdir}`""
-					$lnkTarget = "${extrTo}\${retArcdir}\chrome.exe"
+	} ElseIf ($fileFmt -eq "ARCHIVE") {
+		$arcDir = &sevenZip "listdir" "$saveAsPath"
+		$lnkTarget = "${extractPath}\${arcDir}\chrome.exe"
+		If ($arcDir) {
+			If ((-Not (&Test-Path "${extractPath}\${arcDir}")) -Or ($appDir -eq 1)) {
+				$retExtract = &sevenZip "extract" "x $saveAsPath -o${extractPath} -y"
+				If (($retExtract -eq 0) -And (&Test-Path "${extractPath}\${$arcDir}")) {
+					<# For option '-arcDir' move Chrome to output dir e.g.
+					   %AppData%\Chromium\Application\<editor>\ungoogled-chromium-123.456 #>
+					If ($appDir -eq 1) {
+						$_itemName = $(($items.GetEnumerator() | Where-Object { $_.Key -eq $editor }).Name)
+						$_itemEditor = $($items[$editor].editor)
+						$itemDir = "$_itemEditor"
+						If (-Not ($_itemName -eq $_itemEditor)) {
+							$itemDir = "$_itemName"
+						}
+						If ($itemDir) {
+							$lnkTarget = "${extractPath}\${itemDir}\chrome.exe"
+							If (&Test-Path -pathType Container "${extractPath}\${itemDir}") {
+								Remove-Item @params -EA 0 -WA 0 -Recurse -Force "${extractPath}\${itemDir}"
+							}
+							Try {
+								Rename-Item @params -EA 1 -WA 1 -Force "${extractPath}\${arcDir}" "${extractPath}\${itemDir}"
+							} Catch {
+								Write-Msg -o err,tee "Could not move Chromium folder"
+								Exit 1
+							}
+						} Else {
+							Write-Msg -o err,tee "Could not find Editor folder"
+							Exit 1
+						}
+					}
+					$_dMsg = "New Chromium version extracted to `"${extractPath}\${itemDir}`""
 					<# $lnkName = "$env:USERPROFILE\Desktop\Chromium $version.lnk" #>
 					$lnkName = "$env:USERPROFILE\Desktop\Chromium.lnk"
-					Write-Msg -o dbg,1 "lnkTarget = `"$lnkTarget`" linkName = `"$lnkName`""
-					$retShortcut = &createShortcut "$lnkTarget" "$lnkExecArgs" "$lnkName"
+					Write-Msg -o dbg,1 "arcDir = `"$arcDir`""
+					Write-Msg -o dbg,1 "itemDir = `"$itemDir`""
+					Write-Msg -o dbg,1 "lnkTarget = `"$lnkTarget`""
+					Write-Msg -o dbg,1 "linkName = `"$lnkName`""
+					$retShortcut = &createShortcut -srcExe "$lnkTarget" -srcExeArgs "$lnkExecArgs" -dstPath "$lnkName"
 					If (-Not $retShortcut) {
 						Write-Msg -o err,tee "Could not create shortcut on Desktop"
 					} Else {
@@ -1620,15 +1689,15 @@ If (( $(Try { (Test-Path variable:local:fileHash) -And (-Not [string]::IsNullOrW
 					}
 					& $_doneMsg
 				} Else {
-					Write-Msg -o err,tee "Could not extract `"$saveAs`", exiting..."
+					Write-Msg -o err,tee "Could not extract `"$saveAsPath`", exiting..."
 					Exit 1
 				}
 			} Else {
-				Write-Msg -o err,tee "No directory to extract found inside archive `"$saveAs`", exiting..."
+				Write-Msg -o err,tee "Directory `"${extractPath}\${arcDir}`" already exists, exiting..."
 				Exit 1
 			}
 		} Else {
-			Write-Msg -o err,tee "Directory `"${extrTo}\${retArcDir}`" already exists, exiting..."
+			Write-Msg -o err,tee "No directory to extract found inside archive `"$saveAsPath`", exiting..."
 			Exit 1
 		}
 	}
