@@ -1,6 +1,7 @@
 bak/
 dev/
 wip/
+chrupd.ps1
 *.bak
 *.log
 *.swp
