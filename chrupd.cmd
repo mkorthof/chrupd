@@ -5,7 +5,7 @@ ENDLOCAL & dir "%~f0.tmp" >nul 2>&1 && move /Y "%~f0" "%~f0.bak" >nul 2>&1 && mo
 #>
 
 <# ----------------------------------------------------------------------------
-.SYNOPSIS 20210122 MK: Simple Chromium Updater (chrupd.cmd)
+.SYNOPSIS 20210622 MK: Simple Chromium Updater (chrupd.cmd)
 <# ----------------------------------------------------------------------------
 
 .DESCRIPTION
@@ -31,7 +31,7 @@ ENDLOCAL & dir "%~f0.tmp" >nul 2>&1 && move /Y "%~f0" "%~f0.bak" >nul 2>&1 && mo
 <# ------------------------------------------------------------------------- #>
 $cfg = @{
   editor   = "Hibbiki";       <# Editor of Chromium release                  #>
-  arch     = "64bit";         <# Architecture: 32bit or 64bit (default)       #>
+  arch     = "64bit";         <# Architecture: 32bit or 64bit (default)      #>
   channel  = "stable";        <# dev, stable                                 #>
   proxy    = "";              <# set <uri> to use a http proxy               #>
   linkArgs = "";              <# see '.\chrupd.cmd -advhelp'                 #>
@@ -346,6 +346,7 @@ $getWinVer = {
 		[hashtable]$osTypeName,
 		[int]$tsMode
 	)
+	Write-Msg -o dbg,3 "`$ostTypeName[1]=$($osTypeName[1])"
 	<# DEBUG: TEST WINVER
 	If ($debug -ge 3) {
 		$osVer = @{ Major = 6; Minor = 1; }
@@ -362,7 +363,7 @@ $getWinVer = {
 			Return $osFound, $osFullName, $osTsMode
 		}
 	} | Out-Null
-If (-Not $osFound) {
+	If (-Not $osFound) {
 		$osFullName = "Unknown Windows Version"
 	}
 	If ($tsMode -NotMatch '^[1-3]$') {
@@ -397,11 +398,11 @@ If (-Not $osFound) {
 <# EXAMPLE: #>
 <# Write-Msg -o dbg,1,Magenta,tee "some debugging text" #>
 
-<# OLD: #>
-<# Function Write-Err ($msg) {	Write-Host -ForeGroundColor Red "ERROR: $msg" }
-   Function Write-Log ($msg) {	If ($cfg.log) { Add-Content $logFile -Value (((Get-Date).toString("yyyy-MM-dd HH:mm:ss")) + " $msg") } } #>
-
-   #[ValidatePattern("dbg|warn|err|nnl|log|tee|^[0-9]$|^(?-i:[A-Z][a-zA-Z]{2,})")]
+<# OLD:
+	Function Write-Err ($msg) {	Write-Host -ForeGroundColor Red "ERROR: $msg" }
+	Function Write-Log ($msg) {	If ($cfg.log) { Add-Content $logFile -Value (((Get-Date).toString("yyyy-MM-dd HH:mm:ss")) + " $msg") } }
+	[ValidatePattern("dbg|warn|err|nnl|log|tee|^[0-9]$|^(?-i:[A-Z][a-zA-Z]{2,})")]
+#>
 
 Function Write-Msg {
 	[CmdletBinding()]
@@ -411,7 +412,7 @@ Function Write-Msg {
 			If ("$_" -match "dbg|warn|err|nnl|log|tee|^[0-9]$|^(?-i:[A-Z][a-zA-Z]{2,})") {
 				$True
 			} Else {
-				Throw "Invalid value is: `"$_`"" 
+				Throw "Invalid value is: `"$_`""
 			}
 		})]
 		$options,
@@ -1229,7 +1230,7 @@ Function virusTotal($cdataObj) {
 
 <# FUNC: PARSE CDATA USING 'htmlfile' #>
 
-Function cdataHtml($i, $cdata, $cfg, $items, $cdataObj) {
+Function cdataHtml($idx, $cdata, $cfg, $items, $cdataObj) {
 	Write-Msg -o dbg,1 "cdataHtml `$i=$i"
 	$html = New-Object -ComObject "htmlfile"
 	# https://stackoverflow.com/a/48859819
@@ -1238,7 +1239,7 @@ Function cdataHtml($i, $cdata, $cfg, $items, $cdataObj) {
 		$html.IHTMLDocument2_write($cdata)
 	}
 	Catch {
-		# This works when Office is not installed    
+		# This works when Office is not installed
 		$_src = [System.Text.Encoding]::Unicode.GetBytes($cdata)
 		$html.write($_src)
 	}
@@ -1260,7 +1261,7 @@ Function cdataHtml($i, $cdata, $cfg, $items, $cdataObj) {
 		}
 	}
 
-	$cdataObj.titleMatch = $xml.rss.channel.Item[$i].title -Match $items[$editor].title
+	$cdataObj.titleMatch = $xml.rss.channel.Item[$idx].title -Match $items[$editor].title
 	$cdataObj.editorMatch = $items[$editor].editor -Match $cdataObj.editor
 	$cdataObj.archMatch = $arch -ieq $cdataObj.architecture
 	$cdataObj.channelMatch = $channel -ieq $cdataObj.channel
@@ -1274,18 +1275,18 @@ Function cdataHtml($i, $cdata, $cfg, $items, $cdataObj) {
 	If ($debug -ge 1) {
 		$cnt = 0
 		If ($cdataObj.titleMatch) {
-			$_tMsg = "cdataHtml `$i=$i title=`"$($items[$editor].title)`" -Match xml.rss.channel.Item.title=`"$($xml.rss.channel.Item[$i].title)`"`r`n"
+			$_tMsg = "cdataHtml `$idx=$idx title=`"$($items[$editor].title)`" -Match xml.rss.channel.Item.title=`"$($xml.rss.channel.Item[$idx].title)`"`r`n"
 			$cnt++
 		}
 		If ($cdataObj.editorMatch) {
-			$_eMsg = "cdataHtml `$i=$i editor=`"$($items[$editor].editor)`" -Match cdataObj.editor=`"$($cdataObj.editor)`"`r`n"
+			$_eMsg = "cdataHtml `$idx=$idx editor=`"$($items[$editor].editor)`" -Match cdataObj.editor=`"$($cdataObj.editor)`"`r`n"
 			$cnt++
 		}
 		If ($cnt -gt 0 ) {
 			Write-Msg -o Yellow ("{0}`r`n{1}{2}{0}" -f ("-" * 80), $_tMsg, $_eMsg)
 		}
 		If ($debug -ge 9) {
-			Write-Msg -o Magenta "DEBUG: `$i=$i outputting 'cdataObj' only, then Exit ..."
+			Write-Msg -o Magenta "DEBUG: `$idx=$idx outputting 'cdataObj' only, then Exit ..."
 			$cdataObj
 			Exit
 		}
@@ -1295,14 +1296,14 @@ Function cdataHtml($i, $cdata, $cfg, $items, $cdataObj) {
 
 <# FUNC: PARSE CDATA USING REGEX #>
 
-Function cdataRegex($i, $cdata, $cfg, $items, $cdataObj) {
-	Write-Msg -o dbg,2 "cdataRegex `$i=$i"
+Function cdataRegex($idx, $cdata, $cfg, $items, $cdataObj) {
+	Write-Msg -o dbg,2 "cdataRegex `$idx=$idx"
 	<# DEBUG: REGEX MATCHES - Call this scriptblock *after* a '-Match' line by using '&matches'
 	$matches = {
 		If ($xml.rss.channel.Item[$i].title -Match ".*?(Marmaduke)") {$Matches[1]; $cdataObj.editorMatch = $True}
 		Write-Msg -o dbg,2 "Matches[0], [1] = "; % {$Matches[0]}; % {$Matches[1]}}
 	} #>
-	$cdataObj.titleMatch = $xml.rss.channel.Item[$i].title -Match $items[$editor].title
+	$cdataObj.titleMatch = $xml.rss.channel.Item[$idx].title -Match $items[$editor].title
 	$cdataObj.editorMatch = $cdata -Match '(?i)' + $channel + '.*?(Editor: <a href="' + $items[$editor].url + '/">' + $editor + '</a>).*(?i)' + $channel
 	$cdataObj.archMatch = $cdata -Match '(?i)' + $channel + '.*?(architecture: ' + $arch + ').*(?i)' + $channel
 	$cdataObj.channelMatch = $cdata -Match '(?i)' + $channel + '.*?(Channel: ' + $channel + ')'
@@ -1325,7 +1326,7 @@ Function cdataRegex($i, $cdata, $cfg, $items, $cdataObj) {
 	}
 
 	<# DISABLED: ## Editor exception: Marmaduke ##
-	If ( ($($xml.rss.channel.Item[$i].title) -Match "Ungoogled") -And
+	If ( ($($xml.rss.channel.Item[$idx].title) -Match "Ungoogled") -And
 		 ($cdata -Match '(?i)' + $channel + '.*?(Editor: <a href="' + $items[$editor].url + '/">' + "Marmaduke" + '</a>).*(?i)' + $channel) )
 	{
 		$cdataObj.titleMatch = $True
@@ -1355,11 +1356,11 @@ Function cdataRegex($i, $cdata, $cfg, $items, $cdataObj) {
 	If ($debug -ge 1) {
 		$cnt = 0
 		If ($cdataObj.titleMatch) {
-			$_tMsg = "cdataRegex `$i=$i editor=`"$($items[$editor].editor)` -Match xml.rss.channel.Item.title=`"$($xml.rss.channel.Item[$i].title)`"`r`n"
+			$_tMsg = "cdataRegex `$idx=$idx editor=`"$($items[$editor].editor)` -Match xml.rss.channel.Item.title=`"$($xml.rss.channel.Item[$idx].title)`"`r`n"
 			$cnt++
 		}
 		If ($cdataObj.editorMatch) {
-			$_eMsg = "cdataRegex `$i=$i cdataObj.editorMatch=`"$($cdataObj.editorMatch)`"`r`n"
+			$_eMsg = "cdataRegex `$idx=$idx cdataObj.editorMatch=`"$($cdataObj.editorMatch)`"`r`n"
 			$cnt++
 		}
 		If ($cnt -gt 0 ) {
@@ -1400,15 +1401,15 @@ Function parseRss ($rssFeed, $cdataMethod) {
 	<# LOOP OVER ITEMS: TITLE, EDITOR #>
 	$i = 0
 	While ($xml.rss.channel.Item[$i]) {
-		Write-Msg -o dbg, 1, Cyan			"`$i=$i xml cdataMethod=$cdataMethod title=$($xml.rss.channel.Item[$i].title)"
+		Write-Msg -o dbg, 1, Cyan		"`$i=$i xml cdataMethod=$cdataMethod title=$($xml.rss.channel.Item[$i].title)"
 		Write-Msg -o dbg, 1				"`$i=$i xml link = $($xml.rss.channel.Item[$i].link)"
 		Write-Msg -o dbg, 2, DarkYellow	"`$i=$i xml description = $($xml.rss.channel.Item[$i].description."#cdata-section")"
 		<# INNER WHILE LOOP: CDATA HTML #>
 		$xml.rss.channel.Item[$i].description."#cdata-section" | ForEach-Object {
 			If ($cdataMethod -eq "htmlfile") {
-				$cdataObj = cdataHtml $i $_ $cfg $items $cdataObj
+				$cdataObj = cdataHtml -idx $i -cdata $_ -cfg $cfg -items $items -cdataObj $cdataObj
 			} ElseIf ($cdataMethod -eq "regexp") {
-				$cdataObj = cdataRegex $i $_ $cfg $items $cdataObj
+				$cdataObj = cdataRegex -idx $i -cdata $_ -cfg $cfg -items $items -cdataObj $cdataObj
 			}
 			If ($cdataObj.url) {
 				$cdataObj.urlMatch = $cdataObj.url -Match ('^https://.*' + '(' + $cdataObj.version + ')?.*' + $cdataObj.revision + '.*' + $items[$editor].filemask)
@@ -1680,7 +1681,7 @@ If (( $(Try { (Test-Path variable:local:fileHash) -And (-Not [string]::IsNullOrW
 					Write-Msg -o dbg,1 "itemDir = `"$itemDir`""
 					Write-Msg -o dbg,1 "lnkTarget = `"$lnkTarget`""
 					Write-Msg -o dbg,1 "linkName = `"$lnkName`""
-					$retShortcut = &createShortcut "$lnkTarget" "$lnkExecArgs" "$lnkName"
+					$retShortcut = &createShortcut -srcExe "$lnkTarget" -srcExeArgs "$lnkExecArgs" -dstPath "$lnkName"
 					If (-Not $retShortcut) {
 						Write-Msg -o err,tee "Could not create shortcut on Desktop"
 					} Else {
