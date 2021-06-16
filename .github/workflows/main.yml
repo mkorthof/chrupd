@@ -30,6 +30,7 @@ jobs:
         run: |
           pwsh.exe -File chrupd.cmd || true
           grep 'Latest Chromium version already installed\|New Chromium version\|Done\.' chrupd.log
+
       
       # Runs a set of commands using the runners shell
       - name: PSScriptAnalyzer
