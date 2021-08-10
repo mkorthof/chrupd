@@ -19,7 +19,8 @@ IF %RUN% EQU 1 (
   echo:
   echo Running script and checking logs...
   echo:
-  %psExe% -File chrupd.ps1 || true
+  del /f /q chrupd.log
+  %psExe% -File chrupd.ps1 -debug 3 || true
    grep "Latest Chromium version already installed\|New Chromium version\|Done\." chrupd.log
  )
 
