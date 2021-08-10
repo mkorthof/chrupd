@@ -1,1 +1,1 @@
-chrupd.cmd
+./chrupd.cmd

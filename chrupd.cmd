@@ -5,7 +5,7 @@ ENDLOCAL & dir "%~f0.tmp" >nul 2>&1 && move /Y "%~f0" "%~f0.bak" >nul 2>&1 && mo
 #>
 
 <# ----------------------------------------------------------------------------
-.SYNOPSIS 20210617 MK: Simple Chromium Updater (chrupd.cmd)
+.SYNOPSIS 20210810 MK: Simple Chromium Updater (chrupd.cmd)
 <# ----------------------------------------------------------------------------
 
 .DESCRIPTION
@@ -128,13 +128,22 @@ $items = @{
 		repo     = "https://github.com/macchrome/winchrome/releases/download/";
 		filemask = "mini_installer.exe"
 	};
-	"Ungoogled" = @{
+	<# "Ungoogled" = @{
 		title    = "Ungoogled";
 		editor   = "Marmaduke";
 		fmt      = "XML";
 		url      = "https://$woolyss";
 		repo     = "https://github.com/macchrome/winchrome/releases/download/";
 		filemask = "ungoogled-chromium-"
+		alias    = "Ungoogled-Marmaduke"
+	}; #>
+	"Ungoogled" = @{
+		title    = "Ungoogled";
+		editor   = "Marmaduke";
+		fmt      = "XML";
+		url      = "https://$woolyss";
+		repo     = "https://github.com/macchrome/winchrome/releases/download/";
+		filemask = "ungoogled_mini_installer.exe"
 		alias    = "Ungoogled-Marmaduke"
 	};
 	"Ungoogled-Portable" = @{
@@ -1266,7 +1275,7 @@ Function cdataHtml($idx, $cdata, $cfg, $items, $cdataObj) {
 	$cdataObj.archMatch = $arch -ieq $cdataObj.architecture
 	$cdataObj.channelMatch = $channel -ieq $cdataObj.channel
 	ForEach ($algo in "md5", "sha1") {
-		$_gethash = $cDataObj | Select-Object -ExpandProperty "$($items[$editor].filemask)*$algo" -EA 0 -WA 0
+		$_gethash = $cDataObj | Select-Object -ExpandProperty "*$($items[$editor].filemask)*$algo" -EA 0 -WA 0
 		If ($_gethash) {
 			$cdataObj.hash = $_gethash
 			$cdataObj.hashAlgo = $algo
@@ -1414,7 +1423,7 @@ Function parseRss ($rssFeed, $cdataMethod) {
 			If ($cdataObj.url) {
 				$cdataObj.urlMatch = $cdataObj.url -Match ('^https://.*' + '(' + $cdataObj.version + ')?.*' + $cdataObj.revision + '.*' + $items[$editor].filemask)
 			} Else {
-				Write-Msg -o dbg,1,Yellow "`$i=$i No download url found"
+				Write-Msg -o dbg,1,Yellow "`$i=$i No download url found matching $('^https://.*' + '(' + $cdataObj.version + ')?.*' + $cdataObj.revision + '.*' + $items[$editor].filemask)"
 			}
 			If ($debug -ge 1) {
 				# Write-Msg -o dbg,1 "`$i=$i cdataMethod=$cdataMethod html `$_ = `r`n" $_
