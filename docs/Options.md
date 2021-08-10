@@ -1,6 +1,6 @@
 # Advanced Options
 
-Besides the normal options (`chrupd.cmd -h`), there's some extra options you'll normally won't need but are available in case you do need them.
+Besides the normal options (`chrupd.cmd -h`), there's some extra options you'll normally won't need but are available in case you *do* need them.
 
 For example if you use proxy or are having issues with scheduled tasks.
 
@@ -15,7 +15,7 @@ Simple Chromium Updater (chrupd.cmd)
 USAGE: chrupd.cmd -[tsMode|rmTask|noVbs|confirm]
                   -[proxy|cAutoUp|appDir|linkArgs|ignVer] or [-cUpdate]
 
-         -tsMode    *see NOTES below* set option to <1|2|3> or "auto"
+         -tsMode    *see NOTES below* set option to <1|2|3> or "auto" (default)
          -rmTask    remove scheduled task
          -noVbs     do not use vbs wrapper to hide window when creating task
          -confirm   answer 'Y' on prompt about removing scheduled task
@@ -28,10 +28,10 @@ USAGE: chrupd.cmd -[tsMode|rmTask|noVbs|confirm]
 
          -cUpdate   manually update this script
 
-NOTES: Option "tsMode" supports these task scheduler modes:
-         - Unset: OS will be auto detected (Default)
-         - Or set: 1=Normal (Windows8+), 2=Legacy (Win7), 3=Command (WinXP)
-       Flags "xxTask" can also be used without other settings
-       All options can be set permanently using variables inside script
+NOTES:   > Option "tsMode" supports these Windows Task Scheduler modes:
+           1=Normal (Windows8+), 2=Legacy (Win7), 3=Command (WinXP), Unset=Auto
+
+         > Flags "xxTask" can also be used without other settings
+         > All options can be set permanently using variables inside script
 
 ```

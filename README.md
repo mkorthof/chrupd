@@ -4,7 +4,7 @@
 
 ---
 
-**Latest version: 20210617 ([CHANGES.md](CHANGES.md))**
+**Latest version: 20210810 ([CHANGES.md](CHANGES.md))**
 
 ---
 
@@ -12,7 +12,7 @@ This script uses the feed from <https://chromium.woolyss.com> to download and in
 
 When you run the script it does the following:
 
-- by default it'll get the "stable" 64-bit Installer by "Hibbiki"
+- by default it'll get the Chromium "stable" 64-bit Installer by "Hibbiki"
 - verifies SHA1/MD5 hash and runs installer
 - chrupd auto updates itself
 
@@ -37,6 +37,7 @@ Make sure the combination of editor and channel is correct. You can also use `ch
 
 - using `-editor Ungoogled` still works (now done by Marmaduke)
 - for the builds from chromium.org use `Official`
+- some editors release archive files instead of installers, more info: [docs/Archives.md](/docs/Archives.md)
 
 ## Scheduled Task
 
@@ -71,22 +72,22 @@ USAGE: chrupd.cmd -[editor|arch|channel|force]
          -editor  option must be set to one of:
                   <Official|Hibbiki|Marmaduke|Ungoogled|RobRich>
          -channel option must be set to <stable|dev>
-         -arch    option can be set to [64bit|32bit] default: 64bit
-         -force   always (re)install, even if latest ver is installed
+         -arch    can be set to <64bit|32bit> (default: 64bit)
+         -force   always (re)install, even if latest ver is already installed
 
          -list    show version, editors and rss feeds from woolyss.com
 
          -crTask  create a daily scheduled task
-         -shTask  show scheduled task details
+         -shTask  show scheduled task details, use -rmTask to remove task
 
-EXAMPLE: ".\chrupd.cmd -editor Marmaduke -arch 64bit -channel stable [-crTask]"
+EXAMPLE: '.\chrupd.cmd -editor Marmaduke -arch 64bit -channel stable [-crTask]'
 
-NOTES:   Options "editor" and "channel" need an argument (CasE Sensive)
-         See ".\chrupd.cmd -advhelp" for 'advanced' options
+NOTES:   > Options "editor" and "channel" need an argument (CasE Sensive)
+         > See '.\chrupd.cmd -advhelp' for more "advanced" options
 
 ```
 
-See [docs/Options.md](/docs/Options.md) for 'advanced' options.
+More info about advanced options can be found here: [docs/Options.md](/docs/Options.md)
 
 > NOTES:
 > * Using modified code from http://www.mobzystems.com/code/7-zip-powershell-module/
