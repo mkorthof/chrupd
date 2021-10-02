@@ -4,7 +4,7 @@
 
 ---
 
-**Latest version: 20210810 ([CHANGES.md](CHANGES.md))**
+**Latest version: 20211002 ([CHANGES.md](CHANGES.md))**
 
 ---
 
