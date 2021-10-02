@@ -2,6 +2,7 @@ bak/
 dev/
 wip/
 chrupd.ps1
+chrupd.vbs
 *.bak
 *.log
 *.swp
