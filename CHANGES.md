@@ -1,5 +1,7 @@
 # Changes
 
+See [commits](https://github.com/mkorthof/chrupd/commits/master) or `git log`
+
 **2021-06-16** Fixed task & vbs wrapper ([#16](https://github.com/mkorthof/chrupd/issues/16))
 
 **2021-06-16** Added tests (wip)
