@@ -214,18 +214,18 @@ $tsName = @{
 }
 
 <# TASK USER MSGS #>
-$taskMsg = ${
-	$descr	  = "Download and install latest Chromium version";
-	$create	  = "Creating Daily Task `"$scriptName`" in Task Scheduler...";
-	$failed	  = "Creating Scheduled Task failed.";
-	$problem  = "Something went wrong...";
-	$exists   = "Scheduled Task already exists.";
-	$notfound = "Scheduled Task not found.";
-	$remove   = "Removing Daily Task `"$scriptName`" from Task Scheduler...";
-	$rmfailed = "Could not remove Task: $scriptName.";
-	$notask   = "Scheduled Task already removed.";
-	$manual   = "Run `"$scriptCmd -manTask`" for manual instructions";
-	$export   = "Run `"$scriptCmd -xmlTask`" to export a Task XML File"
+$taskMsg = @{
+	descr	  = "Download and install latest Chromium version";
+	create	  = "Creating Daily Task `"$scriptName`" in Task Scheduler...";
+	failed	  = "Creating Scheduled Task failed.";
+	problem  = "Something went wrong...";
+	exists   = "Scheduled Task already exists.";
+	notfound = "Scheduled Task not found.";
+	remove   = "Removing Daily Task `"$scriptName`" from Task Scheduler...";
+	rmfailed = "Could not remove Task: $scriptName.";
+	notask   = "Scheduled Task already removed.";
+	manual   = "Run `"$scriptCmd -manTask`" for manual instructions";
+	export   = "Run `"$scriptCmd -xmlTask`" to export a Task XML File"
 }
 
 $noMatchMsg = @"
@@ -389,20 +389,20 @@ $getWinVer = {
 <# FUNC: MSG #>
 <#############>
 
-<#	Write-Msg [-o dbg,(int)lvl,err,wrn,log,nnl,tee,fgColor|fgColor,bgColor] "String" #>
+<# Write-Msg [-o dbg,(int)lvl,err,wrn,log,nnl,tee,fgColor|fgColor,bgColor] "String" #>
 
 <# SYNTAX: #>
 
-<# 	-o [option] :																	 #>
-<# 		dbg					"DEBUG: some msg"									 	 #>
-<# 		dbg,1				If ($debug -ge 1) { "DEBUG:level 1" }				 	 #>
-<# 		err					"ERROR: some msg"	(Red)								 #>
-<# 		wrn					"WARNING: some msg"	(Yellow)			 				 #>
-<# 		nnl					NoNewLine												 #>
-<#	 	log					log msg to file	 	 									 #>
-<#	 	tee 				log msg to file AND stdout								 #>
-<# 		fgColor				e.g. Blue												 #>
-<#		fgColor,bgColor		e.g. White,DarkGray										 #>
+<#    -o [option] :                                                 #>
+<#      dbg                "DEBUG: some msg"                        #>
+<#      dbg,1              If ($debug -ge 4) { "DEBUG:level 1" }    #>
+<#      err                "ERROR: some msg"    (Red)               #>
+<#      wrn                "WARNING: some msg"  (Yellow)            #>
+<#      nnl                NoNewLine                                #>
+<#      log                log msg to file                          #>
+<#      tee                log msg to file AND stdout               #>
+<#      fgColor            e.g. Blue                                #>
+<#      fgColor,bgColor    e.g. White,DarkGray                      #>
 
 <# EXAMPLE: #>
 <# Write-Msg -o dbg,1,Magenta,tee "some debugging text" #>
@@ -507,12 +507,12 @@ If ($cfg.log) {
 
 <# MANDATORY ARGS #>
 <# OLD: If (-Not ($items.values.editor -eq $editor)) #>
-If (-Not ($items.Keys -eq $editor)) {
+If (-Not ($items.Keys -ceq $editor)) {
 	Write-Msg -o err "Editor setting incorrect `"$editor`" (CasE Sensive). Exiting ..."
 	Exit 1
 } Else {
 	$items.GetEnumerator() | ForEach-Object {
-		If ($_.Value.editor -eq $editor) {
+		If ($_.Value.editor -ceq $editor) {
 			If ($_.value.fmt -cNotMatch "^(XML|JSON)$") {
 				Write-Msg -o err "Invalid format `"${items[$editor].fmt}`", must be `"XML`" or `"JSON`". Exiting ..."
 				Exit 1
@@ -566,6 +566,10 @@ Function doSplit ($content) {
 
 <# FUNC: UPDATE SCRIPT #>
 
+<# Compares date/version: #>
+<# - Remote README.md "Latest version: YYYYMMMDD" #>
+<# - Local chrupd.cmd " 202\d{5} " (e.g. 20201231) #>
+
 Function updateScript () {
 	$params = @{}
 	<# TEST: $params += @{ Verbose = $True } #>
@@ -580,7 +584,7 @@ Function updateScript () {
 	$ghReadmeContent = [System.Text.Encoding]::UTF8.GetString(([System.Convert]::FromBase64String((($ghJson).content)))) -split "`n"
 	$newDate = ($ghReadmeContent | Select-String -Pattern "Latest version.* 202\d{5} ") -Replace '.*Latest version: (202\d{5}) .*', '$1'
 	Write-Msg -o dbg,1 "updateScript curScriptDate=$curScriptDate newDate=$newDate"
-	<# Compare date in remote README.md with local chdupd.cmd script #>
+	<# Compare date in remote README.md with chrupd.cmd #>
 	If ($newDate -And (([DateTime]::ParseExact($newDate, 'yyyyMMdd', $null)) -gt ([DateTime]::ParseExact($curScriptDate, 'yyyyMMdd', $null)))) {
 		Write-Msg -o tee "New chrupd version `"$newDate`" available, updating script..."
 		<# SPLIT: current script file #>
@@ -679,7 +683,7 @@ If ( $(Try { -Not (Test-Path variable:local:tsMode) -Or ([string]::IsNullOrWhite
 	$tsMode = 1
 }
 $vbsWrapper = $scriptDir + "\chrupd.vbs"
-$taskArgs = "-scheduler -editor $($items[$editor].editor) -arch $arch -channel $channel -cAutoUp $cAutoUp"
+$taskArgs = "-scheduler -editor $editor -arch $arch -channel $channel -cAutoUp $cAutoUp"
 If ($noVbs -eq 0) {
 	$taskCmd = "$vbsWrapper"
 } Else {
@@ -761,7 +765,7 @@ If ($crTask -eq 1) {
 			$trigger = New-ScheduledTaskTrigger -RandomDelay (New-TimeSpan -Hour 1) -Daily -At 17:00
 			If (-Not (&Get-ScheduledTask -EA 0 -TaskName "$scriptName")) {
 				Write-Msg $($taskMsg.create)
-				Try { (Register-ScheduledTask -Action $action -Trigger $trigger -TaskName "$scriptName" -Description "$taskMsg.descr") | Out-Null }
+				Try { (Register-ScheduledTask -Action $action -Trigger $trigger -TaskName "$scriptName" -Description "$($taskMsg.descr)") | Out-Null }
 				Catch { Write-Msg "$($taskMsg.problem)`r`nERROR: `"$($_.Exception.Message)`"" }
 			} Else {
 				Write-Msg $($taskMsg.exists)
@@ -1552,7 +1556,7 @@ If ( ($cdataObj.editorMatch -eq 1) -And ($cdataObj.archMatch -eq 1) -And ($cdata
 				Write-Msg -o dbg,1 "Would have Deleted $saveAsPath"
 			}
 			Write-Msg -o dbg,1		   "Would have Downloaded: `"$($cdataObj.url)`""
-			Write-Msg -o dbg,1 		   "Using following Path : `"$saveAsPath`""
+			Write-Msg -o dbg,1		   "Using following Path : `"$saveAsPath`""
 			Write-Msg -o 1,Yellow ("{0}`r`n(!) Make sure `"$saveAsPath`" ALREADY EXISTS to continue debugging`r`n{0}" -f ("-" * 80))
 		} Else {
 			If (&Test-Path "$saveAsPath") {
