@@ -28,7 +28,7 @@ Make sure the combination of editor and channel is correct. You can also use `ch
 |:----------------------------------|:----------------|
 | Marmaduke                         | stable, dev     |
 | Marmaduke - `Ungoogled`           | stable          |
-| RobRich                           | dev             |
+| ~~RobRich~~                       | ~~dev~~         |
 | The Chromium Authors - `Official` | dev             |
 | ThumbApps                         | dev             |
 | **Hibbiki**                       | **stable**, dev |
