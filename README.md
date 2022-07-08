@@ -28,7 +28,6 @@ Make sure the combination of editor and channel is correct. You can also use `ch
 |:----------------------------------|:----------------|
 | Marmaduke                         | stable, dev     |
 | Marmaduke - `Ungoogled`           | stable          |
-| RobRich                           | dev             |
 | The Chromium Authors - `Official` | dev             |
 | ThumbApps                         | dev             |
 | **Hibbiki**                       | **stable**, dev |
@@ -70,7 +69,7 @@ USAGE: chrupd.cmd -[editor|arch|channel|force]
                   -[crTask|rmTask|shTask] or [-list]
 
          -editor  option must be set to one of:
-                  <Official|Hibbiki|Marmaduke|Ungoogled|RobRich>
+                  <Official|Hibbiki|Marmaduke|Ungoogled>
          -channel option must be set to <stable|dev>
          -arch    can be set to <64bit|32bit> (default: 64bit)
          -force   always (re)install, even if latest ver is already installed
