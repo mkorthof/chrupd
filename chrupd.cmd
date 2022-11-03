@@ -26,20 +26,21 @@ ENDLOCAL & dir "%~f0.tmp" >nul 2>&1 && move /Y "%~f0" "%~f0.bak" >nul 2>&1 && mo
 <# ------------------------------------------------------------------------- #>
 <# CONFIGURATION:                                                            #>
 <# ------------------------------------------------------------------------- #>
-<# Make sure the combination of editor and channel is correct.               #>
+<# Make sure the combination of name and channel is correct.                 #>
 <# See "chrupd.cmd -h" or README.md for details, more options and settings.  #>
 <# ------------------------------------------------------------------------- #>
 $cfg = @{
-  editor   = "Hibbiki";       <# Editor of Chromium release                  #>
-  arch     = "64bit";         <# Architecture: 32bit or 64bit (default)      #>
-  channel  = "stable";        <# dev, stable                                 #>
-  proxy    = "";              <# set <uri> to use a http proxy               #>
-  linkArgs = "";              <# see '.\chrupd.cmd -advhelp'                 #>
-  log      = $True            <# enable or disable logging <$True|$False>    #>
-  cAutoUp  = $True            <# auto update this script <$True|$False>      #>
+    name     = "Hibbiki";       <# Name of Chromium release (fka "editor")   #>
+    arch     = "64bit";         <# Architecture: 32bit or 64bit (default)    #>
+    channel  = "stable";        <# dev, stable                               #>
+    proxy    = "";              <# set <uri> to use a http proxy             #>
+    linkArgs = "";              <# see '.\chrupd.cmd -advhelp'               #>
+    log      = $true            <# enable or disable logging <$true|$false>  #>
+    cAutoUp  = $true            <# auto update this script <$true|$false>    #>
 };
 <# END OF CONFIGURATION ---------------------------------------------------- #>
 
+#Set-StrictMode -Version 3.0
 
 <####################>
 <# SCRIPT VARIABLES #>
@@ -50,50 +51,63 @@ $cfg = @{
 
 $_Args = $Args
 
-<# SCRIPTDIR #>
-$scriptDir = $_Args[0]
-If ( $(Try {
-		(Test-Path variable:local:scriptDir) -And (&Test-Path $scriptDir -EA 4 -WA 4) -And
-		(-Not [string]::IsNullOrWhiteSpace($scriptDir))
-	} Catch { $False }) ) {
+<# check if dot sourced #>
+if ($MyInvocation.InvocationName -eq '.' -or $MyInvocation.Line -eq '') {
+	$dotSourced = $true
+}
+
+<# VAR: SCRIPTDIR #>
+[string]$scriptDir = $_Args[0]
+if ( $(try {
+		(Test-Path variable:local:scriptDir) -and (&Test-Path $scriptDir -EA 4 -WA 4) -and
+		(-not [string]::IsNullOrWhiteSpace($scriptDir))
+		} catch { $false }) ) {
 	$rm = ($_Args[0])
 	$_Args = ($_Args) | Where-Object { $_ -ne $rm }
-} Else {
+} else {
 	$scriptDir = ($ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath('.\'))
 }
 
-<# CHRUPD #>
-$logFile = $scriptDir + "\chrupd.log"
-$scriptName = "Simple Chromium Updater"
-$scriptCmd = "chrupd.cmd"
-$installLog = "$env:TEMP\chromium_installer.log"
-$woolyss = "chromium.woolyss.com"
+<# VAR: FILES #>
+[string]$logFile = $scriptDir + "\chrupd.log"
+[string]$scriptName = "Simple Chromium Updater"
+[string]$scriptCmd = "chrupd.cmd"
+[string]$installLog = "$env:TEMP\chromium_installer.log"
 <# DISABLED: $shaFile = $scriptDir + "\chrupd.sha" #>
-
-If ($PSCommandPath) {
+if ($PSCommandPath) {
 	$scriptCmd = (Get-Item $PSCommandPath).Name
 }
-If ($MyInvocation.MyCommand.Name) {
+if ($MyInvocation.MyCommand.Name) {
 	$scriptCmd = $MyInvocation.MyCommand.Name
 }
 
-<# CHRUPD VERSION #>
-$curScriptDate = (Select-String -Pattern " 202\d{5} " "${scriptDir}\${scriptCmd}") -Replace '.* (202\d{5}) .*', '$1'
-If (-Not $curScriptDate) {
-	$curScriptDate = 19700101
+<# VAR: CHRUPD VERSION #>
+[string]$curScriptDate = (Select-String -Pattern " 202\d{5} " "${scriptDir}\${scriptCmd}") -replace '.* (202\d{5}) .*', '$1'
+if (-not $curScriptDate) {
+	$curScriptDate = "19700101"
 }
 
-<# CHROMIUM VERSION #>
-$curVersion = (Get-ItemProperty -EA 0 -WA 0 HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Chromium).Version
+<# VAR: CHROMIUM VERSION #>
+[string]$curVersion = (Get-ItemProperty -EA 0 -WA 0 HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Chromium).Version
 
-<# DEFAULT VALUES #>
-$debug = $fakeVer = $force = $ignVer = $ignHash = 0
-$tsMode = $crTask = $rmTask = $shTask = $xmlTask = $manTask = $noVbs = $confirm = 0
-$scheduler = $list = $appDir = 0
-$proxy = $linkArgs = ""
-$cAutoUp = 1
+<# VAR: DEFAULT VALUES #>
+[int]$scheduler = 0
+[int]$list = 0
+<# debug #>
+[int]$debug = [int]$fakeVer = [int]$force = [int]$ignVer = 0
+[int]$script:ignHash = 0
+<# tasks #>
+[int]$tsMode = [int]$crTask = [int]$rmTask = [int]$shTask = [int]$xmlTask = [int]$manTask = [int]$noVbs = [int]$confirm = 0
+<# adv options #>
+[string]$proxy = [string]$linkArgs = [string]$vtApikey = ""
+[int]$appDir = 0
+[int]$cAutoUp = 1
 
-<# ARCHIVE EXTRACT PATHS #>
+if ($dotSourced) {
+	[int]$cAutoUp = 0
+}
+
+<# VAR: ARCHIVE EXTRACT PATHS #>
 $arcInstPaths = @(
 	"$env:LocalAppData\Chromium\Application",
 	"$([Environment]::GetFolderPath('Desktop'))",
@@ -101,80 +115,90 @@ $arcInstPaths = @(
 	"$env:TEMP"
 )
 
-<# RELEASES: items[$name] = @{ title, editor, source, url, repository, filemask } #>
+<# VAR: RELEASES #>
+<# items[$name] = @{ author, source, url, repository, filemask [, alias]} #>
 $items = @{
-	"Official"  = @{
-		title    = "[0-9]+";
-		editor   = "The Chromium Authors";
+	"Official" = @{
+		author   = "The Chromium Authors";
 		fmt      = "XML";
 		url      = "https://www.chromium.org";
 		repo     = "https://storage.googleapis.com/chromium-browser-snapshots/Win_x64/";
 		filemask = "mini_installer.exe";
 		alias    = "Chromium"
 	};
-	"Hibbiki"   =	@{
-		title    = "Hibbiki";
-		editor   = "Hibbiki";
+	"Hibbiki" =	@{
+		author   = "Hibbiki";
 		fmt      = "XML";
-		url      = "https://$woolyss";
+		url      = "https://chromium.woolyss.com";
 		repo     = "https://github.com/Hibbiki/chromium-win64/releases/download/";
 		filemask = "mini_installer.sync.exe"
 	};
 	"Marmaduke" = @{
-		title    = "Marmaduke";
-		editor   = "Marmaduke";
+		author   = "Marmaduke";
 		fmt      = "XML";
-		url      = "https://$woolyss";
+		url      = "https://chromium.woolyss.com";
 		repo     = "https://github.com/macchrome/winchrome/releases/download/";
 		filemask = "mini_installer.exe"
 	};
-	<# "Ungoogled" = @{
-		title    = "Ungoogled";
-		editor   = "Marmaduke";
+	"Ungoogled-Marmaduke" = @{
+		author   = "Marmaduke";
 		fmt      = "XML";
-		url      = "https://$woolyss";
+		url      = "https://chromium.woolyss.com";
 		repo     = "https://github.com/macchrome/winchrome/releases/download/";
-		filemask = "ungoogled-chromium-"
-		alias    = "Ungoogled-Marmaduke"
-	}; #>
-	"Ungoogled" = @{
-		title    = "Ungoogled";
-		editor   = "Marmaduke";
-		fmt      = "XML";
-		url      = "https://$woolyss";
-		repo     = "https://github.com/macchrome/winchrome/releases/download/";
+		#filemask = "ungoogled-chromium-"
 		filemask = "ungoogled_mini_installer.exe"
-		alias    = "Ungoogled-Marmaduke"
+		alias    = @( "Ungoogled-Marmaduke", "Ungoogled")
 	};
 	"Ungoogled-Portable" = @{
-		title    = "Ungoogled-Portable";
-		editor   = "Portapps";
+		author   = "Portapps";
 		fmt      = "XML";
-		url      = "https://$woolyss";
+		url      = "https://chromium.woolyss.com";
 		repo     = "https://github.com/portapps/ungoogled-chromium-portable/releases/";
 		filemask = "ungoogled-chromium-"
 		alias    = "Ungoogled-Portapps"
 	};
-	"RobRich"   =	@{
-		title    = "RobRich";
-		editor   = "RobRich";
-		fmt      = "XML";
-		url      = "https://$woolyss";
-		repo     = "https://github.com/RobRich999/Chromium_Clang/releases/download/";
+	"Ungoogled-Eloston" = @{
+		author   = "Eloston";
+		fmt      = "JSON";
+		url      = "https://github.com/ungoogled-software/ungoogled-chromium-windows";
+		repo     = "https://api.github.com/repos/ungoogled-software/ungoogled-chromium-windows/releases";
+		filemask = "ungoogled-chromium_"
+		alias    = @( "Eloston-Ungoogled", "Eloston" )
+	};
+	"justclueless" = @{
+		author   = "justclueless";
+		fmt      = "JSON";
+		url      = "https://github.com/justclueless/chromium-win64";
+		repo     = "https://api.github.com/repos/justclueless/chromium-win64/releases";
 		filemask = "mini_installer.exe"
 	};
+	<# DISABLED: not added to woolyss' api yet
+	"justclueless" = @{
+		author   = "justclueless";
+		fmt      = "XML";
+		url      = "https://chromium.woolyss.com";
+		repo     = "https://github.com/justclueless/chromium/releases/";
+		filemask = "mini_installer.exe"
+	};  #>
+	<# DISABLED: discontinued
+	"RobRich" =	@{
+		author   = "RobRich";
+		fmt      = "XML";
+		url      = "https://chromium.woolyss.com";
+		repo     = "https://github.com/RobRich999/Chromium_Clang/releases/download/";
+		filemask = "mini_installer.exe"
+	};  #>
 	<# DISABLED: not updated anymore
 	"ThumbApps" = @{
-		title = "ThumbApps";
-		editor = "ThumbApps";
+		author = "ThumbApps";
 		url = "http://www.thumbapps.org";
 		fmt = "XML";
 		repo = "https://netix.dl.sourceforge.net/project/thumbapps/Internet/Chromium/";
 		filemask = "ChromiumPortable_"
 	};	#>
-	<# OLD: Chromium-ungoogled (from GH, before Woolyss added it)
+	<# DISABLED: OLD Chromium-ungoogled from GH, before Woolyss added it
 	"Chromium-ungoogled" = @{
-		editor = "Marmaduke";
+		author = "Marmaduke";
 		url = "https://github.com/macchrome/winchrome";
 		fmt = "JSON";
 		repo = "https://api.github.com/repos/macchrome/winchrome/releases";
@@ -182,42 +206,44 @@ $items = @{
 	};  #>
 }
 
-<# WINVER: @(majorVer, minorVer, osType[1=ws,3=server], tsMode) #>
+<# VAR: OS #>
+<# Windows @(majorVer, minorVer, osType[1=ws,3=server], tsMode) #>
+$osObj = @{
+	winVer = [ordered]@{
+		"Windows 11"             = @(11, 0, 1, 1);
+		"Windows 10"             = @(10, 0, 1, 1);
+		"Windows 8.1"            = @( 6, 3, 1, 1);
+		"Windows 8"              = @( 6, 2, 1, 1);
+		"Windows 7"              = @( 6, 1, 1, 2);
+		"Windows Vista"          = @( 6, 0, 1, 2);
+		"Windows XP 64bit"       = @( 5, 2, 1, 3);
+		"Windows XP"             = @( 5, 1, 1, 3);
+		"Windows Server 2019"    = @(10, 0, 3, 1);
+		"Windows Server 2016"    = @(10, 0, 3, 1);
+		"Windows Server 2012 R2" = @( 6, 3, 3, 1);
+		"Windows Server 2012"    = @( 6, 2, 3, 1);
+		"Windows Server 2008 R2" = @( 6, 1, 3, 2);
+		"Windows Server 2008"    = @( 6, 0, 3, 2);
+		"Windows Server 2003"    = @( 5, 2, 3, 3);
+	}
+	osTypeName = @{
+		1 = "Workstation";
+		2 = "DC";
+		3 = "Server";
+	}
+	taskModeName = @{
+		0 = "Auto";
+		1 = "Normal";
+		2 = "Legacy";
+		3 = "Schtasks Command"
+	}
+}
 
-$winVer = @{
-	"Windows 10+"            = @(11, 0, 1, 1);
-	"Windows 10"             = @(10, 0, 1, 1);
-	"Windows 8.1"            = @( 6, 3, 1, 1);
-	"Windows 8"              = @( 6, 2, 1, 1);
-	"Windows 7"              = @( 6, 1, 1, 2);
-	"Windows Vista"          = @( 6, 0, 1, 2);
-	"Windows XP 64bit"       = @( 5, 2, 1, 3);
-	"Windows XP"             = @( 5, 1, 1, 3);
-	"Windows Server 2019"    = @(10, 0, 3, 1);
-	"Windows Server 2016"    = @(10, 0, 3, 1);
-	"Windows Server 2012 R2" = @( 6, 3, 3, 1);
-	"Windows Server 2012"    = @( 6, 2, 3, 1);
-	"Windows Server 2008 R2"	= @( 6, 1, 3, 2);
-	"Windows Server 2008"    = @( 6, 0, 3, 2);
-	"Windows Server 2003"    = @( 5, 2, 3, 3);
-}
-$osTypeName = @{
-	1 = "Workstation";
-	2 = "DC";
-	3 = "Server";
-}
-$tsName = @{
-	0 = "Auto";
-	1 = "Normal";
-	2 = "Legacy";
-	3 = "Schtasks Command"
-}
-
-<# TASK USER MSGS #>
+<# VAR: TASK USER MSGS #>
 $taskMsg = @{
-	descr	  = "Download and install latest Chromium version";
-	create	  = "Creating Daily Task `"$scriptName`" in Task Scheduler...";
-	failed	  = "Creating Scheduled Task failed.";
+	descr    = "Download and install latest Chromium version";
+	create   = "Creating Daily Task `"$scriptName`" in Task Scheduler...";
+	failed   = "Creating Scheduled Task failed.";
 	problem  = "Something went wrong...";
 	exists   = "Scheduled Task already exists.";
 	notfound = "Scheduled Task not found.";
@@ -230,36 +256,43 @@ $taskMsg = @{
 
 $noMatchMsg = @"
 Unable to find new version. If settings are correct, it's possible
-the script needs to be updated or there could be an issue
-with the RSS feed from `"$woolyss`".`r`n
+the script needs to be updated or there could be an issue with
+the RSS feed from `"chromium.woolyss.com`" or the GitHub REST API.`r`n
 "@
 
 <########>
 <# HELP #>
 <########>
 
-If ($_Args -iMatch "[-/?]h") {
-	Write-Host -NoNewLine "`r`n$scriptName"; Write-Host " ($scriptCmd)"; Write-Host ("-" * 36)"`r`n"
-	Write-Host "Uses RSS feed from `"$woolyss`" to install latest Chromium version", "`r`n"
-	Write-Host "USAGE: $scriptCmd -[editor|arch|channel|force]"
+if ($_Args -iMatch "[-/?]h") {
+	$_Header = ("{0} {1} ( {2} )" -f "$scriptName", "$scriptCmd", "$curScriptDate")
+	Write-Host "`r`n$_Header"
+	Write-Host ("-" * $_Header.Length)"`r`n"
+	Write-Host "Uses RSS feed from `"chromium.woolyss.com`" or GitHub API"
+	Write-Host "to install latest available Chromium version", "`r`n"
+	Write-Host "USAGE: $scriptCmd -[name|arch|channel|force]"
 	Write-Host "`t`t", " -[crTask|rmTask|shTask] or [-list]", "`r`n"
-	Write-Host "`t", "-editor  option must be set to one of:"
-	Write-Host "`t`t", " <Official|Hibbiki|Marmaduke|Ungoogled|RobRich>"
-	Write-Host "`t", "-channel option must be set to <stable|dev>"
-	Write-Host "`t", "-arch    can be set to <64bit|32bit> default: 64bit"
+	Write-Host "`t", "-name    option must be set to a release name:   (fka `"editor`")"
+	Write-Host "`t`t", " <Official|Hibbiki|Marmaduke|Ungoogled|justclueless|Eloston>"
+	Write-Host "`t", "-channel can be set to [stable|dev] default: stable"
+	Write-Host "`t", "-arch    can be set to [64bit|32bit] default: 64bit"
 	Write-Host "`t", "-force   always (re)install, even if latest ver is installed", "`r`n"
-	Write-Host "`t", "-list    show version, editors and rss feeds from woolyss.com", "`r`n"
+	Write-Host "`t", "-list    show available releases", "`r`n"
 	Write-Host "`t", "-crTask  create a daily scheduled task"
 	Write-Host "`t", "-shTask  show scheduled task details", "`r`n"
-	Write-Host "EXAMPLE: `".\$scriptCmd -editor Marmaduke -arch 64bit -channel stable [-crTask]`"", "`r`n"
-	Write-Host "NOTES:   Options `"editor`" and `"channel`" need an argument (CasE Sensive)"
-	Write-Host "`t", "See `".\$scriptCmd -advhelp`" for 'advanced' options"
-	Exit 0
+	Write-Host "EXAMPLE: `".\$scriptCmd -name Marmaduke -arch 64bit -channel stable [-crTask]`"", "`r`n"
+	Write-Host "NOTES:   Options `"name`" and `"channel`" need an argument (CasE Sensive)"
+	Write-Host "`t", "See `".\$scriptCmd -advhelp`" for 'advanced' options", "`r`n"
+	exit 0
 }
 
 <# ADVANCED HELP #>
-If ($_Args -iMatch "[-/?]ad?v?he?l?p?") {
-	Write-Host "$scriptName ($scriptCmd)", "`r`n"
+if ($_Args -iMatch "[-/?]ad?v?he?l?p?") {
+	$_Header = ("{0} {1} ( {2} ) - Advanced options" -f "$scriptName", "$scriptCmd", "$curScriptDate")
+	Write-Host "`r`n$_Header"
+	Write-Host ("-" * $_Header.Length)"`r`n"
+	#Write-Host ("-" * 80)"`r`n"
+	#write-host $_Header.length
 	Write-Host "USAGE: $scriptCmd -[tsMode|rmTask|noVbs|confirm]"
 	Write-Host "`t`t", " -[proxy|cAutoUp|appDir|linkArgs|ignVer] or [-cUpdate]", "`r`n"
 	Write-Host "`t", "-tsMode    *see NOTES below* set option to <1|2|3> or `"auto`""
@@ -268,405 +301,402 @@ If ($_Args -iMatch "[-/?]ad?v?he?l?p?") {
 	Write-Host "`t", "-confirm   answer 'Y' on prompt about removing scheduled task", "`r`n"
 	Write-Host "`t", "-proxy     use a http proxy server, set option to <uri> "
 	Write-Host "`t", "-cAutoUp   auto update this script, set option to <0|1> (default=1)"
-	Write-Host "`t", "-appDir    extract archives to %AppData%\Chromium\Application\`$title"
+	Write-Host "`t", "-appDir    extract archives to %AppData%\Chromium\Application\`$name"
 	Write-Host "`t", "-linkArgs  option sets <arguments> for chrome.exe in Chromium shortcut"
 	Write-Host "`t", "-ignVer    ignore version mismatch between feed and filename", "`r`n"
-	Write-Host "`t", "-cUpdate   manually update this script", "`r`n"
+	Write-Host "`t", "-cUpdate   manually update this script to latest version", "`r`n"
 	Write-Host "NOTES: Option `"tsMode`" supports these task scheduler modes:"
 	Write-Host "`t", "- Unset: OS will be auto detected (Default)"
-	Write-Host "`t", "- Or set: 1=Normal (Windows8+), 2=Legacy (Win7), 3=Command (WinXP)"
+	Write-Host "`t", "- Or set: 1=Normal (Windows8+), 2=Legacy (Win7), 3=Command (schtasks)"
 	Write-Host "      ", "Flags `"xxTask`" can also be used without other settings"
-	Write-Host "      ", "All options can be set permanently using variables inside script"
-	Exit 0
+	Write-Host "      ", "All options can be set permanently using variables inside script", "`r`n"
+	exit 0
 }
 
 <####################>
 <# HANDLE ARGUMENTS #>
 <####################>
 
-ForEach ($a in $_Args) {
+foreach ($a in $_Args) {
 	<# handle only 'flags', no options with args #>
 	$flags = "[-/](force|fakeVer|list|rss|crTask|rmTask|shTask|xmlTask|manTask|noVbs|confirm|scheduler|ignHash|ignVer|cUpdate|appDir)"
-	If ($match = $(Select-String -CaseSensitive -Pattern $flags -AllMatches -InputObject $a)) {
-		Invoke-Expression ('{0}="{1}"' -f ($match -Replace "^-", "$"), 1);
+	if ($match = $(Select-String -CaseSensitive -Pattern $flags -AllMatches -InputObject $a)) {
+		Invoke-Expression ('{0}="{1}"' -f ($match -replace "^-", "$"), 1);
 		$_Args = ($_Args) | Where-Object { $_ -ne $match }
 	}
 }
-If (($_Args.length % 2) -eq 0) {
+if (($_Args.length % 2) -eq 0) {
 	$i = 0
-	While ($_Args -Is [Object[]] -And $i -lt $_Args.length) {
+	While ($_Args -Is [Object[]] -and $i -lt $_Args.length) {
 		<# OLD: $i = 0; While ($i -lt $_Args.length) { #>
-		If ((($_Args[$i] -Match "^-debug") -And ($_Args[($i + 1)] -Match "^\d")) -Or (($_Args[$i] -Match "^-") -And ($_Args[($i + 1)] -Match "^[\w\.]"))) {
-			Invoke-Expression ('{0}="{1}"' -f ($_Args[$i] -Replace "^-", "$"), ($_Args[++$i] | Out-String).Trim());
+		if ((($_Args[$i] -match "^-debug") -and ($_Args[($i + 1)] -match "^\d")) -or (($_Args[$i] -match "^-") -and ($_Args[($i + 1)] -match "^[\w\.]"))) {
+			Invoke-Expression ('{0}="{1}"' -f ($_Args[$i] -replace "^-", "$"), ($_Args[++$i] | Out-String).Trim());
 		}
 		$i++
 	}
-} Else {
-	Write-Host -ForegroundColor Red "Invalid options specfied. Try `"$scriptCmd -h`" for help, exiting...`r`n"
-	Exit 1
+} else {
+	Write-Host -ForegroundColor Red "Invalid option(s) specfied (CasE Sensive). Try `"$scriptCmd -h`" for help, exiting...`r`n"
+	exit 1
 }
 
-<# INLINE SCRIPT CONFIG #>
-If (!$editor -And $cfg.editor) {
-	$editor = $cfg.editor
+<# legacy: editor arg #>
+if (!$name -and $editor) {
+	$name = $editor
 }
-If (!$channel -And $cfg.channel) {
+
+<# INLINE SCRIPT CONFIG, OVERRIDES ARGS #>
+
+if (!$name -and $cfg.name) {
+	$name = $cfg.name
+}
+<# legacy: editor cfg #>
+if ((!$name -and !$cfg.name) -and $cfg.editor) {
+	$name = $cfg.editor
+}
+if (!$channel -and $cfg.channel) {
 	$channel = $cfg.channel
 }
-If (!$arch -And $cfg.arch) {
+if (!$arch -and $cfg.arch) {
 	$arch = $cfg.arch
 }
-If (!$proxy -And $cfg.proxy) {
+if (!$proxy -and $cfg.proxy) {
 	$proxy = $cfg.proxy
 }
-If (!$cAutoUp -And ($cfg.cAutoUp -eq $True)) {
+if (!$cAutoUp -and ($cfg.cAutoUp -eq $true) -and (!$dotSourced)) {
 	$cAutoUp = 1
 }
-If ($cfg.linkArgs) {
+if ($cfg.linkArgs) {
 	$srcExeArgs = $cfg.linkArgs
 }
-
-If ($proxy) {
+if ($proxy) {
 	$PSDefaultParameterValues.Add("Invoke-WebRequest:Proxy", "$proxy")
 	$webproxy = New-Object System.Net.WebProxy
 	$webproxy.Address = $proxy
 }
-
-If ($linkArgs) {
+if ($linkArgs) {
 	$srcExeArgs = $linkArgs
 }
-
-<# ALIAS #>
-$items.GetEnumerator() | ForEach-Object {
-	If ($_.Value.alias -eq $editor ) {
-		$editor = $_.Key
-	}
+if ($ignhash) {
+	$script:ignHash = 1
 }
-@{ "32bit|32|x86" = "32-bit";
-   "64bit|64|x64" = "64-bit";
-}.GetEnumerator() | ForEach-Object {
-	If ($_.Key -Match $arch) { $arch = $_.Value }
+if (!$vtApiKey -and $cfg.vtApiKey) {
+	$vtApiKey = $cfg.vtApiKey
 }
 
-<# GET WINDOWS VERSION #>
-$getWinVer = {
-	param(
-		[hashtable]$winVer,
-		[hashtable]$osTypeName,
-		[int]$tsMode
-	)
-	Write-Msg -o dbg,3 "`$ostTypeName[1]=$($osTypeName[1])"
-	<# DEBUG: TEST WINVER
-	If ($debug -ge 3) {
-		$osVer = @{ Major = 6; Minor = 1; }
-		$osType = 3
-	} #>
-	$osFound = $False
-	$osVer = (([System.Environment]::OSVersion).Version)
-	[int]$osType = (Get-CIMInstance Win32_OperatingSystem).ProductType
-	$winVer.GetEnumerator() | ForEach-Object {
-		If ( ($(($osVer).Major) -eq $($_.Value[0])) -And ($(($osVer).Minor) -eq $($_.Value[1])) -And ($($osType) -eq $($_.Value[2])) ) {
-			$osFound = $True
-			$osFullName = ("`"{0}`" ({1}.{2}, {3})" -f $_.Key, ($osVer).Major, ($osVer).Minor, $osTypeName[$osType])
-			$osTsMode = $_.Value[3]
-			Return $osFound, $osFullName, $osTsMode
-		}
-	} | Out-Null
-	If (-Not $osFound) {
-		$osFullName = "Unknown Windows Version"
-	}
-	If ($tsMode -NotMatch '^[1-3]$') {
-		If ($osFound) {
-			$tsMode = $osTsMode
-		} Else {
-			$tsMode = 3
+<# check for alias match, overrides var #>
+if ( $(try { (Test-Path variable:local:name) -and (-not [string]::IsNullOrWhiteSpace($name)) } catch { $false }) ) {
+	$items.GetEnumerator() | ForEach-Object {
+		if ($name -in $_.Value.alias) {
+			$name = $_.Key
 		}
 	}
-	Return $osFullName, $tsMode
+}
+@{ "32bit|32|x86" = "32-bit"; "64bit|64|x64" = "64-bit"; }.GetEnumerator() | ForEach-Object {
+	if ($_.Key -match $arch) {
+		$arch = $_.Value
+	}
 }
 
-<#############>
-<# FUNC: MSG #>
-<#############>
+<# OLD:	Function Write-Err ($msg) {	Write-Host -ForeGroundColor Red "ERROR: $msg" }
+		Function Write-Log ($msg) {	if ($cfg.log) { Add-Content $logFile -Value (((Get-Date).toString("yyyy-MM-dd HH:mm:ss")) + " $msg") } }
+		[ValidatePattern("dbg|warn|err|nnl|log|tee|^[0-9]$|^(?-i:[A-Z][a-zA-Z]{2,})")]	#>
 
-<# Write-Msg [-o dbg,(int)lvl,err,wrn,log,nnl,tee,fgColor|fgColor,bgColor] "String" #>
-
-<# SYNTAX: #>
-
-<#    -o [option] :                                                 #>
-<#      dbg                "DEBUG: some msg"                        #>
-<#      dbg,1              If ($debug -ge 4) { "DEBUG:level 1" }    #>
-<#      err                "ERROR: some msg"    (Red)               #>
-<#      wrn                "WARNING: some msg"  (Yellow)            #>
-<#      nnl                NoNewLine                                #>
-<#      log                log msg to file                          #>
-<#      tee                log msg to file AND stdout               #>
-<#      fgColor            e.g. Blue                                #>
-<#      fgColor,bgColor    e.g. White,DarkGray                      #>
-
-<# EXAMPLE: #>
-<# Write-Msg -o dbg,1,Magenta,tee "some debugging text" #>
-
-<# OLD:
-	Function Write-Err ($msg) {	Write-Host -ForeGroundColor Red "ERROR: $msg" }
-	Function Write-Log ($msg) {	If ($cfg.log) { Add-Content $logFile -Value (((Get-Date).toString("yyyy-MM-dd HH:mm:ss")) + " $msg") } }
-	[ValidatePattern("dbg|warn|err|nnl|log|tee|^[0-9]$|^(?-i:[A-Z][a-zA-Z]{2,})")]
-#>
-
-Function Write-Msg {
+function Write-Msg {
+	<#
+		.SYNOPSIS
+			Helper function to format and output (debug) messages
+		.NOTES
+			Place on top of script, *before* first msg call
+		.PARAMETER options
+				dbg                "DEBUG: some msg"
+				dbg, 1              if ($debug -ge 4) { "DEBUG:level 1" }
+				err                "ERROR: some msg"    (Red)
+				wrn                "WARNING: some msg"  (Yellow)
+				nnl                NoNewLine
+				log                log msg to file
+				tee                log msg to file AND stdout
+				fgColor            e.g. Blue
+				fgColor,bgColor    e.g. White,DarkGray
+		.DESCRIPTION
+			Write-Msg [-o dbg,(int)lvl,err,wrn,log,nnl,tee,fgColor|fgColor,bgColor] "String"
+		.EXAMPLE
+			Write-Msg -o dbg, 1, Magenta, tee "some debugging text"
+	#>
 	[CmdletBinding()]
 	param (
-		[alias("f")]
+		[Alias("o")]
 		[ValidateScript({
-			If ("$_" -match "dbg|warn|err|nnl|log|tee|^[0-9]$|^(?-i:[A-Z][a-zA-Z]{2,})") {
-				$True
-			} Else {
-				Throw "Invalid value is: `"$_`""
-			}
-		})]
+				if ("$_" -match "dbg|warn|err|nnl|log|tee|^[0-9]$|^(?-i:[A-Z][a-zA-Z]{2,})") {
+					$true
+				} else {
+					Throw "Invalid value is: `"$_`""
+				}
+			})]
 		$options,
-		[Parameter(Position = 1, ValueFromRemainingArguments=$true)]
-		$msg
+		[Parameter(Position = 1, ValueFromRemainingArguments = $true)]
+		[string]$msg
 	)
-	$dbg = $log = $tee = $False
-	$lvl = 0
+	[bool]$dbg = [bool]$log = [bool]$tee = $false
+	[int]$lvl = 0
 	$msgParams = @{}
 	$cnt = 0
-	ForEach ($opt in $options) {
-		Switch -Regex ($opt) {
-			'dbg' { $pf = "DEBUG: "; $dbg = $True; }
-			'warn' { $pf = "WARNING: "; $msgParams += @{ForegroundColor = "Yellow" } }
-			'err' { $pf = "ERROR: "; $msgParams += @{ForegroundColor = "Red" } }
-			'nnl' { $msgParams += @{NoNewLine = $True } }
-			'log' { $log = $True }
-			'tee' { $tee = $True }
+	foreach ($opt in $options) {
+		switch -regex ($opt) {
+			'dbg' { $pf = "DEBUG: "; $dbg = $true; }
+			'warn'	{ $pf = "WARNING: "; $msgParams += @{ForegroundColor = "Yellow" } }
+			'err'	{ $pf = "ERROR: "; $msgParams += @{ForegroundColor = "Red" } }
+			'nnl'	{ $msgParams += @{NoNewLine = $true} }
+			'log'	{ $log = $true }
+			'tee'	{ $tee = $true }
 			'^[0-9]$'	{ $lvl = $($matches[0]) }
 			'^(?-i:[A-Z][a-zA-Z]{2,})' {
-				If ($cnt -ge 1) {
+				if ($cnt -ge 1) {
 					$msgParams += @{BackgroundColor = $($matches[0]) }
-				} Else {
+				} else {
 					$msgParams += @{ForegroundColor = $($matches[0]) }
 				}
 				$cnt++
 			}
 		}
 	}
-	<# log to stdout (check debug level) and/or log to file with date #>
-	If (!$log -And ((!$dbg) -Or (($dbg) -And ($debug -ge $lvl)))) {
+	if (!$log -and ((!$dbg) -or (($dbg) -and ($debug -ge $lvl)))) {
+		if ($msg.Split()[0] -eq "System.Object[]") {
+			$pf = "DEBUG[invalid_opts]: "
+			$s = $msg.Split()
+			$msg = $s[1..$s.Length]
+		}
 		Write-Host @msgParams ("{0}$msg" -f $pf)
 	}
-	If ($cfg.log -And ($log -Or $tee)) {
+	if ($cfg.log -and ($log -or $tee)) {
 		Add-Content $logFile -Value (((Get-Date).toString("yyyy-MM-dd HH:mm:ss")) + " $msg")
 	}
 }
 
-<# OPTION: LIST #>
+function Get-WinVer {
+	<#
+		.SYNOPSIS
+			Get Windows Version and supported Task Scheduler Mode
+		.NOTES
+			Place in script *before* using 'tsMode' variable
+	#>
+	param(
+		[hashtable]$osInfo,
+		[int]$tsModeNum
+	)
 
-<# SHOW VERSION, EDITORS, RSS & EXIT #>
-If ($list -eq 1) {
+	<# Write-Msg -o dbg, 3 "`$osTypeNameHash[1]=$($osTypeNameHash[1])" #>
+	[bool]$osFound = $false
+	[version]$osVersion = ("{0}.{1}" -f ([System.Environment]::OSVersion).Version.Major, ([System.Environment]::OSVersion).Version.Minor)
+	[int]$osProdType = (Get-CIMInstance Win32_OperatingSystem).ProductType
+	[string]$osFullName = "Unknown Windows Version"
+	<# DEBUG: TEST WINVER	if ($debug -ge 3) {	$osVersion = "6.1"; $osType = 3 } #>
+	$osInfo.winVer.GetEnumerator() | ForEach-Object {
+		if (($osVersion.CompareTo(([version]("{0}.{1}" -f $_.Value[0..1]))) -eq 0) -and ($osProdType -eq $_.Value[2])) {
+			$osFound = $true
+			$osFullName = ("`"{0}`" ({1}, {2})" -f $_.Key, $osVersion, $osInfo.osTypeName[$osProdType])
+			$osTsModeNum = $_.Value[3]
+			return $osFound, $osFullName, $osTsModeNum
+		}
+	} | Out-Null
+	if ($tsModeNum -notmatch '^[1-3]$') {
+		$tsModeNum = if ($osFound) { $osTsModeNum } else { 3 }
+	}
+	return @{
+		osFullName = $osFullName
+		tsMode = $tsModeNum
+		tsModeName = $osObj.taskModeName.$tsModeNum
+	}
+}
+
+[hashtable]$winVerResult = Get-WinVer -osInfo $osObj -tsModeNum $tsMode
+$tsMode =  $winVerResult.tsMode
+
+<# OPTION: 'LIST' - SHOWS VERSION, NAME, RSS & EXITS #>
+
+if ($list -eq 1) {
 	Write-Msg
 	Write-Msg -o nnl "Currently installed Chromium version: "
 	Write-Msg $curVersion
 	Write-Msg "`r`n"
-	Write-Msg "Available Editors:"
-	<#$items.GetEnumerator() | Where-Object Value | Format-Table @{l='editor:';e={$_.Key}}, @{l='website, repository, file:';e={$_.Value}} -AutoSize#>
+	Write-Msg "Available releases:"
 	$items.GetEnumerator() | Where-Object Value | `
-		Format-Table @{l = 'Editor'; e = { if ($_.Value.editor -eq $_.Key) {$_.Value.editor} else {$_.Value.editor, $_.Key}} }, `
+		Format-Table @{l = 'Name'; e = { $_.Key } }, `
 					 @{l = 'Website'; e = { $_.Value.url } }, `
 					 @{l = 'Repository'; e = { $_.Value.repo } }, `
-					<# @{l='Format';e={$_.Value.fmt}}, ` #>
-					@{l = 'Filemask'; e = { $_.Value.filemask } } -AutoSize
-	Write-Msg "Available from Woolyss RSS Feed:"
-	$xml = [xml](Invoke-WebRequest -UseBasicParsing -TimeoutSec 5 -Uri "https://${woolyss}/feed/windows-$($arch)")
-	$xml.rss.channel.Item | Select-Object @{N = 'Title'; E = 'title' }, @{N = 'Link'; E = 'link' } | Out-String
-	Exit 0
+					 @{l = 'Filemask'; e = { $_.Value.filemask } }
+	<# Write-Msg "Available from Woolyss RSS Feed:"
+	   $xml = [xml](Invoke-WebRequest -UseBasicParsing -TimeoutSec 5 -Uri "https://chromium.woolyss.com/feed/windows-$($arch)")
+	   $xml.rss.channel.Item | Select-Object @{N = 'Title'; E = 'title' }, @{N = 'Link'; E = 'link' } | Out-String  #>
+	exit 0
 }
 
-<# SHOW SCRIPT TITLE #>
-Write-Msg -o nnl,White,DarkGray " $scriptName"
-Write-Msg -o nnl,Black,DarkGray " ( $scriptCmd $curScriptDate ) "
-Write-Msg "`r`n"
-# Write-Msg -o Black $(("-" * 36)"`r`n")
+<###################>
+<# CHECK USER ARGS #>
+<###################>
 
-$osFullName, $tsMode = $getWinVer.Invoke($winVer, $osTypeName, [int]$tsMode)
-Write-Msg ("OS Detected: {0}`r`nTask Scheduler Mode: {1} `"{2}`"" -f $osFullName, ${tsMode}, $($tsName.[int]$tsMode))
-
-<##############>
-<# CHECK ARGS #>
-<##############>
-
-<# CHECK LOGFILE #>
-If ($cfg.log) {
-	If ( $(Try { (Test-Path variable:local:logFile) -And (-Not [string]::IsNullOrWhiteSpace($logFile)) } Catch { $False }) ) {
-		Write-Msg "Logging to: `"$logFile`""
-	} Else {
-		$cfg.log = $False
-		Write-Msg "Unable to open logfile, output to console only`r`n"
-	}
-}
-
-<# MANDATORY ARGS #>
-<# OLD: If (-Not ($items.values.editor -eq $editor)) #>
-If (-Not ($items.Keys -ceq $editor)) {
-	Write-Msg -o err "Editor setting incorrect `"$editor`" (CasE Sensive). Exiting ..."
-	Exit 1
-} Else {
+<# mandatory args #>
+if (-not ($items.Keys -ceq $name)) {
+	Write-Msg -o err "Name setting incorrect `"$name`" (CasE Sensive). Exiting ..."
+	exit 1
+} else {
 	$items.GetEnumerator() | ForEach-Object {
-		If ($_.Value.editor -ceq $editor) {
-			If ($_.value.fmt -cNotMatch "^(XML|JSON)$") {
-				Write-Msg -o err "Invalid format `"${items[$editor].fmt}`", must be `"XML`" or `"JSON`". Exiting ..."
-				Exit 1
+		if ($_.Name -ceq $name) {
+			if ($items[$_.Name].fmt -cnotmatch"^(XML|JSON)$") {
+				Write-Msg -o err "Invalid format `"${items[$_.Name].fmt}`", must be `"XML`" or `"JSON`". Exiting ..."
+				exit 1
 			}
 		}
 	}
 }
-If ($arch -cNotMatch "^(32-bit|64-bit)$") {
-	#Write-Msg -o err "Invalid architecture `"$arch`", must be `"32-bit`" or `"64-bit`". Exiting ..."
-	#Exit 1
+if ($arch -cnotmatch"^(32-bit|64-bit)$") {
 	$arch = "64-bit"
-	Write-Msg -o "Using default architecture (64-bit)"
+	Write-Msg "Using default architecture (64-bit)"
 }
-If ($channel -cNotMatch "^(stable|dev)$") {
-	Write-Msg -o err "Invalid channel `"$channel`", must be `"stable`" or `"dev`" (CasE Sensive). Exiting ..."
-	Exit 1
+if ($channel -cnotmatch"^(stable|dev)$") {
+	$channel = "stable"
+	Write-Msg "Using default channel (`"stable`")"
 }
-If ($cAutoUp -NotMatch "^(0|1)$") {
-	Write-Msg -o warn,tee "Invalid AutoUpdate setting `"$cAutoUp`", must be 0 or 1"
+if ($cAutoUp -notmatch "^(0|1)$") {
+	Write-Msg -o warn, tee "Invalid AutoUpdate setting `"$cAutoUp`", must be 0 or 1"
 }
 
 <#################>
 <# UPDATE SCRIPT #>
 <#################>
 
-<# FUNC: SPLIT #>
-
-<# splits header and config from script content #>
-<# - input  : <content>  (not filename) #>
-<# - output : result  #>
-
-Function doSplit ($content) {
-	$lnCfgStart = ($content | Select-String -Pattern "<# CONFIGURATION:? \s+ #>").LineNumber
-	$lnCfgEnd = ($content | Select-String -Pattern "<# END OF CONFIGURATION ?[#-]+ ?#>").LineNumber
+function Split-Script ([object]$content) {
+	<#	.SYNOPSIS
+			Splits header and config from script content
+		.INPUTS
+			<content>  (not filename)
+		.OUTPUTS
+			$result as Object (or $false)  #>
+	[int]$lnCfgStart = ($content | Select-String -Pattern "<# CONFIGURATION:? \s+ #>").LineNumber
+	[int]$lnCfgEnd = ($content | Select-String -Pattern "<# END OF CONFIGURATION ?[#-]+ ?#>").LineNumber
 	$result = @{}
-	If (($lnCfgStart -gt 1) -And ($lnCfgEnd -gt 1)) {
+	if (($lnCfgStart -gt 1) -and ($lnCfgEnd -gt 1)) {
 		$result.head = $content | Select-Object -Index (0..(${lnCfgStart} - 2))
 		$result.config = $content | Select-Object -Index ((${lnCfgStart} - 1)..$(${lnCfgEnd} - 1))
-		$lineCount = ($content).Count
+		[int]$lineCount = ($content).Count
 		$lastLine = $content | Select-Object -Skip (${lineCount} - 1)
-		If ($lineCount -And $lastLine -eq "") {
+		if ($lineCount -and $lastLine -eq "") {
 			$lineCount = ${lineCount} - 2
 		}
 		$result.script = $content | Select-Object -Index ($lnCfgEnd..$lineCount)
 		$result.hash = (Get-FileHash -Algorithm SHA1 -InputStream ([System.IO.MemoryStream]::new([System.Text.Encoding]::UTF8.GetBytes((($result.script)))))).Hash
-	} Else {
-		Return $False
+	} else {
+		return $false
 	}
-	$result
+	return $result
 }
 
-<# FUNC: UPDATE SCRIPT #>
-
-<# Compares date/version: #>
-<# - Remote README.md "Latest version: YYYYMMMDD" #>
-<# - Local chrupd.cmd " 202\d{5} " (e.g. 20201231) #>
-
-Function updateScript () {
-	$params = @{}
-	<# TEST: $params += @{ Verbose = $True } #>
-	If ($debug -ge 1) {
-		$params += @{ WhatIf = $True }
-		Write-Msg -o dbg,1,Yellow "updateScript /!\ NOT CHANGING FILES /!\"
+function Update-Script () {
+	<#	.SYNOPSIS
+			Compare date and version, update if available
+		.NOTES
+			REMOTE  : README.md "Latest version: YYYYMMMDD"
+			LOCAL   : chrupd.cmd " 202\d{5} " (e.g. 20201231)  #>
+	$cmdParams = @{}
+	<# TEST: $cmdParams += @{ Verbose = $true } #>
+	if ($debug -ge 1) {
+		$cmdParams += @{ WhatIf = $true }
+		Write-Msg -o dbg, 1, Yellow "Update-Script debug=`"$debug`" (!) NOT CHANGING FILES"
 	}
-	<# Get date/version from readme #>
-	[System.Net.ServicePointManager]::SecurityProtocol = @("Tls12", "Tls11", "Tls")
-	$ghApi = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String("aHR0cHM6Ly9hcGkuZ2l0aHViLmNvbS9yZXBvcy9ta29ydGhvZi9jaHJ1cGQ="))
-	$ghJson = (ConvertFrom-Json(Invoke-WebRequest -UseBasicParsing -TimeoutSec 300 -Uri "$ghApi/contents/README.md"))
-	$ghReadmeContent = [System.Text.Encoding]::UTF8.GetString(([System.Convert]::FromBase64String((($ghJson).content)))) -split "`n"
-	$newDate = ($ghReadmeContent | Select-String -Pattern "Latest version.* 202\d{5} ") -Replace '.*Latest version: (202\d{5}) .*', '$1'
-	Write-Msg -o dbg,1 "updateScript curScriptDate=$curScriptDate newDate=$newDate"
-	<# Compare date in remote README.md with chrupd.cmd #>
-	If ($newDate -And (([DateTime]::ParseExact($newDate, 'yyyyMMdd', $null)) -gt ([DateTime]::ParseExact($curScriptDate, 'yyyyMMdd', $null)))) {
+	<# get data/version from readme #>
+	[System.Net.ServicePointManager]::SecurityProtocol = @("Tls13", "Tls12", "Tls11", "Tls")
+	[string]$ghApi = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String("aHR0cHM6Ly9hcGkuZ2l0aHViLmNvbS9yZXBvcy9ta29ydGhvZi9jaHJ1cGQ="))
+	<# skip req when dot sourced or debugging, so we dont hit api rate limit #>
+	if (!$dotSourced -and ($debug -eq 0)) {
+		[pscustomobject]$ghContentsJson = (ConvertFrom-Json(Invoke-WebRequest -UseBasicParsing -TimeoutSec 300 -Uri "$ghApi/contents/README.md"))
+	} else {
+		Write-Msg -o dbg, 1 "Update-Script TEST MODE"
+		<# TEST: new version = ghContentsJson_20291231, old version = ghContentsJson_20211002)) #>
+		[pscustomobject]$ghContentsJson = (ConvertFrom-Json(Get-Content .\test\ghContentsJson_20211002))
+	}
+	[string]$ghReadmeContent = [System.Text.Encoding]::UTF8.GetString(([System.Convert]::FromBase64String((($ghContentsJson).content)))) -split "`n"
+	[string]$newDate = ($ghReadmeContent | Select-String -Pattern "Latest version.* 202\d{5} ") -replace '.*Latest version: (202\d{5}) .*', '$1'
+	Write-Msg -o dbg, 1 "Update-Script curScriptDate=`"$curScriptDate`" newDate=`"$newDate`""
+	<# compare date in remote 'README.md' with local 'chrupd.cmd' #>
+	if ($newDate -and (([DateTime]::ParseExact($newDate, 'yyyyMMdd', $null)) -gt ([DateTime]::ParseExact($curScriptDate, 'yyyyMMdd', $null)))) {
 		Write-Msg -o tee "New chrupd version `"$newDate`" available, updating script..."
-		<# SPLIT: current script file #>
-		Write-Msg -o dbg,1 "updateScript doSplit `$scriptCmd=`"$scriptCmd`""
-		$loSplit = doSplit $(Get-Content "${scriptDir}\${scriptCmd}")
-		<# SPLIT: new script content #>
-		Write-Msg -o dbg,1 "updateScript getting chrupd contents from api.github.com"
-		$ghJson = (ConvertFrom-Json(Invoke-WebRequest -UseBasicParsing -TimeoutSec 300 -Uri "$ghApi/contents/chrupd.cmd"))
-		$ghContent = [System.Text.Encoding]::UTF8.GetString(([System.Convert]::FromBase64String((($ghJson).content)))) -split "`r`n"
-		Write-Msg -o dbg,1 "updateScript doSplit `"`$ghContent`""
-		If ($debug -ge 1) {
-			doSplit $ghContent
+		<# split current script file #>
+		Write-Msg -o dbg, 1 "Update-Script Split-Script `$scriptCmd=`"$scriptCmd`""
+		$loSplit = Split-Script $(Get-Content "${scriptDir}\${scriptCmd}")
+		<# split new script content #>
+		Write-Msg -o dbg, 1 "Update-Script getting chrupd contents from api.github.com"
+		[pscustomobject]$ghContentsJson = (ConvertFrom-Json(Invoke-WebRequest -UseBasicParsing -TimeoutSec 300 -Uri "$ghApi/contents/chrupd.cmd"))
+		[string]$ghContent = [System.Text.Encoding]::UTF8.GetString(([System.Convert]::FromBase64String((($ghContentsJson).content)))) -split "`r`n"
+		Write-Msg -o dbg, 1 "Update-Script Split-Script `"`$ghContent`""
+		if ($debug -ge 1) {
+			Split-Script $ghContent | Out-Null
 		}
-		If ($ghContent) {
-			$ghSplit = doSplit $ghContent
-		} Else {
-			Write-Msg -o err,tee "Could not download new script, skipped update"
-			Break
+		if ($ghContent) {
+			$ghSplit = Split-Script $ghContent
+		} else {
+			Write-Msg -o err, tee "Could not download new script, skipped update"
+			break
 		}
-		<# Merge current local config if found, else just write new script #>
-		If ($ghSplit) {
-			If ($loSplit) {
+		<# merge current local config if found, else just write new script #>
+		if ($ghSplit) {
+			if ($loSplit) {
 				$newContent = $ghSplit.head, $loSplit.config, $ghSplit.script
-				Write-Msg -o dbg,1 "updateScript loSplit.hash=$($loSplit.hash) ghSplit.hash=$($ghSplit.hash)"
-			} Else {
+				Write-Msg -o dbg, 1 "Update-Script loSplit.hash=$($loSplit.hash) ghSplit.hash=$($ghSplit.hash)"
+			} else {
 				$newContent = $ghContent
 				Write-Msg -o warn "Current script configuration not found, using defaults"
 			}
-			If ( $(Try { (&Test-Path "${scriptDir}\${scriptCmd}.tmp") } Catch { $False }) ) {
-				Write-Msg -o dbg,1 "${scriptCmd}.tmp already exists, removing..."
-				Try {
-					Remove-Item @params -ErrorAction 1 -WarningAction 1 "${scriptDir}\${scriptCmd}.tmp" -Force
-				} Catch {
-					Write-Msg -o err,tee "Could not remove ${scriptCmd}.tmp"
-					Break
+			if ( $(try { (&Test-Path "${scriptDir}\${scriptCmd}.tmp") } catch { $false }) ) {
+				Write-Msg -o dbg, 1 "${scriptCmd}.tmp already exists, removing..."
+				try {
+					Remove-Item @cmdParams -ErrorAction 1 -WarningAction 1 "${scriptDir}\${scriptCmd}.tmp" -Force
+				} catch {
+					Write-Msg -o err, tee "Could not remove ${scriptCmd}.tmp"
+					break
 				}
 			}
-			Try {
-				Set-Content @params -EA 1 -WA 1 "${scriptDir}\${scriptCmd}.tmp" -Value $newContent
-			} Catch {
-				Write-Msg -o err,tee "Could not write script, skipped update"
-				Break
+			try {
+				Set-Content @cmdParams -EA 1 -WA 1 "${scriptDir}\${scriptCmd}.tmp" -Value $newContent
+			} catch {
+				Write-Msg -o err, tee "Could not write script, skipped update"
+				break
 			}
-			<# only replacing in use script if we're running as ps1 (chrupd.ps1) #>
-			If ($scriptCmd.Split(".")[1] -eq "ps1") {
-				Try {
-					Move-Item @params -Force -EA 0 -WA 0 -Path "${scriptDir}\${scriptCmd}" -Destination "${scriptDir}\${scriptCmd}.bak"
-				} Catch {
-					Write-Msg -o err,tee "Could not move `"${scriptCmd}`" to `"$contentCmd.bak`""
-					Break
+			<# replace 'in use' script only if we're running as ps1 (chrupd.ps1) #>
+			if ($scriptCmd.Split(".")[1] -eq "ps1") {
+				try {
+					Move-Item @cmdParams -Force -EA 0 -WA 0 -Path "${scriptDir}\${scriptCmd}" -Destination "${scriptDir}\${scriptCmd}.bak"
+				} catch {
+					Write-Msg -o err, tee "Could not move `"${scriptCmd}`" to `"$contentCmd.bak`""
+					break
 				}
-				Try {
-					Move-Item @params -Force -EA 0 -WA 0 -Path "${scriptDir}\${scriptCmd}.tmp" -Destination s"${scriptDir}\${scriptCmd}"
-				} Catch {
-					Write-Host -o err,tee "Could not move `"${scriptCmd}.tmp`" to `"$contentCmd`""
-					Break
+				try {
+					Move-Item @cmdParams -Force -EA 0 -WA 0 -Path "${scriptDir}\${scriptCmd}.tmp" -Destination s"${scriptDir}\${scriptCmd}"
+				} catch {
+					Write-Host -o err, tee "Could not move `"${scriptCmd}.tmp`" to `"$contentCmd`""
+					break
 				}
 			}
-		} Else {
-			Write-Msg -o err,tee "Unable to read new script, skipped update"
-			Break
+		} else {
+			Write-Msg -o err, tee "Unable to read new script, skipped update"
+			break
 		}
-	} Else {
-		If ($cUpdate) {
+	} else {
+		if ($cUpdate) {
 			Write-Msg "No script updates available "
 			Write-Msg
-		} Else {
-			Write-Msg -o dbg,1 "updateScript no updates available "
+		} else {
+			Write-Msg -o dbg, 1 "Update-Script cUpdate=`"$cUpdate`" no updates available"
 		}
 	}
 }
 
-<# OPTION: CHRUPD UPDATE #>
-
-If ($cUpdate) {
-	updateScript
+<# OPTION: UPDATE SCRIPT AND EXIT #>
+if ($cUpdate) {
+	Update-Script
 	Exit
 }
-
-<# chrupd auto update #>
-If ($cAutoUp -eq 1) {
-	updateScript
+<# OPTION: AUTO UPDATE #>
+if ($cAutoUp -eq 1) {
+	Update-Script
 }
 
 <###################>
@@ -677,21 +707,21 @@ If ($cAutoUp -eq 1) {
 <# 2) Legacy (Windows 7), uses COM object           #>
 <# 3) Command (Windows XP), uses schtasks.exe       #>
 
-<# TASK VARS #>
-$confirmParam = $True
-If ( $(Try { -Not (Test-Path variable:local:tsMode) -Or ([string]::IsNullOrWhiteSpace($tsMode)) } Catch { $False }) ) {
+<# TASK: VARS #>
+$confirmParam = $true
+if ( $(try { -not (Test-Path variable:local:tsMode) -or ([string]::IsNullOrWhiteSpace($tsMode)) } catch { $false }) ) {
 	$tsMode = 1
 }
-$vbsWrapper = $scriptDir + "\chrupd.vbs"
-$taskArgs = "-scheduler -editor $editor -arch $arch -channel $channel -cAutoUp $cAutoUp"
-If ($noVbs -eq 0) {
-	$taskCmd = "$vbsWrapper"
-} Else {
-	$taskCmd = 'powershell.exe'
-	$taskArgs = "-ExecutionPolicy ByPass -NoLogo -NoProfile -WindowStyle Hidden $scriptCmd $taskArgs"
+[string]$vbsWrapper = $scriptDir + "\chrupd.vbs"
+[string]$taskArgs = "-scheduler -name $name -arch $arch -channel $channel -cAutoUp $cAutoUp"
+if ($noVbs -eq 0) {
+	[string]$taskCmd = "$vbsWrapper"
+} else {
+	[string]$taskCmd = 'powershell.exe'
+	[string]$taskArgs = "-ExecutionPolicy ByPass -NoLogo -NoProfile -WindowStyle Hidden $scriptCmd $taskArgs"
 }
 
-<# VBS WRAPPER #>
+<# TASK: VBS WRAPPER #>
 $vbsContent = @"
 '
 ' Wrapper for chrupd.cmd to hide window when using Task Scheduler
@@ -705,7 +735,7 @@ WinScriptHost.Run Chr(34) & "${scriptDir}\\${scriptCmd}" & Chr(34) & " " & Args,
 Set WinScriptHost = Nothing
 "@
 
-<# TASK XML #>
+<# TASK: XML #>
 $xmlContent = @"
 <?xml version="1.0" encoding="UTF-16"?>
 <Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
@@ -749,34 +779,34 @@ $xmlContent = @"
 "@
 
 <# CRTASK: CREATE SCHEDULED TASK #>
-If ($crTask -eq 1) {
-	If ( $(Try { -Not (&Test-Path $vbsWrapper) } Catch { $False }) ) {
+if ($crTask -eq 1) {
+	if ( $(try { -not (&Test-Path $vbsWrapper) } catch { $false }) ) {
 		Write-Msg "VBS Wrapper ($vbsWrapper) missing, creating...`r`n"
 		Set-Content $vbsWrapper -ErrorAction Stop -WarningAction Stop -Value $vbsContent
-		If ( $(Try { -Not (&Test-Path $vbsWrapper) } Catch { $False }) ) {
+		if ( $(try { -not (&Test-Path $vbsWrapper) } catch { $false }) ) {
 			Write-Msg "Could not create VBS Wrapper, try again or use `"-noVbs`" to skip"
-			Exit 1
+			exit 1
 		}
 	}
-	Switch ($tsMode) {
+	switch ($tsMode) {
 		<# CRTASK: 1 NORMAL MODE #>
 		1 {
 			$action = New-ScheduledTaskAction -Execute $taskCmd -Argument "$taskArgs" -WorkingDirectory "$scriptDir"
 			$trigger = New-ScheduledTaskTrigger -RandomDelay (New-TimeSpan -Hour 1) -Daily -At 17:00
-			If (-Not (&Get-ScheduledTask -EA 0 -TaskName "$scriptName")) {
+			if (-not (&Get-ScheduledTask -EA 0 -TaskName "$scriptName")) {
 				Write-Msg $($taskMsg.create)
-				Try { (Register-ScheduledTask -Action $action -Trigger $trigger -TaskName "$scriptName" -Description "$($taskMsg.descr)") | Out-Null }
-				Catch { Write-Msg "$($taskMsg.problem)`r`nERROR: `"$($_.Exception.Message)`"" }
-			} Else {
+				try { (Register-ScheduledTask -Action $action -Trigger $trigger -TaskName "$scriptName" -Description "$($taskMsg.descr)") | Out-Null }
+				catch { Write-Msg "$($taskMsg.problem)`r`nERROR: `"$($_.Exception.Message)`"" }
+			} else {
 				Write-Msg $($taskMsg.exists)
 			}
-			If (&Get-ScheduledTask -EA 0 -TaskName "$scriptName" -OutVariable task) {
-				If ( $(Try { (Test-Path variable:local:task) -And (-Not [string]::IsNullOrWhiteSpace($task)) } Catch { $False }) ) {
+			if (&Get-ScheduledTask -EA 0 -TaskName "$scriptName" -OutVariable task) {
+				if ( $(try { (Test-Path variable:local:task) -and (-not [string]::IsNullOrWhiteSpace($task)) } catch { $false }) ) {
 					Write-Msg ("Task: `"{0}{1}`"`r`nDescription: `"{2}`", State: {3}`r`n" -f ($task).TaskPath, ($task).TaskName, ($task).Description, ($task).State)
-				} Else {
+				} else {
 					Write-Msg $taskMsg.failed
 				}
-			} Else {
+			} else {
 				Write-Msg ("{0}`r`n`r`n  {1}`r`n  {2}`r`n" -f $taskMsg.failed, $taskMsg.manual, $taskMsg.export)
 			}
 		}
@@ -785,12 +815,12 @@ If ($crTask -eq 1) {
 			$taskService = New-Object -ComObject("Schedule.Service")
 			$taskService.Connect()
 			$taskFolder = $taskService.GetFolder("\")
-			If (-Not $(Try { $taskFolder.GetTask("$scriptName") } Catch { $False }) ) {
+			if (-not $(try { $taskFolder.GetTask("$scriptName") } catch { $false }) ) {
 				Write-Msg $taskMsg.create
 				$taskDef = $taskService.NewTask(0)
 				$taskDef.RegistrationInfo.Description = "$TaskDescr"
-				$taskDef.Settings.Enabled = $True
-				$taskDef.Settings.AllowDemandStart = $True
+				$taskDef.Settings.Enabled = $true
+				$taskDef.Settings.AllowDemandStart = $true
 
 				$trigCollection = $taskDef.Triggers
 				$trigger = $trigCollection.Create(2)
@@ -798,21 +828,21 @@ If ($crTask -eq 1) {
 				$trigger.StartBoundary = ((Get-Date).toString("yyyy-MM-dd'T'17:00:00"))
 				$trigger.RandomDelay = "PT1H"
 				$trigger.DaysInterval = 1
-				$trigger.Enabled = $True
+				$trigger.Enabled = $true
 
 				$execAction = $taskDef.Actions.Create(0)
 				$execAction.Path = "$taskCmd"
 				$execAction.Arguments = "$taskArgs"
 				$execAction.WorkingDirectory = "$scriptDir"
-				Try { $_t = $taskFolder.RegisterTaskDefinition("$scriptName", $taskDef, 6, "", "", 3, "") }
-				Catch { Write-Msg "$($taskMsg.problem) ERROR: `"$($_.Exception.Message)`"" }
-				If ( $(Try { -Not (Test-Path variable:local:_t) -Or ( [string]::IsNullOrWhiteSpace($_t)) } Catch { $False }) ) {
+				try { $_t = $taskFolder.RegisterTaskDefinition("$scriptName", $taskDef, 6, "", "", 3, "") }
+				catch { Write-Msg "$($taskMsg.problem) ERROR: `"$($_.Exception.Message)`"" }
+				if ( $(try { -not (Test-Path variable:local:_t) -or ( [string]::IsNullOrWhiteSpace($_t)) } catch { $false }) ) {
 					Write-Msg ("{0}`r`n`r`n  {1}`r`n  {2}`r`n" -f $taskMsg.failed, $taskMsg.manual, $taskMsg.export)
 				}
-			} Else {
+			} else {
 				Write-Msg $taskMsg.exists
 			}
-			If ( $(Try { $taskFolder.GetTask("$scriptName") } Catch { $False }) ) {
+			if ( $(try { $taskFolder.GetTask("$scriptName") } catch { $false }) ) {
 				$task = $taskFolder.GetTask("$scriptName")
 				Write-Msg ("Task: `"{0}{1}`"`r`nDescription: `"{2}`", State: {3}.`r`n" -f $($task.Path), "", $($task.Definition.RegistrationInfo.Description), $($task.State))
 			}
@@ -825,44 +855,44 @@ If ($crTask -eq 1) {
 			<# $delay = (Get-Random -minimum 0 -maximum 59).ToString("00") #>
 			<# $a = "/Create /SC DAILY /ST 17:${delay} /TN \\`"$scriptName`" /TR `"'$vbsWrapper' $taskArgs`"" #>
 			$a = "/Create /TN \\`"$scriptName`" /XML `"$env:TEMP\chrupd.xml`""
-			If ($confirm -eq 1) {
+			if ($confirm -eq 1) {
 				$a = "$a /F"
 			}
 			$p = Start-Process -FilePath "$env:SystemRoot\system32\schtasks.exe" -ArgumentList $a -Wait -NoNewWindow -PassThru
 			$handle = $p.Handle # cache proc.Handle
 			$p.WaitForExit()
-			If ($p.ExitCode -eq 0) {
+			if ($p.ExitCode -eq 0) {
 				Write-Msg
-			} Else {
+			} else {
 				Write-Msg ("`r`n{0}`r`n`r`n  {1}`r`n  {2}`r`n" -f $taskMsg.failed, $taskMsg.manual, $taskMsg.export)
 			}
-			Try {
+			try {
 				Remove-Item -EA 0 -WA 0 -Force "$env:TEMP\chrupd.xml"
-			} Catch {
-				$False
+			} catch {
+				$false
 			}
-			Write-Msg dbg,1 "handle=$handle"
+			Write-Msg dbg, 1 "handle=$handle"
 		}
 	}
-	Exit 0
+	exit 0
 	<# RMTASK: REMOVE SCHEDULED TASK #>
-} ElseIf ($rmTask -eq 1) {
-	Switch ($tsMode) {
+} elseif ($rmTask -eq 1) {
+	switch ($tsMode) {
 		<# RMTASK: 1 NORMAL MODE #>
 		1 {
-			If ($confirm -eq 1) { $confirmParam = $False }
-			If (&Get-ScheduledTask -EA 0 -TaskName "$scriptName") {
+			if ($confirm -eq 1) { $confirmParam = $false }
+			if (&Get-ScheduledTask -EA 0 -TaskName "$scriptName") {
 				Write-Msg "$($taskMsg.remove)`r`n"
-				Try {
+				try {
 					UnRegister-ScheduledTask -confirm:${confirmParam} -TaskName "$scriptName"
-				} Catch {
+				} catch {
 					Write-Msg "${taskMsg.problem}... $($_.Exception.Message)"
 				}
-			} Else {
+			} else {
 				Write-Msg "$($taskMsg.notask)`r`n"
 			}
-			If (&Get-ScheduledTask -EA 0 -TaskName "$scriptName" -OutVariable task) {
-				If ( $(Try { (Test-Path variable:local:task) -And (-Not [string]::IsNullOrWhiteSpace($task)) } Catch { $False }) ) {
+			if (&Get-ScheduledTask -EA 0 -TaskName "$scriptName" -OutVariable task) {
+				if ( $(try { (Test-Path variable:local:task) -and (-not [string]::IsNullOrWhiteSpace($task)) } catch { $false }) ) {
 					Write-Msg ("Could not remove Task: `"{0}{1}`", Description: `"{2}`", State: {3}`r`n" -f ($task).TaskPath, ($task).TaskName, ($task).Description, ($task).State)
 					Write-Msg ("{0}`r`n`r`n{1}`r`n" -f $taskMsg.rmfailed, $taskMsg.manual)
 				}
@@ -873,13 +903,13 @@ If ($crTask -eq 1) {
 			$taskService = New-Object -ComObject("Schedule.Service")
 			$taskService.Connect()
 			$taskFolder = $taskService.GetFolder("\")
-			If ( $(Try { $taskFolder.GetTask("$scriptName") } Catch { $False }) ) {
+			if ( $(try { $taskFolder.GetTask("$scriptName") } catch { $false }) ) {
 				Write-Msg "$taskMsg.remove`r`n"
-				Try { $taskFolder.DeleteTask("$scriptName", 0) } Catch { Write-Msg "${taskMsg.problem}... $($_.Exception.Message)" }
-			} Else {
+				try { $taskFolder.DeleteTask("$scriptName", 0) } catch { Write-Msg "${taskMsg.problem}... $($_.Exception.Message)" }
+			} else {
 				Write-Msg "$($taskMsg.notask)`r`n"
 			}
-			If ( $(Try { $taskFolder.GetTask("$scriptName") } Catch { $False }) ) {
+			if ( $(try { $taskFolder.GetTask("$scriptName") } catch { $false }) ) {
 				$task = $taskFolder.GetTask("$scriptName")
 				Write-Msg ("Could not remove Task: `"{0}{1}`", Description: `"{2}`", State: {3}`r`n" -f "", ($task).TaskName, ($task).Description, ($task).State)
 				Write-Msg ("{0}`r`n`r`n{1}`r`n" -f $taskMsg.rmfailed, $taskMsg.manual)
@@ -892,27 +922,27 @@ If ($crTask -eq 1) {
 			$p = Start-Process -FilePath "$env:SystemRoot\system32\schtasks.exe" -ArgumentList $a -Wait -NoNewWindow -PassThru
 			$handle = $p.Handle # cache proc.Handle
 			$p.WaitForExit()
-			If ($p.ExitCode -eq 0) {
+			if ($p.ExitCode -eq 0) {
 				Write-Msg
-			} Else {
+			} else {
 				Write-Msg ("{0}`r`n`r`n{1}`r`n" -f $taskMsg.rmfailed, $taskMsg.manual)
 			}
 		}
 	}
-	Exit 0
+	exit 0
 	<# SHTASK: SHOW SCHEDULED TASK #>
-} ElseIf ($shTask -eq 1) {
-	Switch ($tsMode) {
+} elseif ($shTask -eq 1) {
+	switch ($tsMode) {
 		<# SHTASK: 1 NORMAL MODE #>
 		1 {
-			If (&Get-ScheduledTask -EA 0 -TaskName "$scriptName" -OutVariable task) {
-				If ( $(Try { (Test-Path variable:local:task) -And (-Not [string]::IsNullOrWhiteSpace($task)) } Catch { $False }) ) {
+			if (&Get-ScheduledTask -EA 0 -TaskName "$scriptName" -OutVariable task) {
+				if ( $(try { (Test-Path variable:local:task) -and (-not [string]::IsNullOrWhiteSpace($task)) } catch { $false }) ) {
 					$taskinfo = (&Get-ScheduledTaskInfo -TaskName "$scriptName")
 					Write-Msg ("Task: `"{0}{1}`"`r`nDescription: `"{2}`", State: {3}." -f ($task).TaskPath, ($task).TaskName, ($task).Description, ($task).State)
 					Write-Msg ("Actions: WorkingDirectory: `"{0}`", Execute: `"{1}`", Arguments: `"{2}`"" -f ($task).actions.WorkingDirectory, ($task).actions.Execute, ($task).actions.Arguments)
 					Write-Msg ("TaskInfo: LastRunTime: `"{0}`", NextRunTime: `"{1}`", NumberOfMissedRuns: {2}`r`n" -f ($taskinfo).LastRunTime, ($taskinfo).NextRunTime, ($taskinfo).NumberOfMissedRuns)
 				}
-			} Else {
+			} else {
 				Write-Msg "$($taskMsg.notfound)`r`n"
 			}
 		}
@@ -921,12 +951,12 @@ If ($crTask -eq 1) {
 			$taskService = New-Object -ComObject("Schedule.Service")
 			$taskService.Connect()
 			$taskFolder = $taskService.GetFolder("\")
-			If ( $(Try { $taskFolder.GetTask("$scriptName") } Catch { $False }) ) {
+			if ( $(try { $taskFolder.GetTask("$scriptName") } catch { $false }) ) {
 				$task = $taskFolder.GetTask("$scriptName")
 				Write-Msg ("Task: `"{0}{1}`"`r`nDescription: `"{2}`", State: {3}." -f $($task.Path), "", $($task.Definition.RegistrationInfo.Description), $($task.State))
 				Write-Msg ("Actions: WorkingDirectory: `"{0}`", Execute: `"{1}`", Arguments: `"{2}`"" -f $($($task.Definition.Actions).WorkingDirectory), $($($task.Definition.Actions).Path), $($($task.Definition.Actions).Arguments))
 				Write-Msg ("TaskInfo: LastRunTime: `"{0}`", NextRunTime: `"{1}`", NumberOfMissedRuns: {2}`r`n" -f $($task.LastRunTime), $($task.NextRunTime), $($task.NumberOfMissedRuns))
-			} Else {
+			} else {
 				Write-Msg "$($taskMsg.notfound)`r`n"
 			}
 		}
@@ -938,9 +968,9 @@ If ($crTask -eq 1) {
 			<# $p.WaitForExit() #>
 			$pinfo = New-Object System.Diagnostics.ProcessStartInfo
 			$pinfo.FileName = "$env:SystemRoot\system32\schtasks.exe"
-			$pinfo.RedirectStandardError = $True
-			$pinfo.RedirectStandardOutput = $True
-			$pinfo.UseShellExecute = $False
+			$pinfo.RedirectStandardError = $true
+			$pinfo.RedirectStandardOutput = $true
+			$pinfo.UseShellExecute = $false
 			$pinfo.Arguments = "$a"
 			$p = New-Object System.Diagnostics.Process
 			$p.StartInfo = $pinfo
@@ -948,199 +978,145 @@ If ($crTask -eq 1) {
 			$p.WaitForExit()
 			[xml]$stdout = $p.StandardOutput.ReadToEnd()
 			$stderr = $p.StandardError.ReadToEnd()
-			If ($p.ExitCode -eq 0) {
+			if ($p.ExitCode -eq 0) {
 				$stOut = (&$env:SystemRoot\system32\schtasks.exe /Query /TN `"$scriptName`" /FO LIST /V)
-				$State = $(($stOut | Select-String -Pattern "^Status") -Replace '.*: +(.*)$', '$1')
-				$LastRunTime = $(($stOut | Select-String -Pattern "^Last Run Time") -Replace '.*: +(.*)$', '$1')
-				$NextRunTime = $(($stOut | Select-String -Pattern "^Next Run Time") -Replace '.*: +(.*)$', '$1')
+				$State = $(($stOut | Select-String -Pattern "^Status") -replace '.*: +(.*)$', '$1')
+				$LastRunTime = $(($stOut | Select-String -Pattern "^Last Run Time") -replace '.*: +(.*)$', '$1')
+				$NextRunTime = $(($stOut | Select-String -Pattern "^Next Run Time") -replace '.*: +(.*)$', '$1')
 				Write-Msg ("Task: `"{0}{1}`"`r`nDescription: `"{2}`", State: {3}." -f $($stdout.Task.RegistrationInfo.URI), "", $($stdout.Task.RegistrationInfo.Description), $State)
 				Write-Msg ("Actions: WorkingDirectory: `"{0}`", Execute: `"{1}`", Arguments: `"{2}`"" -f $($stdout.Task.Actions.Exec.WorkingDirectory), $($stdout.Task.Actions.Exec.Command), $($stdout.Task.Actions.Exec.Arguments))
 				Write-Msg ("TaskInfo: LastRunTime: `"{0}`", NextRunTime: `"{1}`", NumberOfMissedRuns: {2}`r`n" -f $LastRunTime, $NextRunTime, "?")
-			} Else {
+			} else {
 				Write-Msg "$($taskMsg.notfound)`r`nERROR: $stderr"
 			}
 		}
 	}
-	Exit 0
-	<# CREATE TASK MANUALLY #>
-} ElseIf ($manTask -eq 1) {
+	exit 0
+	<# TASK: CREATE MANUALLY #>
+} elseif ($manTask -eq 1) {
 	Write-Msg "Check settings and retry, use a different tsMode (see help)"
 	Write-Msg "Or try manually by going to: `"Start > Task Scheduler`" or `"Run taskschd.msc`".`r`n"
 	Write-Msg "These settings can be used when creating a New Task :`r`n"
 	Write-Msg ("  Name: `"{0}`"`r`n    Description `"{1}`"`r`n    Trigger: Daily 17:00 (1H random delay)`r`n    Action: `"{2}`"`r`n    Arguments: `"{3}`"`r`n    WorkDir: `"{4}`"`r`n" `
 			-f $scriptName, $taskMsg.descr, $taskCmd, $taskArgs, $scriptDir)
-	Exit 0
-	<# EXPORT TASK (XML) #>
-} ElseIf ($xmlTask -eq 1) {
+	exit 0
+	<# TASK: EXPORT XML #>
+} elseif ($xmlTask -eq 1) {
 	Set-Content "$env:TEMP\chrupd.xml" -Value $xmlContent
-	If ( $(Try { (&Test-Path "$env:TEMP\chrupd.xml") } Catch { $False }) ) {
+	if ( $(try { (&Test-Path "$env:TEMP\chrupd.xml") } catch { $false }) ) {
 		Write-Msg "Exported Task XML File to: `"$env:TEMP\chrupd.xml`""
 		Write-Msg "File can be imported in Task Scheduler or `"schtasks.exe`".`r`n"
-	} Else {
+	} else {
 		Write-Msg "Could not export XML"
 	}
-	Exit 0
+	exit 0
 }
 
-<# END SCHEDULED TASKS #>
+<# END OF SCHEDULED TASKS ###########################>
 
-Write-Msg -o log "Start (pid:$pid name:$($(Get-PSHostProcessInfo | Where-Object ProcessId -eq $pid).ProcessName) scheduler:$scheduler v:$curScriptDate )"
-
-<# VERIFY CURRENT CHROME VERSION #>
-If (!$curVersion) {
-	$curVersion = (Get-ChildItem ${env:LocalAppData}\Chromium\Application -EA 0 -WA 0 |
-		Where-Object { $_.Key -Match "\d\d.\d.\d{4}\.\d{1,3}" } ).Key | 
-		Sort-Object | Select-Object -Last 1
-}
-If ($force -eq 1) {
-	Write-Msg -o tee "Forcing update, ignoring currently installed Chromium version `"$curVersion`""
-	Write-Msg
-	$curVersion = "00.0.0000.000"
-} ElseIf ($fakeVer -eq 1) {
-	Write-Msg -o dbg,0 "Changing real current Chromium version `"$curVersion`" to fake value"
-	$curVersion = "6.6.6.0-fake"
-} Else {
-	If ( $(Try { (Test-Path variable:local:curVersion) -And (-Not [string]::IsNullOrWhiteSpace($curVersion)) } Catch { $False }) ) {
-		Write-Msg
-		Write-Msg -o tee "Currently installed Chromium version: `"$curVersion`""
-		Write-Msg
-	} Else {
-		Write-Msg -o warn,tee "Could not find Chromium, initial installation will be done by the downloaded installer..."
-		$curVersion = "00.0.0000.000"
-	}
-}
-
-Write-Msg "Using the following settings:"
-$i = 0
-$_name = $(($items.GetEnumerator() | Where-Object { $_.Key -eq $editor }).Name)
-$_editor = $($items[$editor].editor)
-If (-Not ($_name -eq $($items[$editor].editor))) {
-	$_tlabel = 'title'
-	$_title = $_name
-}
-$_arr = $('Feed', $_tlabel, 'editor', 'architecture', 'channel')
-ForEach ($_conf in $woolyss, $_title, $_editor, $arch, $channel) {
-	If ($_conf) {
-		Write-Msg -o nnl $_arr[$i]
-		Write-Msg -o nnl ' "'
-		Write-Msg -o nnl,DarkGray $_conf
-		Write-Msg -o nnl '" '
-		$cMsg += '{0} "{1}" ' -f $_arr[$i], $_conf
-	}
-	$i++
-}
-Write-Msg "`r`n"
-Write-Msg -o log "$cMsg"
 
 <#############>
 <# FUNCTIONS #>
 <#############>
 
-<# FUNC: VALIDATE HASH FORMAT #>
-
-Function checkHashFmt ($cdataObj) {
-	# DEBUG: `$if ($debug -ge 1) { Write-Msg dbg,1 "hash = $($cdataObj.hash)"; } #Exit
-	If ($ignHash -eq 0) {
-		If (($cdataObj.hashAlgo -Match "md5|sha1") -And ($cdataObj.hash -Match "[0-9a-f]{32}|[0-9a-f]{40}")) {
-			$cdataObj.hashFmtMatch = $True
-		} Else {
-			Write-Msg -o tee,err "No valid hash for installer/archive found, exiting..."
-			Exit 0
+function Test-HashFormat ([pscustomobject]$dataObj) {
+	<#	.SYNOPSIS
+			Validate filehash format  #>
+	# DEBUG: `$if ($debug -ge 1) { Write-Msg dbg, 1 "hash = $($dataObj.hash)"; } #Exit
+	if ($script:ignHash -eq 0) {
+		if (($dataObj.hashAlgo -match "md5|sha1|sha256") -and ($dataObj.hash -match "[0-9a-f]{32}|[0-9a-f]{40}|[0-9a-f]{64}")) {
+			$dataObj.hashFormatMatch = $true
+		} else {
+			Write-Msg -o tee, err "No valid hash for installer/archive found, exiting..."
+			exit 0
 		}
-		Write-Msg -o dbg,1 "`$i=$i checkHashFmt cdataObj.hash=$($cdataObj.hash)`r`n"
-	} Else {
-		<# PROMPT USER #>
+		Write-Msg -o dbg, 1 "`$i=$i Test-HashFormat dataObj.hash=$($dataObj.hash)`r`n"
+	} else {
+		<# prompt user #>
 		$_hMsg = "Ignoring hash. Could not verify checksum of installer/archive."
 		Write-Msg -o Yellow "`r`n(!) ${_hMsg}`r`n    Press any key to abort or `"c`" to continue...`r`n"
 		Write-Msg -o log "$_hMsg"
 		$host.UI.RawUI.FlushInputBuffer()
-		$startTime = Get-Date; $waitTime = New-TimeSpan -Seconds 30
-		While ((-Not $host.ui.RawUI.KeyAvailable) -And ($curTime -lt ($startTime + $waitTime))) {
+		$startTime = Get-Date
+		$waitTime = New-TimeSpan -Seconds 30
+		While ((-not $host.ui.RawUI.KeyAvailable) -and ($curTime -lt ($startTime + $waitTime))) {
 			$curTime = Get-Date
 			$RemainTime = (($startTime - $curTime) + $waitTime).Seconds
-			Write-Msg -o nnl,Yellow "`r    Waiting $($waitTime.TotalSeconds) seconds before continuing, ${remainTime}s left "
+			Write-Msg -o nnl, Yellow "`r    Waiting $($waitTime.TotalSeconds) seconds before continuing, ${remainTime}s left "
 		}
 		Write-Msg
-		If ($host.ui.RawUI.KeyAvailable) {
+		Write-Msg
+		if ($host.ui.RawUI.KeyAvailable) {
 			$x = $host.ui.RawUI.ReadKey("IncludeKeyDown, NoEcho")
-			If ($x.VirtualKeyCode -ne "67") {
+			if ($x.VirtualKeyCode -ne "67") {
 				Write-Msg -o tee "Aborting..."
-				Exit 1
+				exit 1
 			}
 		}
-		$cdataObj.hashFmtMatch = $True
-		$cdataObj.hash = $null
-		$cdataObj.hashAlgo = $null
+		$dataObj.hashFormatMatch = $true
+		$dataObj.hash = $null
+		if (-not $dataObj.hashAlgo) {
+			$dataObj.hashAlgo = "SHA1"
+		}
 	}
-	$cdataObj
+	return $dataObj
 }
 
-<# CHECK IF 7ZIP IS PRESENT #>
-$get7z = {
-	$7z = ""
+function Get-SevenZip () {
+	<#	.SYNOPSIS
+			Find local or download 7z exe  #>
+	$7zBin = ""
 	$7zPaths = @(
-		"7z.exe",
-		"7za.exe",
+		"7z.exe", "7za.exe",
 		"$env:ProgramFiles\7-Zip\7z.exe",
 		"$env:ProgramData\chocolatey\tools\7z.exe"
 		"$env:ProgramData\chocolatey\bin\7z.exe"
 	)
 	$7zUrls = @{
-		"7zip.org"         = @{
-			url  = "https://www.7-zip.org/a/7za920.zip"
-			hash = "2A3AFE19C180F8373FA02FF00254D5394FEC0349F5804E0AD2F6067854FF28AC"
-		}
-		"github-chromium"  = @{
-			url  = "https://github.com/chromium/chromium/raw/master/third_party/lzma_sdk/Executable/7za.exe";
-			hash = "F5D52F0AC0CF81DF4D9E26FD22D77E2D2B0F29B1C28F36C6423EA6CCCB63C6B4"
-		};
-		"googlesource.com" = @{
-			url  = "https://chromium.googlesource.com/chromium/src/+/master/third_party/lzma_sdk/Executable/7za.exe?format=TEXT";
-			hash = "F5D52F0AC0CF81DF4D9E26FD22D77E2D2B0F29B1C28F36C6423EA6CCCB63C6B4"
-		};
-		"chocolatey.org"   = @{
-			url  = "https://chocolatey.org/7za.exe";
-			hash = "8E679F87BA503F3DFAD96266CA79DE7BFE3092DC6A58C0FE0438F7D4B19F0BBD"
-		};
+		"7zip.org"         = @{ hash = "2A3AFE19C180F8373FA02FF00254D5394FEC0349F5804E0AD2F6067854FF28AC"; url = "https://www.7-zip.org/a/7za920.zip" };
+		"github-chromium"  = @{ hash = "F5D52F0AC0CF81DF4D9E26FD22D77E2D2B0F29B1C28F36C6423EA6CCCB63C6B4"; url = "https://github.com/chromium/chromium/raw/master/third_party/lzma_sdk/Executable/7za.exe" };
+		"googlesource.com" = @{ hash = "F5D52F0AC0CF81DF4D9E26FD22D77E2D2B0F29B1C28F36C6423EA6CCCB63C6B4"; url = "https://chromium.googlesource.com/chromium/src/+/master/third_party/lzma_sdk/Executable/7za.exe?format=TEXT" };
+		"chocolatey.org"   = @{ hash = "8E679F87BA503F3DFAD96266CA79DE7BFE3092DC6A58C0FE0438F7D4B19F0BBD"; url = "https://chocolatey.org/7za.exe" };
 	}
+	<# check if 7zip is already present #>
 	$cnt = 0;
-	ForEach ($7z in $7zPaths) {
-		If (($7z -ne "") -And (Test-Path $7z -pathType Leaf -EA 0 -WA 0)) {
+	foreach ($7zBin in $7zPaths) {
+		if (($7zBin -ne "") -and (Test-Path $7zBin -pathType Leaf -EA 0 -WA 0)) {
 			$cnt++
-			Break
+			break
 		}
 	}
-	<# IF NEEDED DOWNLOAD 7ZA.EXE #>
-	If ($cnt -lt 1) {
+	<# if not, try to download 7za.exe #>
+	if ($cnt -lt 1) {
 		$i = 1
 		$7zUrls.GetEnumerator() | ForEach-Object {
 			Write-Msg -o tee "Could find `"7za.exe`", downloading from `"$($_.Value.url)`""
-			If ($_.Key -eq "googlesource.com") {
-				<# CONVERT FROM BASE64 #>
+			if ($_.Key -eq "googlesource.com") {
+				<# convert from b64 #>
 				$ProgressPreference = 'SilentlyContinue'
 				$7zaText = Invoke-WebRequest -Uri $_.Value.url
-				[IO.File]::WriteAllBytes("7za.exe", [System.Convert]::FromBase64String(($7zaText).Content))
-			} Else {
+					[IO.File]::WriteAllBytes("7za.exe", [System.Convert]::FromBase64String(($7zaText).Content))
+			} else {
 				[System.Net.ServicePointManager]::SecurityProtocol = @("Tls12", "Tls11", "Tls")
 				$wc = New-Object System.Net.WebClient
-				If ($proxy) {
+				if ($proxy) {
 					$wc.Proxy = $webproxy
 				}
 				$wc.DownloadFile($_.Value.url, "7za.exe")
 			}
-			If ($_.Key -eq "7zip.org") {
+			if ($_.Key -eq "7zip.org") {
 				Expand-Archive .\7za920.zip 7za.exe
 			}
-			If ( $(Try { (&Test-Path "7za.exe") } Catch { $False }) ) {
-				If ((((Get-FileHash "7za.exe").Hash) -eq $_.Value.hash)) {
-					$7z = "7za.exe"
+			if ( $(try { (&Test-Path "7za.exe") } catch { $false }) ) {
+				if ((((Get-FileHash "7za.exe").Hash) -eq $_.Value.hash)) {
+					$7zBin = "7za.exe"
 					Write-Msg "Download successful (`"7za.exe`" hash: OK)"
-					Return $7z
-				} Else {
-					Try { Remove-Item "7za.exe" } Catch { $False }
-					If ($i -lt $7zUrls.count) {
+					return $7zBin
+				} else {
+					try { Remove-Item "7za.exe" } catch { $false }
+					if ($i -lt $7zUrls.count) {
 						Write-Msg "[$i/$($7zUrls.count)] Download failed, file hash did not match. Trying next URL..."
-					} Else {
+					} else {
 						Write-Msg "Unable to download `"7za.exe`"..."
 					}
 				}
@@ -1148,270 +1124,317 @@ $get7z = {
 			$i++
 		}
 	}
-	Return $7z
+	return $7zBin
 }
 
-<# FUNC: 7-ZIP #>
-
-Function sevenZip ([string]$action, [string]$7zArgs) {
-	$7z = $get7z.Invoke()
-	If (!$7z) {
-		Write-Msg -o err,tee "7-Zip (`"7z.exe`") not found, exiting..."
-		Exit 1
+function Invoke-SevenZip ([string]$action, [string]$7zArgs) {
+	<#	.SYNOPSIS
+			Run 7zip
+		.PARAMETER action
+			<listdir|extract>
+		.PARAMETER 7zArgs
+			[arguments to pass to 7z]
+		.NOTES
+			Source: http://www.mobzystems.com/code/7-zip-powershell-module/  #>
+		$7zBin = Get-SevenZip
+	if (!$7zBin) {
+		Write-Msg -o err, tee "7-Zip (`"7z.exe`") not found, exiting..."
+		exit 1
 	}
-	<# NOTE: (Source) http://www.mobzystems.com/code/7-zip-powershell-module/ #>
-	If ($action -eq "listdir") {
-		[string[]]$result = &$7z l $7zargs
-		[bool]$separatorFound = $False
+	if ($action -eq "listdir") {
+		[string[]]$result = &$7zBin l $7zArgs
+		[bool]$separatorFound = $false
 		$result | ForEach-Object {
-			If ($_.StartsWith("------------------- ----- ------------ ------------")) {
-				If ($separatorFound) {
+			if ($_.StartsWith("------------------- ----- ------------ ------------")) {
+				if ($separatorFound) {
 					# Second separator! We're done
 					Return
 				}
-				$separatorFound = -Not $separatorFound
-			} Else {
-				If ($separatorFound) {
+				$separatorFound = -not $separatorFound
+			} else {
+				if ($separatorFound) {
 					[string]$mode = $_.Substring(20, 5)
 					[string]$name = $_.Substring(53).TrimEnd()
-					If (($mode -Match "^D") -And (-Not $dirName)) {
-						Write-Msg -o dbg,1 "sevenZip name = $name"
+					if (($mode -match "^D") -and (-not $dirName)) {
+						Write-Msg -o dbg, 1 "sevenZip name=`"$name`""
 						$dirName = $name
 						Return
 					}
 				}
 			}
 		}
-		Return $dirName
-	} ElseIf ($action -eq "extract") {
-		Write-Msg -o dbg,1 "`$p = Start-Process -FilePath `"$7z`" -ArgumentList $7zArgs -NoNewWindow -PassThru -Wait"
-		$p = Start-Process -FilePath "$7z" -ArgumentList "$7zArgs" -NoNewWindow -PassThru -Wait
-		$handle = $p.Handle # cache proc.Handle
-		Write-Msg dbg,1 "handle=$handle"
+		return $dirName
+	} elseif ($action -eq "extract") {
+		Write-Msg -o dbg, 1 "`$p = Start-Process -FilePath `"$7zBin`" -ArgumentList $7zArgs -NoNewWindow -PassThru -Wait"
+		[process]$p = Start-Process -FilePath "$7zBin" -ArgumentList "$7zArgs" -NoNewWindow -PassThru -Wait
+		[intptr]$handle = $p.Handle # cache proc.Handle
+		Write-Msg dbg, 1 "handle=$handle"
 		$p.WaitForExit()
-		Return $p.ExitCode
+		return $p.ExitCode
 	}
 }
 
-<# FUNC: SHORTCUT #>
-
-Function createShortcut ([string]$srcExe, [string]$srcExeArgs, [string]$dstPath) {
-	If ( $(Try { -Not (Test-Path variable:local:srcExe) -And (-Not [string]::IsNullOrWhiteSpace($srcExe)) } Catch { $null }) ) {
-		Write-Msg -o err,tee "Missing source .exe"
-		Return $False
+function New-Shortcut ([string]$srcExe, [string]$srcExeArgs, [string]$dstPath) {
+	<#	.SYNOPSIS
+			Create shortcut  #>
+	if ( $(try { -not (Test-Path variable:local:srcExe) -and (-not [string]::IsNullOrWhiteSpace($srcExe)) } catch { $null }) ) {
+		Write-Msg -o err, tee "Missing source .exe"
+		return $false
 	}
-	If (&Test-Path $srcExe) {
-		If ( $(Try { (Test-Path variable:local:dstPath) -And (&Test-Path $dstPath) -And (-Not [string]::IsNullOrWhiteSpace($dstPath)) } Catch { $null }) ) {
-			Try { Remove-Item -EA 0 -EA 0 -Force "$dstPath" } Catch { $null }
+	if (&Test-Path $srcExe) {
+		if ( $(try { (Test-Path variable:local:dstPath) -and (&Test-Path $dstPath) -and (-not [string]::IsNullOrWhiteSpace($dstPath)) } catch { $null }) ) {
+			try { Remove-Item -EA 0 -EA 0 -Force "$dstPath" } catch { $null }
 		}
 		$WshShell = New-Object -comObject WScript.Shell
-		<# $WshShell.SpecialFolders("Desktop") #>
 		$Shortcut = $WshShell.CreateShortcut($dstPath)
 		$Shortcut.Arguments = $srcExeArgs
-		<# $Shortcut.Description #>
-		<# $Shortcut.HotKey #>
-		<# $Shortcut.IconLocation #>
-		<# $Shortcut.RelativePath #>
 		$Shortcut.TargetPath = $srcExe
-		<# $Shortcut.WindowStyle #>
-		<# $Shortcut.WorkingDirectory #>
 		$Shortcut.Save()
-	} Else {
-		Write-Msg -o err,tee "Shortcut target `"$srcExe`" does not exist"
-		Return $False
+	} else {
+		Write-Msg -o err, tee "Shortcut target `"$srcExe`" does not exist"
+		return $false
 	}
-	Return $True
+	return $true
 }
 
-<# TODO: Use hash to check virustotal (user needs api key)
-Function virusTotal($cdataObj) {
-	# URL: $result = Invoke-WebRequest -UseBasicParsing -TimeoutSec 5 -Uri $cdataObj.virustotal
-	# API: $result = Invoke-RestMethod -Method GET 'https://www.virustotal.com/vtapi/v2/file/report?apikey=<apikey>&resource=<hash>'
-	# Docs: https://developers.virustotal.com/reference#url-report
-	# Example: https://github.com/cbshearer/get-VTFileReport
-	If ($result -Match "No engines detected this file") {
-		Write-Msg -o dbg,1 "virustotal OK"
-	} Else {
-		Write-Msg -o dbg,1 "virustotal NOK"
+function Invoke-VirusTotal ([string]$apiKey, [string]$url, [string]$savePath, [string]$id) {
+	<#	.SYNOPSIS
+			(TEST) Call Virus Total API to check downloaded file "id" i.e. hash
+		.NOTES
+			(TEST) Requires API KEY: https://www.virustotal.com/gui/join-us
+	#>
+	$cmdParams = @{}
+	if ($debug -gt 2) {
+		$cmdParams = @{ Verbose = $true; WhatIf = $true }
 	}
-}  #>
+	$scanUrl = "https://www.virustotal.com/gui/file/${id}"
+	Write-Msg -o dbg,1 "Invoke-VirusTotal url=`"$url`" scanUrl=`"$scanUrl`""
+	if ($url -notmatch $scanUrl) {
+		Write-Msg -o warn "VirusTotal url from developer does not actual match file id"
+	}
+	if ([pscustomobject]$result = Invoke-RestMethod -Headers @{ 'x-apikey' = $apiKey } -Method GET "$scanUrl") {
+		<# Write-Host "TEST: $($result.data.attributes.last_analysis_stats.Properties | ForEach-Object { $_.Name $_.Value })" #>
+		[scriptblock]$_lastStats = {
+			$result.data.attributes.last_analysis_stats.psobject.properties.name | ForEach-Object {
+				$_, $result.data.attributes.last_analysis_stats.$_
+			}
+		}
+		[scriptblock]$_lastDate = {
+			[timezone]::CurrentTimeZone.ToLocalTime(
+				([datetime]'1/1/1970').AddSeconds($($result.data.attributes.last_analysis_date))
+			).toString("s")
+		}
+		[int]$_statsSuspicious = $result.data.attributes.last_analysis_stats.suspicious
+		[int]$_statsMalicious = $result.data.attributes.last_analysis_stats.malicious
+		[int]$_statsUndetected = $result.data.attributes.last_analysis_stats.undetected
+		[string]$msgPre = "VirusTotal reports downloaded file as:"
+		[string]$msgHits =	 "$(& $_lastDate) malicious($_statsMalicious) suspicious($_statsSuspicious)"
+		Write-Msg -o dbg, 1 "Invoke-VirusTotal id=`"$id`" last_analysis_date=`"$(& $_lastDate)`" last_analysis_stats=`"$(& $_lastStats)`""
+		if (($_statsSuspicious -lt 3) -and ($_statsMalicious -lt 2)) {
+			if (($_statsSuspicious -eq 0) -and ($_statsMalicious -eq 0)) {
+				Write-Msg "$msgPre OK"
+			} else {
+				Write-Msg -o warn "$msgPre $msgHits undetected($_statsUndetected), low risk - continueing..."
+			}
+		} else {
+			Write-Msg -o err, tee "$msgPre $msgHits, exiting..."
+			if (&Test-Path "$saveAsPath") {
+				Remove-Item @cmdParams "$savePath"
+			}
+			exit 1
+		}
+	} else {
+		Write-Msg -o dbg, 1 "Invoke-VirusTotal `"no result`""
+	}
+}
 
-
-<##############>
-<# PARSE FEED #>
-<##############>
-
-<# FUNC: PARSE CDATA USING 'htmlfile' #>
-
-Function cdataHtml($idx, $cdata, $cfg, $items, $cdataObj) {
-	Write-Msg -o dbg,1 "cdataHtml `$i=$i"
+function Set-CdataHtml ([int]$idx, [string]$cdata, [hashtable]$cfg, [hashtable]$items, [pscustomobject]$cdataObj) {
+	<#	.SYNOPSIS
+			Parse XML CDATA using 'htmlfile'
+		.PARAMETER idx
+			Index of XML RSS Item
+	#>
+	Write-Msg -o dbg, 1 "Set-CdataHtml `$i=$i"
 	$html = New-Object -ComObject "htmlfile"
 	# https://stackoverflow.com/a/48859819
-	Try {
+	try {
 		# This works in PowerShell with Office installed
 		$html.IHTMLDocument2_write($cdata)
-	}
-	Catch {
+	} catch {
 		# This works when Office is not installed
 		$_src = [System.Text.Encoding]::Unicode.GetBytes($cdata)
 		$html.write($_src)
 	}
 	$html.getElementsByTagName('li') | ForEach-Object {
-		$_name = $_.innerText.split(':')[0].ToLower() -Replace '(\n|\r\n)', '_'
-		$_value = $_.innerText.split(':')[1] -Replace '^ ' -Replace ' ?\(virus\?\)'
-		#Write-Msg dbg,1 "name=$_name value=$_value"
+		$_name = $_.innerText.split(':')[0].ToLower() -replace '(\n|\r\n)', '_'
+		$_value = $_.innerText.split(':')[1] -replace '^ ' -replace ' ?\(virus\?\)'
+		#Write-Msg dbg, 1 "name=$_name value=$_value"
 		$cdataObj | Add-Member -MemberType NoteProperty -Name $_name -Value $_value -Force
-		If ($_.getElementsByTagName('a')) {
+		if ($_.getElementsByTagName('a')) {
 			$_.getElementsByTagName('a') | ForEach-Object {
-				$_name = $_.innerText.replace('virus?', 'virusTotal')
-				$_value = $_.href
-				#Write-Msg dbg,1 "name=$_name value=$_value - nameProp=$($_.nameProp) hostname=$($_.hostname) - innerText=$($_.innerText.replace('?',''))"
-				$cdataObj | Add-Member -MemberType NoteProperty -Name $_name -Value $_value -Force
-				If ($_.innerHTML -Match $items[$editor].filemask) {
-					$cdataObj | Add-Member -MemberType NoteProperty -Name url -Value $_value -Force
+				#$_name = $_.innerText.replace('virus?', 'virusTotalUrl')
+				<# Write-Msg dbg, 1 "name=$_name value=$_value - nameProp=$($_.nameProp) hostname=$($_.hostname) - innerText=$($_.innerText.replace('?',''))" #>
+				### write-host "name=$_name value=$_value - nameProp=$($_.nameProp) hostname=$($_.hostname) - innerText=$($_.innerText)"
+				if (($_name -match $items[$name].filemask) -and ($_.hostname -match "www.virustotal.com")) {
+					$cdataObj | Add-Member -MemberType NoteProperty -Name virusTotalUrl -Value $_.href -Force   # vtUrl_$($_name)
+				}
+				if ($_.innerHTML -match $items[$name].filemask) {
+					$cdataObj | Add-Member -MemberType NoteProperty -Name url -Value $_.href -Force
 				}
 			}
 		}
 	}
-
-	$cdataObj.titleMatch = $xml.rss.channel.Item[$idx].title -Match $items[$editor].title
-	$cdataObj.editorMatch = $items[$editor].editor -Match $cdataObj.editor
+	$cdataObj.titleMatch = $xml.rss.channel.Item[$idx].title -match $items[$name].author
+	$cdataObj.editorMatch = $items[$name].author -match $cdataObj.editor
 	$cdataObj.archMatch = $arch -ieq $cdataObj.architecture
 	$cdataObj.channelMatch = $channel -ieq $cdataObj.channel
-	ForEach ($algo in "md5", "sha1") {
-		$_gethash = $cDataObj | Select-Object -ExpandProperty "*$($items[$editor].filemask)*$algo" -EA 0 -WA 0
-		If ($_gethash) {
+	foreach ($algo in "md5", "sha1") {
+		$_gethash = $cDataObj | Select-Object -ExpandProperty "*$($items[$name].filemask)*$algo" -EA 0 -WA 0
+		if ($_gethash) {
 			$cdataObj.hash = $_gethash
 			$cdataObj.hashAlgo = $algo
 		}
 	}
-	If ($debug -ge 1) {
+	if ($debug -ge 1) {
 		$cnt = 0
-		If ($cdataObj.titleMatch) {
-			$_tMsg = "cdataHtml `$idx=$idx title=`"$($items[$editor].title)`" -Match xml.rss.channel.Item.title=`"$($xml.rss.channel.Item[$idx].title)`"`r`n"
+		if ($cdataObj.titleMatch) {
+			$_tMsg = "Set-CdataHtml xml.rss.channel.Item.title=`"$($xml.rss.channel.Item[$idx].title)`" -match author=`"$($items[$name].author)`"`r`n"
 			$cnt++
 		}
-		If ($cdataObj.editorMatch) {
-			$_eMsg = "cdataHtml `$idx=$idx editor=`"$($items[$editor].editor)`" -Match cdataObj.editor=`"$($cdataObj.editor)`"`r`n"
+		if ($cdataObj.editorMatch) {
+			$_eMsg = "Set-CdataHtml `$idx=$idx author=`"$($items[$name].author)`" -match cdataObj.editor=`"$($cdataObj.editor)`"`r`n"
 			$cnt++
 		}
-		If ($cnt -gt 0 ) {
+		if ($cnt -gt 0 ) {
 			Write-Msg -o Yellow ("{0}`r`n{1}{2}{0}" -f ("-" * 80), $_tMsg, $_eMsg)
 		}
-		If ($debug -ge 9) {
+		if ($debug -ge 9) {
 			Write-Msg -o Magenta "DEBUG: `$idx=$idx outputting 'cdataObj' only, then Exit ..."
 			$cdataObj
 			Exit
 		}
 	}
-	$cdataObj
+	return $cdataObj
 }
 
-<# FUNC: PARSE CDATA USING REGEX #>
-
-Function cdataRegex($idx, $cdata, $cfg, $items, $cdataObj) {
-	Write-Msg -o dbg,2 "cdataRegex `$idx=$idx"
-	<# DEBUG: REGEX MATCHES - Call this scriptblock *after* a '-Match' line by using '&matches'
+function Set-CdataRegex ([int]$idx, [string]$cdata, [hashtable]$cfg, [hashtable]$items, [pscustomobject]$cdataObj) {
+	<#	.SYNOPSIS
+			Parse XML CDATA using Regular Expressions
+		.PARAMETER idx
+			Index of XML RSS Item
+	#>
+	Write-Msg -o dbg, 2 "Set-CdataRegex `$idx=$idx"
+	<# DEBUG: regex matches - call this scriptblock *after* a '-match' line by using '&matches'
 	$matches = {
-		If ($xml.rss.channel.Item[$i].title -Match ".*?(Marmaduke)") {$Matches[1]; $cdataObj.editorMatch = $True}
+		if ($xml.rss.channel.Item[$i].title -match ".*?(Marmaduke)") {$Matches[1]; $cdataObj.editorMatch = $true}
 		Write-Msg -o dbg,2 "Matches[0], [1] = "; % {$Matches[0]}; % {$Matches[1]}}
 	} #>
-	$cdataObj.titleMatch = $xml.rss.channel.Item[$idx].title -Match $items[$editor].title
-	$cdataObj.editorMatch = $cdata -Match '(?i)' + $channel + '.*?(Editor: <a href="' + $items[$editor].url + '/">' + $editor + '</a>).*(?i)' + $channel
-	$cdataObj.archMatch = $cdata -Match '(?i)' + $channel + '.*?(architecture: ' + $arch + ').*(?i)' + $channel
-	$cdataObj.channelMatch = $cdata -Match '(?i)' + $channel + '.*?(Channel: ' + $channel + ')'
-	$cdataObj.version = $cdata -Replace ".*(?i)$($channel).*?Version: ([\d.]+).*", '$1'
-	$cdataObj.revision = $cdata -Replace ".*(?i)$($channel).*?Revision: (?:<[^>]+>)?(\d{3}|\d{6})<[^>]+>.*", '$1'
-	$cdataObj.date = $cdata -Replace ".*(?i)$($channel).*?Date: <abbr title=`"Date format: YYYY-MM-DD`">([\d-]{10})</abbr>.*", '$1'
+	$cdataObj.titleMatch = $xml.rss.channel.Item[$idx].title -match $items[$name].author
+	$cdataObj.editorMatch = $cdata -match '(?i)' + $channel + '.*?(Editor: <a href="' + $items[$name].url + '/">' + $items[$name].author + '</a>).*(?i)' + $channel
+	$cdataObj.archMatch = $cdata -match '(?i)' + $channel + '.*?(architecture: ' + $arch + ').*(?i)' + $channel
+	$cdataObj.channelMatch = $cdata -match '(?i)' + $channel + '.*?(Channel: ' + $channel + ')'
+	$cdataObj.version = $cdata -replace ".*(?i)$($channel).*?Version: ([\d.]+).*", '$1'
+	$cdataObj.revision = $cdata -replace ".*(?i)$($channel).*?Revision: (?:<[^>]+>)?(\d{3}|\d{6,7})<[^>]+>.*", '$1'
+	$cdataObj.date = $cdata -replace ".*(?i)$($channel).*?Date: <abbr title=`"Date format: YYYY-MM-DD`">([\d-]{10})</abbr>.*", '$1'
 	$urlReHtml = ".*?(?i)$($channel).*?Download from.*?repository:.*?<li>"
-	$urlReLink = "<a href=`"($($items[$editor].repo)(?:v$($cdataObj.version)-r)?$($cdataObj.revision)(?i:-win$($arch.replace('-bit','')))?/"
-	#$urlReFile = "$($($items[$editor].filemask).replace('.*',''))($($cdataObj.version).*\.7z)?)"
-	$urlReFile = "$($items[$editor].filemask)($($cdataObj.version).*\.7z)?)"
-	$cdataObj.url = $cdata -Replace "${urlReHtml}${urlReLink}${urlReFile}`">.*", '$1'
-	$_hash = ($_ -Replace ".*?(?i)$($channel).*?<a href=`"$($cdataObj.url)`">$($items[$editor].filemask)</a><br />(?:(sha1|md5): ([0-9a-f]{32}|[0-9a-f]{40})) .*", '$1 $2')
-	$cdataObj.hashAlgo, $cdataObj.hash = $_hash.split(' ')
-	$cdataObj.virusTotal = $cdata -Replace ".*<a href=`"(https://www.virustotal.com[^ ]+)`" [^ ]+=.*", '$1'
-
-	ForEach ($var in "cdataObj.version", "cdataObj.revision", "cdataObj.date", "cdataObj.url") {
-		If ($(Invoke-Expression `$$var) -eq $_) {
-			Invoke-Expression ('{0}="{1}"' -f ($var -Replace "^", "$"), $null);
+	$urlReLink = "<a href=`"($($items[$name].repo)(?:v$($cdataObj.version)-r)?$($cdataObj.revision)(?i:-win$($arch.replace('-bit','')))?/"
+	<#$ urlReFile = "$($($items[$name].filemask).replace('.*',''))($($cdataObj.version).*\.7z)?)" #>
+	$urlReFile = "$($items[$name].filemask)($($cdataObj.version).*\.7z)?)"
+	$cdataObj.url = $cdata -replace "${urlReHtml}${urlReLink}${urlReFile}`">.*", '$1'
+	$_hash = ($cdata -replace ".*?(?i)$($channel).*?<a href=`"$($cdataObj.url)`">$($items[$name].filemask)</a><br />(?:(sha1|md5): ([0-9a-f]{32}|[0-9a-f]{40})) .*", '$1 $2')
+	if (-not ($_hash -eq $cdata)) {
+		$cdataObj.hashAlgo, $cdataObj.hash = $_hash.split(' ')
+	}
+	$cdataObj.virusTotalUrl = $cdata -replace ".*(?i)$($cdataObj.hash) <small>\(<a href=`"(https://www.virustotal.com[^ ]+)`" [^ ]+=.*", '$1'
+	foreach ($var in "version", "revision", "date", "url", "virusTotalUrl") {
+		<# if ($(Invoke-Expression `$$var) -eq $cdata) { #>
+		if ($cdataObj.$var -and (-not ([string]::IsNullOrWhiteSpace($cdataObj.$var)))) {
+			if ($cdataObj.$var -eq $cdata) {
+				Write-Msg -o dbg, 1 "Set-CdataRegex `$cdataObj.$var eq $var"
+				<# Invoke-Expression ('{0}="{1}"' -f ($var -replace "^", "$"), $null); #>
+				$cdataObj | Add-Member -MemberType NoteProperty -Name $var -Value "" -Force
+			}
 		}
 	}
 
-	<# DISABLED: ## Editor exception: Marmaduke ##
-	If ( ($($xml.rss.channel.Item[$idx].title) -Match "Ungoogled") -And
-		 ($cdata -Match '(?i)' + $channel + '.*?(Editor: <a href="' + $items[$editor].url + '/">' + "Marmaduke" + '</a>).*(?i)' + $channel) )
+	<# DISABLED: author exception "Marmaduke"
+	if ( ($($xml.rss.channel.Item[$idx].title) -match "Ungoogled") -and
+		 ($cdata -match '(?i)' + $channel + '.*?(Editor: <a href="' + $items[$name].url + '/">' + "Marmaduke" + '</a>).*(?i)' + $channel) )
 	{
-		$cdataObj.titleMatch = $True
-		$cdataObj.editorMatch = $True
-		$items[$editor].filemask += "$($cdataObj.version).*\.7z"
+		$cdataObj.titleMatch = $true
+		$cdataObj.editorMatch = $true
+		$items[$name].filemask += "$($cdataObj.version).*\.7z"
 	} #>
 
-	<# DISABLED: ## Editor exception: ThumbApps ##
-	ElseIf ($cdata -Match '(?i)' + $channel + '.*?(Editor: <a href="' + $items[$editor].url + '/">' + "ThumbApps" + '</a>).*(?i)' + $channel) {
-		$cdataObj.titleMatch = $True
-		$cdataObj.editorMatch = $True
-		$items[$editor].filemask += "${version}_Dev_32_64_bit.paf.exe"
+	<# DISABLED: author exception "ThumbApps"
+	elseif ($cdata -match '(?i)' + $channel + '.*?(Editor: <a href="' + $items[$name].url + '/">' + "ThumbApps" + '</a>).*(?i)' + $channel) {
+		$cdataObj.titleMatch = $true
+		$cdataObj.editorMatch = $true
+		$items[$name].filemask += "${version}_Dev_32_64_bit.paf.exe"
 		$cdataObj.revision = "thumbapps"
-		$cdataObj.url = $cdata -Replace "${urlReHtml}<a href=`"($($items[$editor].repo)$($items[$editor].filemask))`".*", '$1'
+		$cdataObj.url = $cdata -replace "${urlReHtml}<a href=`"($($items[$name].repo)$($items[$name].filemask))`".*", '$1'
 		$script:ignHash = 1
 		Write-Msg -o tee "There is no hash provided for this installer"
 	} #>
 
-	If ($ignVer -eq 1) {
+	if ($ignVer -eq 1) {
 		$cdataObj.revision = '\d{6}'
-		$cdataObj.url = $cdata -Replace "${urlReHtml}<a href=`"($($items[$editor].repo)(?:v[\d.]+-r)?$($cdataObj.revision)(?:-win$($arch.replace('-bit','')))?/$($items[$editor].filemask))`".*", '$1'
+		$cdataObj.url = $cdata -replace "${urlReHtml}<a href=`"($($items[$name].repo)(?:v[\d.]+-r)?$($cdataObj.revision)(?:-win$($arch.replace('-bit','')))?/$($items[$name].filemask))`".*", '$1'
 		$vMsg = "Ignoring version mismatch between RSS feed and filename"
-		Write-Msg -o nnl,Yellow "`r`n(!) $vMsg"
+		Write-Msg -o nnl, Yellow "`r`n(!) $vMsg"
 		Write-Msg
 		Write-Msg -o log "$vMsg"
 	}
-	If ($debug -ge 1) {
+	if ($debug -ge 1) {
 		$cnt = 0
-		If ($cdataObj.titleMatch) {
-			$_tMsg = "cdataRegex `$idx=$idx editor=`"$($items[$editor].editor)` -Match xml.rss.channel.Item.title=`"$($xml.rss.channel.Item[$idx].title)`"`r`n"
+		if ($cdataObj.titleMatch) {
+			$_tMsg = "Set-CdataRegex `$idx=$idx xml.rss.channel.Item.title=`"$($xml.rss.channel.Item[$idx].title)`" -match author=`"$($items[$name].author)`r`n"
 			$cnt++
 		}
-		If ($cdataObj.editorMatch) {
-			$_eMsg = "cdataRegex `$idx=$idx cdataObj.editorMatch=`"$($cdataObj.editorMatch)`"`r`n"
+		if ($cdataObj.editorMatch) {
+			$_eMsg = "Set-CdataRegex `$idx=$idx cdataObj.editorMatch=`"$($cdataObj.editorMatch)`"`r`n"
 			$cnt++
 		}
-		If ($cnt -gt 0 ) {
+		if ($cnt -gt 0 ) {
 			Write-Msg -o Yellow ("{0}`r`n{1}{2}{0}" -f ("-" * 80), $_tMsg, $_eMsg)
 		}
-		If ($debug -ge 8) {
+		if ($debug -ge 9) {
+			Write-Msg -o Magenta "DEBUG: `$idx=$idx outputting 'cdataObj' only, then Exit ..."
+			$cdataObj
 			Exit
 		}
 	}
-	$cdataObj
+	return $cdataObj
 }
 
-<# FUNC: PARSE RSS FEED #>
-
-Function parseRss ($rssFeed, $cdataMethod) {
-	<# PS OBJECT FOR CDATA #>
+function Read-RssFeed ([string]$rssFeed, [string]$cdataMethod) {
+	<#	.SYNOPSIS
+			Parses RSS feed
+		.NOTES
+			Calls Set-CdataHtml() and Set-CdataRegex()
+	#>
+	<# ps object for cdata #>
 	$cdataObj = New-Object -Type PSObject -Property @{
-		date         = $null
-		hash         = $null
-		hashAlgo     = $null
-		url          = $null
-		revision     = $null
-		version      = $null
-		virusTotal   = $null
-		titleMatch   = $False
-		editorMatch  = $False
-		archMatch    = $False
-		channelMatch = $False
-		urlMatch     = $False
-		hashFmtMatch = $False
+		date            = $null
+		hash            = $null
+		hashAlgo        = $null
+		url             = $null
+		revision        = $null
+		version         = $null
+		virusTotalUrl   = $null
+		titleMatch      = $false
+		editorMatch     = $false
+		archMatch       = $false
+		channelMatch    = $false
+		urlMatch        = $false
+		hashFormatMatch = $false
 	}
 
 	<# MAIN OUTER WHILE LOOP: XML #>
-	<# https://paullimblog.wordpress.com/2017/08/08/ps-tip-parsing-html-from-a-local-file-or-a-string #>
-	<# TEST: $xml = [xml](Get-Content "C:\TEMP\windows-64-bit") #>
+	<# Docs: https://paullimblog.wordpress.com/2017/08/08/ps-tip-parsing-html-from-a-local-file-or-a-string #>
+	<# TEST: $xml = [xml](Get-Content "test\windows-64-bit") #>
 	$xml = [xml](Invoke-WebRequest -UseBasicParsing -TimeoutSec 300 -Uri $rssFeed)
-
-	<# LOOP OVER ITEMS: TITLE, EDITOR #>
+	<# LOOP OVER ITEMS: title, author #>	
 	$i = 0
 	While ($xml.rss.channel.Item[$i]) {
 		Write-Msg -o dbg, 1, Cyan		"`$i=$i xml cdataMethod=$cdataMethod title=$($xml.rss.channel.Item[$i].title)"
@@ -1419,303 +1442,521 @@ Function parseRss ($rssFeed, $cdataMethod) {
 		Write-Msg -o dbg, 2, DarkYellow	"`$i=$i xml description = $($xml.rss.channel.Item[$i].description."#cdata-section")"
 		<# INNER WHILE LOOP: CDATA HTML #>
 		$xml.rss.channel.Item[$i].description."#cdata-section" | ForEach-Object {
-			If ($cdataMethod -eq "htmlfile") {
-				$cdataObj = cdataHtml -idx $i -cdata $_ -cfg $cfg -items $items -cdataObj $cdataObj
-			} ElseIf ($cdataMethod -eq "regexp") {
-				$cdataObj = cdataRegex -idx $i -cdata $_ -cfg $cfg -items $items -cdataObj $cdataObj
+			if ($cdataMethod -eq "htmlfile") {
+				$cdataObj = Set-CdataHtml -idx $i -cdata $_ -cfg $cfg -items $items -cdataObj $cdataObj
+			} elseif ($cdataMethod -eq "regexp") {
+				$cdataObj = Set-CdataRegex -idx $i -cdata $_ -cfg $cfg -items $items -cdataObj $cdataObj
 			}
-			If ($cdataObj.url) {
-				$cdataObj.urlMatch = $cdataObj.url -Match ('^https://.*' + '(' + $cdataObj.version + ')?.*' + $cdataObj.revision + '.*' + $items[$editor].filemask)
-			} Else {
-				Write-Msg -o dbg,1,Yellow "`$i=$i No download url found matching $('^https://.*' + '(' + $cdataObj.version + ')?.*' + $cdataObj.revision + '.*' + $items[$editor].filemask)"
+			if ($cdataObj.url) {
+				$cdataObj.urlMatch = $cdataObj.url -match ('^https://.*' + '(' + $cdataObj.version + ')?.*' + $cdataObj.revision + '.*' + $items[$name].filemask)
+			} else {
+				Write-Msg -o dbg, 1, Yellow "`$i=$i No download url found matching $('^https://.*' + '(' + $cdataObj.version + ')?.*' + $cdataObj.revision + '.*' + $items[$name].filemask)"
 			}
-			If ($debug -ge 1) {
-				# Write-Msg -o dbg,1 "`$i=$i cdataMethod=$cdataMethod html `$_ = `r`n" $_
-				# Write-Msg -o dbg,1 "`$i=$i revision = $($cdataObj.revision) urlcheck =" ('^https://.*' + '(' + $cdataObj.version + ')?.*' + $cdataObj.revision + '.*' + $items[$editor].filemask)
+			if ($debug -ge 1) {
+				# Write-Msg -o dbg, 1 "`$i=$i cdataMethod=$cdataMethod html `$_ = `r`n" $_
+				# Write-Msg -o dbg, 1 "`$i=$i revision = $($cdataObj.revision) urlcheck =" ('^https://.*' + '(' + $cdataObj.version + ')?.*' + $cdataObj.revision + '.*' + $items[$name].filemask)
 				'cdataObj.editorMatch', 'cdataObj.archMatch', 'cdataObj.channelMatch', 'cdataObj.version', 'channel', `
-					'cdataObj.revision', 'cdataObj.date', 'cdataObj.url', 'cdataObj.hashAlgo', 'cdataObj.hash' , 'cdataObj.virusTotal' | ForEach-Object {
+					'cdataObj.revision', 'cdataObj.date', 'cdataObj.url', 'cdataObj.hashAlgo', 'cdataObj.hash', 'cdataObj.virusTotalUrl' | ForEach-Object {
 					Write-Host "DEBUG: `$i=$i ${_} ="$(Invoke-Expression `$$_)
 				}
 			}
-			<# EDITOR/URL MATCH & HASH CHECK #>
-			If ($cdataObj.editorMatch -And $cdataObj.urlMatch) {
-				checkHashFmt $cdataObj | Out-Null
-				Break
+			<# author/url match & hash check #>
+			if ($cdataObj.editorMatch -and $cdataObj.urlMatch) {
+				Test-HashFormat $cdataObj | Out-Null
+				break
 			}
 		}
 		$i++
 		Write-Msg -o dbg, 1
 	}
-	$cdataObj
+	return $cdataObj
+}
+
+function Read-GhJson ([string]$jsonUrl) {
+	<#	.SYNOPSIS
+			Extract JSON values from GitHub repos api
+	#>
+	<# ps object for json data #>
+	$jdataObj = New-Object -Type PSObject -Property @{
+		date            = $null
+		hash            = $null
+		hashAlgo        = $null
+		url             = $null
+		revision        = $null
+		version         = $null
+		virusTotalUrl   = $null
+		titleMatch      = $true
+		editorMatch     = $false
+		archMatch       = $false
+		channelMatch    = $false
+		urlMatch        = $false
+		hashFormatMatch = $false
+	}
+	<# get first release (=latest) #>
+	if ($debug -eq 0) {
+		$jdata = (ConvertFrom-Json(Invoke-WebRequest -UseBasicParsing -TimeoutSec 300 -Uri $jsonUrl))[0]
+	} else {
+		<# TEST/DEBUG: skip request to prevent hitting api rate limit, instead download 1x"
+		<#			   "$repo/(justclueless|ungoogled-eloston)/releases.json"  #>
+		$jdata = (Get-Content test\releases.json | ConvertFrom-Json)[0]
+	}
+	<# EXAMPLE:
+		[
+			{
+    			"author": {
+      				"login": "justclueless",
+				},
+				"assets": [
+					{
+						"name": "chrome.packed.7z",
+						"browser_download_url": "https://github.com/justclueless/chromium-win64/releases/download/v105.0.5155.0-r0-AVX2/chrome.packed.7z",
+					}
+				],
+				"body": "..."
+		...
+	#>
+	if ($debug -gt 1) {
+		<# Write-Host "DEBUG: JSON contents:`r`n$($jdata)" #>
+		Write-Host ("DEBUG: JSON match `$jdata.author.login=`"{0}`" -> `$items[`$name].author=`"{1}`"" -f $jdata.author.login, $items[$name].author)
+		Write-Host ("DEBUG: JSON match `$jdata.url=`"{0}`" -> `$items[`$name].repo=`"{1}`"" -f $jdata.url, "$($items[$name].repo).*")
+	}
+	$jdataObj.editorMatch = ($jdata.author.login -eq $items[$name].author) -or ($jdata.author.login -eq "github-actions[bot]")
+	$jdataObj.channelMatch = $channel -eq "dev"
+	$jdataObj.urlMatch = $jdata.url -match "$($items[$name].repo).*"
+	$jdataObj.version = $jdata.tag_name
+	<# if ($jdata.body -match "Revision") {
+			$jdataObj.revision = $jdata.body -replace [Environment]::NewLine, '' -replace '.*Revision ([a-f0-9]+-refs/branch-heads/[0-9]*@{#[0-9]*}).*', '$1'
+	}  #>
+	if ($jdata.published_at) {
+		$jdataObj.date = $jdata.published_at.Split('T')[0]
+	}
+	switch ($arch) {
+		'64-bit' { $archPattern = 'x64|win64' }
+		'32-bit' { $archPattern = 'x86' }
+	}
+	$script:urlMatch = $false
+	$jdata.assets.browser_download_url | ForEach-Object {
+		if ($debug -gt 1) {
+			Write-Host "DEBUG: JSON foreach url -> $($_)"
+		}
+		if (-not $jdataObj.url -and ("$_" -match "$($items[$name].url)/releases/download/$($jdataObj.version)/$($items[$name].filemask).*($($archPattern))?.*")) {
+			$script:urlMatch = $true
+			$jdataObj.url = $_
+		}
+	}
+	if (-not $script:urlMatch) {
+		$jdataObj.url = $null
+		$jdataObj.urlMatch = $false
+	}
+	if ($debug -gt 1) {
+		Write-Host "DEBUG: JSON compare urls :"
+		Write-Host "DEBUG: JSON   $($jdataObj.url)  (`$jdataObj.url)"
+		Write-Host "DEBUG: JSON   $($items[$name].url)/releases/download/$($jdataObj.version)$($items[$name].filemask)  (`$items.[`$name].url ...)"
+	}
+	$jdataObj.archMatch = ($jdataObj.url -match $archPattern) -or ($jdata.name -match $archPattern) -or ($jdata.body -match $archPattern)
+	$jdataObj.hashAlgo = $jdata.body -replace [Environment]::NewLine, '' -replace ".*(md5|sha1|sha256)[ :].*", '$1'
+	if ($jdataObj.hashAlgo -eq "SHA1") {
+		$len = 40
+	} elseif ($jdataObj.hashAlgo -eq "SHA256") {
+		$len = 64
+	}
+	if ($jdata.body) {
+		$hashRe = (".*(?:$($($items[$name].filemask).replace(`".exe`",'')))[ :]*([0-9a-f]{$($len)})")
+		$vtRe = ("(https://www.virustotal.com[^ ]+)")
+		$script:vtMatch = $false
+		$jdata.body.Split([Environment]::NewLine) | ForEach-Object {
+			if ($_ -match $hashRe) {
+				$jdataObj.hash = $_ -replace $hashRe, '$1'
+			}
+			if ($script:vtMatch -eq $false -and $_ -match $vtRe) {
+				$script:vtMatch = $true
+				$jdataObj.virusTotalUrl = $_ -replace $vtRe, '$1'
+			}
+		}
+	}
+	if ($debug -gt 1) {
+		'jdataObj.editorMatch', 'jdataObj.archMatch', 'jdataObj.channelMatch', 'jdataObj.version', 'channel', `
+			'jdataObj.revision', 'jdataObj.date', 'jdataObj.url', 'jdataObj.hashAlgo', 'jdataObj.hash', 'jdataObj.virusTotalUrl' | ForEach-Object {
+			Write-Host "DEBUG: JSON `$i=$i ${_} ="$(Invoke-Expression `$$_)
+		}
+	}
+	<# author/url match & hash check #>
+	if ($jdataObj.editorMatch -and $jdataObj.urlMatch) {
+		<# author exception "Eloston" since they do not provide hashes #>
+		if (($name -eq "Ungoogled-Eloston") -and (-not $jdataObj.hash)) {
+			$script:ignHash = 1
+		}
+		Test-HashFormat $jdataObj | Out-Null
+	}
+	if ($debug -ge 8) {
+		Exit
+	}
+	return $jdataObj
+}
+
+function Show-CheckBox ([bool]$state, [string]$c1 = "Green", [string]$ok = "OK", [string]$c2 = "Red", [string]$nok = "NOK") {
+	<#	.SYNOPSIS
+			Print colored "[OK]" or "[NOK]" message
+		.PARAMETER state
+			If $state is $true output "$ok", else "$nok"
+		.PARAMETER c1
+			Color for $ok msg
+		.PARAMETER ok
+			Set msg to display if state is $true
+		.PARAMETER c2
+			Color for $nok msg 
+		.PARAMETER nok
+			Set msg to display if state is $false   #>
+
+	if ( $(try { (Test-Path variable:local:state) -and (-not [string]::IsNullOrWhiteSpace($state)) } catch { $false }) ) {
+		Write-Msg -o nnl "["
+		if ($state) {
+			Write-Msg -o nnl, $c1 "$ok"
+		} else {
+			Write-Msg -o nnl, $c2 "$nok"
+		}
+		Write-Msg -o nnl "]"
+	} else {
+		Write-Msg -o nnl "[ ]"
+	}
 }
 
 <# END OF FUNCTIONS #################################>
 
-<# CALL PARSE RSS FUNCTION #>
-$errMsg = "Repository format `"$items[$editor].fmt`" or URL `"$($items[$editor].repo)`" not recognized"
-If ($items[$editor].fmt -eq "XML") {
-	$cdataObj = parseRss "https://${woolyss}/feed/windows-$($arch)" "htmlfile"
-	If (!$cdataObj.urlMatch) {
-		Write-Msg -o dbg,1,Magenta $(("-" * 80))
-		Write-Msg -o dbg,1,Magenta "No matching url found, trying alternative method..."
-		Write-Msg -o dbg,1,Magenta $(("-" * 80) + "`r`n")
-		$cdataObj = parseRss "https://${woolyss}/feed/windows-$($arch)" "regexp"
-	}
-	<# PARSING JSON IS DISABLED #>
-} ElseIf ($items[$editor].fmt -eq "JSON") {
-	If ("$($items[$editor].repo).*" -Match "^https://api.github.com" ) {
-		<# REMOVED: parseJsonGh $items[$editor].repo) #>
-		Write-Msg -o err "JSON parsing functionality removed, exiting..."
-		Exit 1
-	} Else {
-		Write-Msg -o err,tee "$errMsg, exiting..."
-		Exit 1
-	}
-} Else {
-	Write-Msg -o err,tee "$errMsg, exiting..."
-	Exit 1
+
+<########>
+<# MAIN #>
+<########>
+
+if ($dotSourced) {
+	Write-Msg -o Yellow "Dot sourced, exiting script (dotsourced=$dotSourced debug=$debug cAutoUp=$cAutoUp)"
+	exit 0
 }
 
-If ($debug -ge 1) {
-	'cdataObj.titleMatch', 'cdataObj.editorMatch', 'cdataObj.archMatch', 'cdataObj.channelMatch', 'cdataObj.urlMatch', 'cdataObj.hashFmtMatch' | ForEach-Object {
-		Write-Host "DEBUG: ${_}(AFTER) = "$(Invoke-Expression `$$_)
+<# OUTPUT: SCRIPT TITLE AND WINVER #>
+Write-Msg -o nnl, White, DarkGray " $scriptName"
+Write-Msg -o nnl, Black, DarkGray " ( $scriptCmd $curScriptDate ) "
+Write-Msg "`r`n"
+<# Write-Msg -o White "$("-" * 49)`r`n" #>
+Write-Msg ("OS Detected: {0}`r`nTask Scheduler Mode: {1} `"{2}`"" -f $winVerResult.osFullName, $winverResult.tsModeName, $tsMode)
+
+<# OUTPUT: LOGFILE CHECK #>
+if ($cfg.log) {
+	if ( $(try { (Test-Path variable:local:logFile) -and (-not [string]::IsNullOrWhiteSpace($logFile)) } catch { $false }) ) {
+		Write-Msg "Logging to: `"$logFile`""
+	} else {
+		$cfg.log = $false
+		Write-Msg "Unable to open logfile, output to console only`r`n"
+	}
+}
+
+<# OUTPUT: START MSG #>
+Write-Msg -o log "Start (pid:$pid name:$($(Get-PSHostProcessInfo | Where-Object ProcessId -eq $pid).ProcessName) scheduler:$scheduler v:$curScriptDate )"
+
+<# OUTPUT: VERIFY CURRENT CHROME VERSION #>
+if (!$curVersion) {
+	$curVersion = (Get-ChildItem ${env:LocalAppData}\Chromium\Application -EA 0 -WA 0 |
+		Where-Object { $_.Key -match "\d\d.\d.\d{4}\.\d{1,3}" } ).Key |
+	Sort-Object | Select-Object -Last 1
+}
+if ($force -eq 1) {
+	Write-Msg -o tee "Forcing update, ignoring currently installed Chromium version `"$curVersion`""
+	Write-Msg
+	$curVersion = "0.0.0.0"
+} elseif ($fakeVer -eq 1) {
+	Write-Msg -o dbg, 0 "Changing real current Chromium version `"$curVersion`" to fake value"
+	$curVersion = "6.6.6.0-fake"
+} else {
+	if ( $(try { (Test-Path variable:local:curVersion) -and (-not [string]::IsNullOrWhiteSpace($curVersion)) } catch { $false }) ) {
+		Write-Msg
+		Write-Msg -o tee "Currently installed Chromium version: `"$curVersion`""
+		Write-Msg
+	} else {
+		Write-Msg -o tee "Could not find Chromium, initial installation will be done by the downloaded installer..."
+		$curVersion = "0.0.0.0"
+	}
+}
+
+<#  OUTPUT: USED OPTIONS #>
+Write-Msg "Using the following settings:"
+$_conf = [ordered]@{
+	'Source' = if ($items[$name].url) { $items[$name].url -replace 'https://(?:www.)?([^/]+).*', '$1' } else { "Unknown" }
+	'name'         = $name
+	'architecture' = $arch
+	'channel'      = $channel
+}
+$_conf.GetEnumerator() | ForEach-Object {
+	Write-Msg -o nnl $_.Name
+	Write-Msg -o nnl ' "'
+	Write-Msg -o nnl, DarkGray $_.Value
+	Write-Msg -o nnl '" '
+	$cMsg += '{0} "{1}" ' -f $_.Name, $_.Value
+}
+Write-Msg "`r`n"
+Write-Msg -o log "$cMsg"
+
+<#####################################>
+<# CALL RSS OR JSON PARSING FUNCTION #>
+<#####################################>
+
+[string]$errMsg = "Repository format `"$($items[$name].fmt)`" or URL `"$($items[$name].repo)`" not recognized"
+if ($items[$name].fmt -eq "XML") {
+	$dataObj = Read-RssFeed "https://chromium.woolyss.com/feed/windows-$($arch)" "htmlfile"
+	if (!$dataObj.urlMatch) {
+		Write-Msg -o dbg, 1, Magenta $(("-" * 80))
+		Write-Msg -o dbg, 1, Magenta "No matching url found, trying alternative method..."
+		Write-Msg -o dbg, 1, Magenta $(("-" * 80) + "`r`n")
+		$dataObj = Read-RssFeed "https://chromium.woolyss.com/feed/windows-$($arch)" "regexp"
+	}
+} elseif ($items[$name].fmt -eq "JSON") {
+	if ("$($items[$name].repo).*" -match "^https://api.github.com" ) {
+		$dataObj = Read-GhJson "$($items[$name].repo)"
+	} else {
+		Write-Msg -o err, tee "$errMsg, exiting..."
+		exit 1
+	}
+} else {
+	Write-Msg -o err, tee "$errMsg, exiting..."
+	exit 1
+}
+
+if ($debug -ge 1) {
+	'dataObj.titleMatch', 'dataObj.editorMatch', 'dataObj.archMatch', 'dataObj.channelMatch', 'dataObj.urlMatch', 'dataObj.hashFormatMatch' | ForEach-Object {
+		Write-Host "DEBUG: postparse ${_} ="$(Invoke-Expression `$$_)
 	}
 	Write-Msg
 }
 
-<# SHOW PARSE INFO TO USER #>
-$nm = 0
-If (!$cdataObj.editorMatch) {
-	$nm++; $nmMsg += "   [X] check editor setting: `"$($items[$editor].editor)`""
-	If ($cdataObj.editor) {
-		$nmMsg += ", found `"$($cdataObj.editor)`""
+<# SHOW ANY ISSUES IN PARSED RESULT TO USER #>
+[object]$_match = $dataObj.PSObject.Properties | Where-Object {
+	$_.Name -like '*Match*' -and $_.Name -notlike '*titleMatch*'
+}
+[int]$_pcnt = ($_match | Where-Object Value -Like $false).Count
+if ($_pcnt -gt 0) {
+	Write-Msg "Found ${_pcnt} $(if ($_pcnt -gt 1) {"issues"} else {"issue"}):`r`n"
+	Write-Msg -o nnl "Match "
+	$_match | ForEach-Object {
+		Write-Msg -o nnl ($_.Name -replace 'Match', '').ToLower()
+		Show-CheckBox -state $_.Value -c1 "Gray" -ok "yes" -c2 "DarkRed" -nok "no"
+		Write-Msg -o nnl " "
 	}
-	$nmMsg += "`r`n"
-}
-If (!$cdataObj.channelMatch) {
-	$nm++; $nmMsg += "   [X] check channel setting: `"$($channel)`""
-	If ($cdataObj.channel) {
-		$nmMsg += ", found `"$($cdataObj.channel)`""
-	}
-	$nmMsg += "`r`n"
-}
-If (!$cdataObj.archMatch) {
-	$nm++; $nmMsg += "   [X] check architecture setting: `"$($arch)`""
-	If ($cdataObj.architecture) {
-		$nmMsg += ", found `"$($cdataObj.arch)`""
-	}
-	$nmMsg += "`r`n"
-}
-If (!$cdataObj.urlMatch) {
-	$nm++
-	$nmMsg += "   [X] unable to find correct url to download install`r`n"
-}
-If ($nm -gt 0) {
-	Write-Msg -o nnl "Found: "
-	$cdataObj.PSObject.Properties | Where-Object Name -like *Match* | ForEach-Object {
-		$n = ($_.Name -Replace 'Match', '').ToLower()
-		Write-Msg -o nnl "${n}["
-		If ($_.Value) {
-			Write-Msg -o nnl,White "yes"
-		} Else {
-			Write-Msg -o nnl,DarkRed "no"
+	Write-Msg
+	if (!$dataObj.editorMatch) {
+		Write-Msg -o nnl "  "
+		Show-CheckBox -state $false -c2 "DarkRed" -nok "X"
+		Write-Msg -o nnl " check name setting: `"$($name)`""
+		if ($cdataObj.editor) {
+			Write-Msg -o nnl ", found author `"$($dataObj.author)`""
 		}
-		Write-Msg -o nnl "] "
+		Write-Msg
+	}
+	if (!$dataObj.channelMatch) {
+		Write-Msg -o nnl "  "
+		Show-CheckBox -state $false -c2 "DarkRed" -nok "X"
+		Write-Msg -o nnl " check channel setting: `"$($channel)`""
+		if ($cdataObj.channel) {
+			Write-Msg -o nnl ", found `"$($dataObj.channel)`""
+		}
+		Write-Msg
+	}
+	if (!$dataObj.archMatch) {
+		Write-Msg -o nnl "  "
+		Show-CheckBox -state $false -c2 "DarkRed" -nok "X"
+		Write-Msg -o nnl " check architecture setting: `"$($arch)`""
+		if ($cdataObj.architecture) {
+			Write-Msg -o nnl ", found `"$($dataObj.architecture)`""
+		}
+		Write-Msg
+	}
+	if (!$dataObj.urlMatch) {
+		Write-Msg -o nnl "  "
+		Show-CheckBox -state $false -c2 "DarkRed" -nok "X"
+		Write-Msg " unable to find correct url to download installer"
 	}
 	Write-Msg
-	Write-Msg $nmMsg
-}
-If (!($cdataObj.editorMatch -And $cdataObj.urlMatch)) {
-	Write-Msg $noMatchMsg
+	if (!($dataObj.editorMatch -and $dataObj.urlMatch)) {
+		Write-Msg $noMatchMsg
+		exit 0
+	}
 }
 
 <##############################>
 <# DOWNLOAD AND CHECK VERSION #>
 <##############################>
 
-$params = @{}
-If ($debug -gt 2) {
-	$params = @{ Verbose = $True }
+$cmdParams = @{}
+if ($debug -gt 2) {
+	$cmdParams = @{ Verbose = $true; WhatIf = $true }
 }
-
-$saveAsPath = "$env:TEMP\$($items[$editor].filemask)"
-If ($saveAsPath -NotMatch "\.(exe|7z|zip)$") {
-	$saveAsPath = ("{0}\{1}" -f $env:TEMP, $cdataObj.url.Substring($cdataObj.url.LastIndexOf("/") + 1))
+[string]$saveAsPath = "$env:TEMP\$($items[$name].filemask)"
+if ($saveAsPath -notmatch "\.(exe|7z|zip)$") {
+	$saveAsPath = ("{0}\{1}" -f $env:TEMP, $dataObj.url.Substring($dataObj.url.LastIndexOf("/") + 1))
 }
-If ( ($cdataObj.editorMatch -eq 1) -And ($cdataObj.archMatch -eq 1) -And ($cdataObj.channelMatch -eq 1) -And ($cdataObj.urlMatch -eq 1) -And ($cdataObj.hashFmtMatch -eq 1) )	{
-	If (($cdataObj.url) -And ($cdataObj.url -NotMatch ".*$curVersion.*")) {
-		$ago = ((Get-Date) - ([DateTime]::ParseExact($cdataObj.date, 'yyyy-MM-dd', $null)))
-		If ($ago.Days -lt 1) {
-			[string]$_agoTxt = ($ago.Hours, "hours")
-		} Else {
-			[string]$_agoTxt = ($ago.Days, "days")
+if ( ($dataObj.editorMatch -eq 1) -and ($dataObj.archMatch -eq 1) -and ($dataObj.channelMatch -eq 1) -and ($dataObj.urlMatch -eq 1) -and ($dataObj.hashFormatMatch -eq 1) )	{
+	if (($dataObj.url) -and ($dataObj.url -notmatch ".*$curVersion.*")) {
+		if (( $(try { [version]('{0}.{1}.{2}' -f $curVersion.split('.')) -gt [version]('{0}.{1}.{2}' -f $dataObj.version.split('.') -replace ('[^0-9.]', '')) } catch { $false }) )) {
+			$_nMsg = "Newer version `"$curVersion`" already installed, skipping `"$($dataObj.version)`""
+			Write-Msg -o tee, err "$_nMsg"
+			Write-Msg
+			exit 1
+		} else {
+			[timespan]$ago = ((Get-Date) - ([DateTime]::ParseExact($dataObj.date, 'yyyy-MM-dd', $null)))
+			[string]$_agoTxt =  if ($ago.Days -lt 1) { ($ago.Hours, "hours") } else { ($ago.Days, "days") }
+			Write-Msg -o tee ("New Chromium version `"{0}`" from {1} is available ({2} ago)" -f $dataObj.version, $dataObj.date, $_agoTxt)
+			if ($debug -ge 1) {
+				Write-Msg -o dbg, 1 "Would have downloaded `$dataObj.url=`"$($dataObj.url)`""
+				#Write-Msg -o dbg, 1 "Would have used: `$saveAsPath=`"$saveAsPath`""
+				Write-Msg -o 1, Yellow ("{0}`r`n(!) Make sure saveAsPath=`"$saveAsPath`" ALREADY EXISTS to continue debugging`r`n{0}" -f ("-" * 80))
+			} else {
+				if (&Test-Path "$saveAsPath") {
+					Remove-Item @cmdParams "$saveAsPath"
+				}
+				Write-Msg -o tee "Downloading `"$($dataObj.url)`""
+				Write-Msg -o tee "Saving as: `"$saveAsPath`""
+				[System.Net.ServicePointManager]::SecurityProtocol = @("Tls12", "Tls11", "Tls")
+				$wc = New-Object System.Net.WebClient
+				if ($proxy) {
+					$wc.Proxy = $webproxy
+				}
+				$wc.DownloadFile($dataObj.url, "$saveAsPath")
+			}
 		}
-		Write-Msg -o tee ("New Chromium version `"{0}`" from {1} is available ({2} ago)" -f $cdataObj.version, $cdataObj.date, $_agoTxt)
-		If ($debug -ge 1) {
-			If (&Test-Path "$saveAsPath") {
-				Write-Msg -o dbg,1 "Would have Deleted $saveAsPath"
-			}
-			Write-Msg -o dbg,1		   "Would have Downloaded: `"$($cdataObj.url)`""
-			Write-Msg -o dbg,1		   "Using following Path : `"$saveAsPath`""
-			Write-Msg -o 1,Yellow ("{0}`r`n(!) Make sure `"$saveAsPath`" ALREADY EXISTS to continue debugging`r`n{0}" -f ("-" * 80))
-		} Else {
-			If (&Test-Path "$saveAsPath") {
-				Remove-Item @params "$saveAsPath"
-			}
-			Write-Msg -o tee "Downloading `"$($cdataObj.url)`""
-			Write-Msg -o tee "Saving as: `"$saveAsPath`""
-			[System.Net.ServicePointManager]::SecurityProtocol = @("Tls12", "Tls11", "Tls")
-			$wc = New-Object System.Net.WebClient
-			If ($proxy) {
-				$wc.Proxy = $webproxy
-			}
-			$wc.DownloadFile($cdataObj.url, "$saveAsPath")
-		}
-	} Else {
+	} else {
 		$_lMsg = "Latest Chromium version already installed"
-		Write-Msg -o nnl		"["
-		Write-Msg -o nnl,Green	"OK"
-		Write-Msg -o nnl		"] $_lMsg"
-		Write-Msg "`r`n"
+		Show-CheckBox $true
+		Write-Msg " $_lMsg`r`n"
 		Write-Msg -o log "$_lMsg"
-		Exit 0
+		exit 0
 	}
-} Else {
+} else {
 	Write-Msg "$noMatchMsg"
 	Write-Msg -o tee "No matching Chromium versions found, exiting..."
 	Write-Msg
-	Exit 0
+	exit 0
 }
 
-<###################################>
-<# VERIFY HASH, INSTALL OR EXTRACT #>
-<###################################>
+<######################################>
+<# VERIFY HASH AND INSTALL OR EXTRACT #>
+<######################################>
 
-$fileHash = (Get-FileHash -Algorithm $cdataObj.hashAlgo "$saveAsPath").Hash
-If ($ignHash -eq 1) {
-	$cdataObj.hash = $fileHash
-	Write-Msg -o tee "Ignoring hash, using hash from downloaded installer: `"$($cdataObj.hash)`""
+[string]$fileHash = (Get-FileHash -Algorithm $dataObj.hashAlgo "$saveAsPath").Hash
+if ($script:ignHash -eq 1) {
+	$dataObj.hash = $fileHash
+	Write-Msg -o tee "Ignoring hash, calc value from downloaded installer: `"$($dataObj.hash)`""
 }
-If (-Not ($cdataObj.hashAlgo) -Or ([string]::IsNullOrWhiteSpace($cdataObj.hashAlgo))) {
-	Write-Msg -o err,tee "Hash Algorithm is missing, exiting..."
-	Exit 1
+if (-not ($dataObj.hashAlgo) -or ([string]::IsNullOrWhiteSpace($dataObj.hashAlgo))) {
+	Write-Msg -o err, tee "Hash algorithm is missing, exiting..."
+	exit 1
 }
-If (-Not ($cdataObj.hash) -Or ([string]::IsNullOrWhiteSpace($cdataObj.hash))) {
-	Write-Msg -o err,tee "Hash is missing, exiting..."
-	Exit 1
+if (-not ($dataObj.hash) -or ([string]::IsNullOrWhiteSpace($dataObj.hash))) {
+	Write-Msg -o err, tee "Hash is missing, exiting..."
+	exit 1
 }
-If (( $(Try { (Test-Path variable:local:fileHash) -And (-Not [string]::IsNullOrWhiteSpace($fileHash)) -And ($fileHash -eq $cdataObj.hash) } Catch { $False }) )) {
-	$_hMsg = "$($cdataObj.hashAlgo.ToUpper()) hash matches `"$($cdataObj.hash)`""
-	If ($saveAsPath -Match ".*\.exe$") {
-		$fileFmt = "EXECUTABLE"
+if (( $(try { (Test-Path variable:local:fileHash) -and (-not [string]::IsNullOrWhiteSpace($fileHash)) -and ($fileHash -eq $dataObj.hash) } catch { $false }) )) {
+	$_hMsg = "$($dataObj.hashAlgo.ToUpper()) hash matches `"$($dataObj.hash)`""
+	if ( $(try { (Test-Path variable:local:vtApiKey) -and (-not [string]::IsNullOrWhiteSpace($vtApiKey)) } catch { $false }) ) {
+		Invoke-VirusTotal -apiKey "$vtApiKey" -url "$($dataObj.virusTotalUrl)" -savePath "$saveAsPath" -id "$($fileHash.ToLower())"
+	} else {
+		Write-Msg -o dbg, 1 "VirusTotal API key not found, skipped check"
+	}
+	if ($saveAsPath -match ".*\.exe$") {
+		[string]$fileFmt = "EXECUTABLE"
 		Write-Msg -o tee "$_hMsg"
-		Write-Msg -o tee "Executing `"$($items[$editor].filemask)`""
-	} ElseIf ($saveAsPath -Match ".*\.(7z|zip)$") {
-		$fileFmt = "ARCHIVE"
-		$extractPath = ""
+		Write-Msg -o tee "Executing `"$($saveAsPath.Substring($saveAsPath.LastIndexOf("\") + 1))`" "
+	} elseif ($saveAsPath -match ".*\.(7z|zip)$") {
+		[string]$fileFmt = "ARCHIVE"
+		[string]$extractPath = ""
 		$i = 0
-		ForEach ($extractPath in $arcInstPaths) {
-			If (($extractPath -ne "") -And (Test-Path -pathType Container -EA 0 -WA 0 $extractPath)) {
+		foreach ($extractPath in $arcInstPaths) {
+			if (($extractPath -ne "") -and (Test-Path -pathType Container -EA 0 -WA 0 $extractPath)) {
 				$i++
-				Break
+				break
 			}
 		}
-		If ($i -gt 0) {
+		if ($i -gt 0) {
 			Write-Msg -o tee "Extracting to `"$extractPath`""
-		} Else {
-			Write-Msg -o err,tee "Could not find dir to extract to, exiting..."
-			Exit 1
+		} else {
+			Write-Msg -o err, tee "Could not find dir to extract to, exiting..."
+			exit 1
 		}
 	}
+	<# TEST: if ($fakeVer -eq 1) { $saveAsPath += "-FakeVer" } #>
 
-	<# TEST: If ($fakeVer -eq 1) { $saveAsPath += "-FakeVer" } #>
-
-	<# write [OK] msg in green and optional $_dMsg #>
-	$_doneMsg = {
-		Write-Msg -o nnl       "["
-		Write-Msg -o nnl,Green "OK"
-		Write-Msg -o nnl       "] Done. "
+	<# print 'ok' message and optional $_dMsg #>
+	[scriptblock]$_doneMsg = {
+		Show-CheckBox $true
+		Write-Msg " Done. "
 		Write-Msg -o Yellow "${_dMsg}."
 		Write-Msg -o log "Done. $_dMsg"
 	}
 
-	If ($fileFmt -eq "EXECUTABLE") {
-		$exeArgs = "--do-not-launch-chrome"
-		Write-Msg -o dbg,1 "`$p = Start-Process -FilePath `"$saveAsPath`" -ArgumentList $exeArgs -Wait -NoNewWindow -PassThru"
-		$p = (Start-Process -FilePath "$saveAsPath" -ArgumentList $exeArgs -Wait -NoNewWindow -PassThru)
-		If ($p.ExitCode -eq 0) {
+	<# handle "executable" (installer exe) and "archive" (7z) #>
+	if ($fileFmt -eq "EXECUTABLE") {
+		[string]$exeArgs = "--do-not-launch-chrome"
+		Write-Msg -o dbg, 1 "`$p = Start-Process -FilePath `"$saveAsPath`" -ArgumentList $exeArgs -Wait -NoNewWindow -PassThru"
+		$p = Start-Process -FilePath "$saveAsPath" -ArgumentList $exeArgs -Wait -NoNewWindow -PassThru
+		if ($p.ExitCode -eq 0) {
 			$_dMsg = "New Chromium version will be used on next app (re)start"
 			& $_doneMsg
-		} Else {
-			Write-Msg -o err,tee,nnl "after executing `"$($items[$editor].filemask)`""
-			If ($p.ExitCode) {
-				Write-Msg -o err,tee ":" $p.ExitCode
+		} else {
+			Write-Msg -o err, tee "Something went wrong while executing installer..."
+			if ($p.ExitCode) {
+				Write-Msg -o err, tee "ExitCode $($p.ExitCode)"
 			}
 		}
-		If (&Test-Path $installLog) {
-			Write-Msg -o log,Red "Installer logfile: $installLog"
+		if (&Test-Path $installLog) {
+			Write-Msg -o log, Red "Installer logfile: $installLog"
 		}
-	} ElseIf ($fileFmt -eq "ARCHIVE") {
-		$arcDir = &sevenZip "listdir" "$saveAsPath"
-		$lnkTarget = "${extractPath}\${arcDir}\chrome.exe"
-		If ($arcDir) {
-			If ((-Not (&Test-Path "${extractPath}\${arcDir}")) -Or ($appDir -eq 1)) {
-				$retExtract = &sevenZip "extract" "x $saveAsPath -o${extractPath} -y"
-				If (($retExtract -eq 0) -And (&Test-Path "${extractPath}\${$arcDir}")) {
-					<# For option '-arcDir' move Chrome to output dir e.g.
-					   %AppData%\Chromium\Application\<editor>\ungoogled-chromium-123.456 #>
-					If ($appDir -eq 1) {
-						$_itemName = $(($items.GetEnumerator() | Where-Object { $_.Key -eq $editor }).Name)
-						$_itemEditor = $($items[$editor].editor)
-						$itemDir = "$_itemEditor"
-						If (-Not ($_itemName -eq $_itemEditor)) {
-							$itemDir = "$_itemName"
+	} elseif ($fileFmt -eq "ARCHIVE") {
+		$arcDir = &Invoke-SevenZip "listdir" "$saveAsPath"
+		[string]$lnkTarget = "${extractPath}\${arcDir}\chrome.exe"
+		if ($arcDir) {
+			if ((-not (&Test-Path "${extractPath}\${arcDir}")) -or ($appDir -eq 1)) {
+				$retExtract = &Invoke-SevenZip "extract" "x $saveAsPath -o${extractPath} -y"
+				if (($retExtract -eq 0) -and (&Test-Path "${extractPath}\${$arcDir}")) {
+					<# for option '-arcdir' move chrome to output dir, e.g. :
+					   %AppData%\Chromium\Application\<name>\ungoogled-chromium-123.456 #>
+					if ($appDir -eq 1) {
+						$lnkTarget = "${extractPath}\${name}\chrome.exe"
+						if (&Test-Path -pathType Container "${extractPath}\${name}") {
+							Remove-Item @cmdParams -EA 0 -WA 0 -Recurse -Force "${extractPath}\${name}"
 						}
-						If ($itemDir) {
-							$lnkTarget = "${extractPath}\${itemDir}\chrome.exe"
-							If (&Test-Path -pathType Container "${extractPath}\${itemDir}") {
-								Remove-Item @params -EA 0 -WA 0 -Recurse -Force "${extractPath}\${itemDir}"
-							}
-							Try {
-								Rename-Item @params -EA 1 -WA 1 -Force "${extractPath}\${arcDir}" "${extractPath}\${itemDir}"
-							} Catch {
-								Write-Msg -o err,tee "Could not move Chromium folder"
-								Exit 1
-							}
-						} Else {
-							Write-Msg -o err,tee "Could not find Editor folder"
-							Exit 1
+						try {
+							Rename-Item @cmdParams -EA 1 -WA 1 -Force "${extractPath}\${arcDir}" "${extractPath}\${name}"
+						} catch {
+							Write-Msg -o err, tee "Could not move Chromium folder"
+							exit 1
 						}
 					}
 					$_dMsg = "New Chromium version extracted to `"${extractPath}\${itemDir}`""
 					<# $lnkName = "$env:USERPROFILE\Desktop\Chromium $version.lnk" #>
-					$lnkName = "$env:USERPROFILE\Desktop\Chromium.lnk"
-					Write-Msg -o dbg,1 "arcDir = `"$arcDir`""
-					Write-Msg -o dbg,1 "itemDir = `"$itemDir`""
-					Write-Msg -o dbg,1 "lnkTarget = `"$lnkTarget`""
-					Write-Msg -o dbg,1 "linkName = `"$lnkName`""
-					$retShortcut = &createShortcut -srcExe "$lnkTarget" -srcExeArgs "$lnkExecArgs" -dstPath "$lnkName"
-					If (-Not $retShortcut) {
-						Write-Msg -o err,tee "Could not create shortcut on Desktop"
-					} Else {
+					[string]$lnkName = "$env:USERPROFILE\Desktop\Chromium.lnk"
+					Write-Msg -o dbg, 1 "arcDir = `"$arcDir`""
+					Write-Msg -o dbg, 1 "itemDir = `"$itemDir`""
+					Write-Msg -o dbg, 1 "lnkTarget = `"$lnkTarget`""
+					Write-Msg -o dbg, 1 "linkName = `"$lnkName`""
+					$retShortcut = &New-Shortcut -srcExe "$lnkTarget" -srcExeArgs "$srcExeArgs" -dstPath "$lnkName"
+					if (-not $retShortcut) {
+						Write-Msg -o err, tee "Could not create shortcut on Desktop"
+					} else {
 						$_dMsg += " and shortcut created on Desktop"
 					}
 					& $_doneMsg
-				} Else {
-					Write-Msg -o err,tee "Could not extract `"$saveAsPath`", exiting..."
-					Exit 1
+				} else {
+					Write-Msg -o err, tee "Could not extract `"$saveAsPath`", exiting..."
+					exit 1
 				}
-			} Else {
-				Write-Msg -o err,tee "Directory `"${extractPath}\${arcDir}`" already exists, exiting..."
-				Exit 1
+			} else {
+				Write-Msg -o err, tee "Directory `"${extractPath}\${arcDir}`" already exists, exiting..."
+				exit 1
 			}
-		} Else {
-			Write-Msg -o err,tee "No directory to extract found inside archive `"$saveAsPath`", exiting..."
-			Exit 1
+		} else {
+			Write-Msg -o err, tee "No directory to extract found inside archive `"$saveAsPath`", exiting..."
+			exit 1
 		}
 	}
-} Else {
-	Write-Msg -o err,tee "$($cdataObj.hashAlgo.ToUpper()) hash does NOT match: `"$($cdataObj.hash.ToUpper())`". Exiting..."
-	Exit 1
+} else {
+	Write-Msg -o err, tee "$($dataObj.hashAlgo.ToUpper()) hash does NOT match: `"$($dataObj.hash.ToUpper())`". Exiting..."
+	exit 1
 }
 Write-Msg
