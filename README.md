@@ -8,7 +8,9 @@
 
 ---
 
-This script uses the feed from <https://chromium.woolyss.com> to download and install the latest Chromium version, if a newer version is available.
+This script uses the RSS feed from <https://chromium.woolyss.com> or GitHub API to download and install the latest Chromium version, if a newer version is available.
+
+Download and run `chrupd.cmd` or read below for more details.
 
 When you run the script it does the following:
 
@@ -18,25 +20,32 @@ When you run the script it does the following:
 
 Options can be set in script or by using command line arguments.
 
-Download and run `chrupd.cmd` or read below for more details.
+## Chromium versions
 
-## Configuration
+| Source    | Name*                              | Channel         |
+|:----------|:-----------------------------------|:----------------|
+|||
+| _Woolyss_ |                                    |                 |
+|           |  **Hibbiki**                       | **stable**, dev |
+|           |  Marmaduke                         | stable, dev     |
+|           |  Ungoogled-Marmaduke               | stable          |
+|           |  Ungoogled-Portable                | stable          |
+|           |  Official (The Chromium Authors)   | dev             |
+|||
+|||
+| _GitHub_  |                                    |                 |
+|           |  justclueless                      | dev             |
+|           |  Ungoogled-Eloston                 | dev             |
 
-Make sure the combination of editor and channel is correct. You can also use `chrupd.cmd -list`. For more information about versions check [chromium.woolyss.com](https://chromium.woolyss.com/?cut=1&ago=1), it's [feed](https://chromium.woolyss.com/feed/windows-64-bit) and [chromium.org](https://www.chromium.org).
+\* _Name used be called "Editor" in previous versions_
 
-| Editor                            | Channel         |
-|:----------------------------------|:----------------|
-| Marmaduke                         | stable, dev     |
-| Marmaduke - `Ungoogled`           | stable          |
-| The Chromium Authors - `Official` | dev             |
-| ThumbApps                         | dev             |
-| **Hibbiki**                       | **stable**, dev |
+\* _Defaults in **bold**_ 
 
-( _defaults in **bold**_  )
+Make sure the combination of name and channel you pick is correct. You can also use `chrupd.cmd -list`. For more information about versions check [chromium.woolyss.com](https://chromium.woolyss.com/?cut=1&ago=1), it's [feed](https://chromium.woolyss.com/feed/windows-64-bit) and [chromium.org](https://www.chromium.org).
 
-- using `-editor Ungoogled` still works (now done by Marmaduke)
+- using `-author Ungoogled` still works (now done by Marmaduke)
 - for the builds from chromium.org use `Official`
-- some editors release archive files instead of installers, more info: [docs/Archives.md](/docs/Archives.md)
+- some authors release archive files instead of installers, more info: [docs/Archives.md](/docs/Archives.md)
 
 ## Scheduled Task
 
@@ -63,26 +72,27 @@ See [docs/Formats.md](/docs/Formats.md) for details.
 Simple Chromium Updater (chrupd.cmd)
 ------------------------------------
 
-Uses RSS feed from "chromium.woolyss.com" to install latest Chromium version
+Uses RSS feed from "chromium.woolyss.com" or GitHub API
+to install latest available Chromium version
 
-USAGE: chrupd.cmd -[editor|arch|channel|force]
+USAGE: chrupd.cmd -[name|arch|channel|force]
                   -[crTask|rmTask|shTask] or [-list]
 
-         -editor  option must be set to one of:
-                  <Official|Hibbiki|Marmaduke|Ungoogled>
-         -channel option must be set to <stable|dev>
-         -arch    can be set to <64bit|32bit> (default: 64bit)
-         -force   always (re)install, even if latest ver is already installed
+         -name    option must be set to a release name:   (fka "editor")
+                  <Official|Hibbiki|Marmaduke|Ungoogled|justclueless|Eloston>
+         -channel can be set to [stable|dev] default: stable
+         -arch    can be set to [64bit|32bit] default: 64bit
+         -force   always (re)install, even if latest ver is installed
 
-         -list    show version, editors and rss feeds from woolyss.com
+         -list    show available releases
 
          -crTask  create a daily scheduled task
-         -shTask  show scheduled task details, use -rmTask to remove task
+         -shTask  show scheduled task details
 
-EXAMPLE: '.\chrupd.cmd -editor Marmaduke -arch 64bit -channel stable [-crTask]'
+EXAMPLE: ".\chrupd.cmd -name Marmaduke -arch 64bit -channel stable [-crTask]"
 
-NOTES:   > Options "editor" and "channel" need an argument (CasE Sensive)
-         > See '.\chrupd.cmd -advhelp' for more "advanced" options
+NOTES:   Options "name" and "channel" need an argument (CasE Sensive)
+         See ".\chrupd.cmd -advhelp" for 'advanced' options
 
 ```
 

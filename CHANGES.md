@@ -2,6 +2,12 @@
 
 See [commits](https://github.com/mkorthof/chrupd/commits/master) or `git log`
 
+**2022-07-11** Added authors: justclueless, Ungoogled-Eloston (GitHub) ([#21](https://github.com/mkorthof/chrupd/issues/21))
+
+**2022-07-10** Readded GitHub as 'feed' using JSON from repo api
+
+**2022-04-15** Removed Editor RobRich
+
 **2021-06-16** Fixed task & vbs wrapper ([#16](https://github.com/mkorthof/chrupd/issues/16))
 
 **2021-06-16** Added tests (wip)
