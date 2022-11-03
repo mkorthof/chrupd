@@ -2,6 +2,8 @@
 
 See [commits](https://github.com/mkorthof/chrupd/commits/master) or `git log`
 
+**2022-11-03** Cleaned up and refactored script
+
 **2022-07-11** Added authors: justclueless, Ungoogled-Eloston (GitHub) ([#21](https://github.com/mkorthof/chrupd/issues/21))
 
 **2022-07-10** Readded GitHub as 'feed' using JSON from repo api
