@@ -4,24 +4,29 @@
 ENDLOCAL & dir "%~f0.tmp" >nul 2>&1 && move /Y "%~f0" "%~f0.bak" >nul 2>&1 && move /Y "%~f0.tmp" "%~f0" >nul 2>&1 & GOTO :EOF
 #>
 
-<# ----------------------------------------------------------------------------
-.SYNOPSIS 20211002 MK: Simple Chromium Updater (chrupd.cmd)
-<# ----------------------------------------------------------------------------
+<#
+.SYNOPSIS
+   -------------------------------------------------------------------------
+    20221103 MK: Simple Chromium Updater (chrupd.cmd)
+   -------------------------------------------------------------------------
 
 .DESCRIPTION
-  Uses RSS feed from "chromium.woolyss.com" to download and install
-  the latest Chromium version, if a newer version is available.
+    Uses RSS feed from "chromium.woolyss.com" or GitHub to download and install
+    the latest Chromium version, if a newer version is available.
 
-  Options can be set below or using command line arguments. Defaults are:
-    - Get the "64bit" "stable" Installer by "Hibbiki"
-    - Verify sha1/md5 hash and run installer
+    Options can be set below or using command line arguments. Defaults are:
+      - Get the "64bit" "stable" Installer by "Hibbiki"
+      - Verify sha/md5 hash and run installer
+
+.EXAMPLE
+    PS> .\chrupd.ps1 -name Marmaduke -arch 64bit -channel stable [-crTask]
 
 .NOTES
-  - For easy execution this PowerShell script is embedded in a Batch .CMD
-    file using a "polyglot wrapper". Renaming to .ps1 also works.
-  - If you add a scheduled task with -crTask, a VBS wrapper is written to
-    chrupd.vbs which is used to hide it's window. Use -noVbs to disable.
-  - To update chrupd to a newer version just replace this cmd file.
+    - For easy execution this PowerShell script is embedded in a Batch .CMD
+      file using a "polyglot wrapper". Renaming to .ps1 also works.
+    - If you add a scheduled task with -crTask, a VBS wrapper is written to
+      chrupd.vbs which is used to hide it's window. Use -noVbs to disable.
+    - To update chrupd to a newer version just replace this cmd file.        #>
 
 <# ------------------------------------------------------------------------- #>
 <# CONFIGURATION:                                                            #>
@@ -40,7 +45,7 @@ $cfg = @{
 };
 <# END OF CONFIGURATION ---------------------------------------------------- #>
 
-#Set-StrictMode -Version 3.0
+<# Set-StrictMode -Version 3.0 #>
 
 <####################>
 <# SCRIPT VARIABLES #>
@@ -1288,7 +1293,7 @@ function Set-CdataHtml ([int]$idx, [string]$cdata, [hashtable]$cfg, [hashtable]$
 	$cdataObj.editorMatch = $items[$name].author -match $cdataObj.editor
 	$cdataObj.archMatch = $arch -ieq $cdataObj.architecture
 	$cdataObj.channelMatch = $channel -ieq $cdataObj.channel
-	foreach ($algo in "md5", "sha1") {
+	foreach ($algo in "md5", "sha1", "sha256") {
 		$_gethash = $cDataObj | Select-Object -ExpandProperty "*$($items[$name].filemask)*$algo" -EA 0 -WA 0
 		if ($_gethash) {
 			$cdataObj.hash = $_gethash
@@ -1341,7 +1346,7 @@ function Set-CdataRegex ([int]$idx, [string]$cdata, [hashtable]$cfg, [hashtable]
 	<#$ urlReFile = "$($($items[$name].filemask).replace('.*',''))($($cdataObj.version).*\.7z)?)" #>
 	$urlReFile = "$($items[$name].filemask)($($cdataObj.version).*\.7z)?)"
 	$cdataObj.url = $cdata -replace "${urlReHtml}${urlReLink}${urlReFile}`">.*", '$1'
-	$_hash = ($cdata -replace ".*?(?i)$($channel).*?<a href=`"$($cdataObj.url)`">$($items[$name].filemask)</a><br />(?:(sha1|md5): ([0-9a-f]{32}|[0-9a-f]{40})) .*", '$1 $2')
+	$_hash = ($cdata -replace ".*?(?i)$($channel).*?<a href=`"$($cdataObj.url)`">$($items[$name].filemask)</a><br />(?:(sha1|md5|sha256): ([0-9a-f]{32}|[0-9a-f]{40}|[0-9a-f]{64})) .*", '$1 $2')
 	if (-not ($_hash -eq $cdata)) {
 		$cdataObj.hashAlgo, $cdataObj.hash = $_hash.split(' ')
 	}
@@ -1434,7 +1439,7 @@ function Read-RssFeed ([string]$rssFeed, [string]$cdataMethod) {
 	<# Docs: https://paullimblog.wordpress.com/2017/08/08/ps-tip-parsing-html-from-a-local-file-or-a-string #>
 	<# TEST: $xml = [xml](Get-Content "test\windows-64-bit") #>
 	$xml = [xml](Invoke-WebRequest -UseBasicParsing -TimeoutSec 300 -Uri $rssFeed)
-	<# LOOP OVER ITEMS: title, author #>	
+	<# LOOP OVER ITEMS: title, author #>
 	$i = 0
 	While ($xml.rss.channel.Item[$i]) {
 		Write-Msg -o dbg, 1, Cyan		"`$i=$i xml cdataMethod=$cdataMethod title=$($xml.rss.channel.Item[$i].title)"
@@ -1604,7 +1609,7 @@ function Show-CheckBox ([bool]$state, [string]$c1 = "Green", [string]$ok = "OK",
 		.PARAMETER ok
 			Set msg to display if state is $true
 		.PARAMETER c2
-			Color for $nok msg 
+			Color for $nok msg
 		.PARAMETER nok
 			Set msg to display if state is $false   #>
 
