@@ -8,7 +8,7 @@
 
 ---
 
-**Latest version: 20200101 ([CHANGES.md](CHANGES.md))**
+~~Latest version: 20200101 .~~ **([CHANGES.md](CHANGES.md))**
 
 ---
 
