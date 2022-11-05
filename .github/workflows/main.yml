@@ -13,20 +13,17 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Run chrupd.cmd and check log
+      - name: Run chrupd.ps1 and check log
         run: |
-          pwsh.exe -File chrupd.cmd || true
-          grep 'Latest Chromium version already installed\|New Chromium version\|Done\.' chrupd.log
+          copy chrupd.cmd chrupd-test.ps1
+          pwsh.exe -File chrupd-test.ps1 || true
+          pwsh.exe -Command "Get-Content -Path chrupd.log -Tail 4|Select-String -Pattern 'Latest Chromium version already installed|New Chromium version|Done\.'"
       - name: PSScriptAnalyzer
         run: |
           copy chrupd.cmd chrupd-test.ps1
-          pwsh.exe -Command '
-            Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Confirm:$false -Force;
-            Invoke-ScriptAnalyzer -Path chrupd-test.ps1 -EnableExit
-          '
+          pwsh.exe -Command Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Confirm:$false -Force
+          pwsh.exe -Command Invoke-ScriptAnalyzer -Path chrupd-test.ps1 -EnableExit
       - name: Pester
         run: |
-          pwsh.exe -Command '
-            Install-Module -Name Pester -Force -SkipPublisherCheck -Scope CurrentUser -Confirm:$false -Force;
-            Invoke-Pester
-          '
+          pwsh.exe -Command Install-Module -Name Pester -Force -SkipPublisherCheck -Scope CurrentUser -Confirm:$false -Force
+          pwsh.exe -Comamnd Invoke-Pester
