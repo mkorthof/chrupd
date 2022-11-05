@@ -21,9 +21,9 @@ jobs:
       - name: PSScriptAnalyzer
         run: |
           copy chrupd.cmd chrupd-test.ps1
-          pwsh.exe -Command Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Confirm:$false -Force
+          pwsh.exe -Command Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Force
           pwsh.exe -Command Invoke-ScriptAnalyzer -Path .\chrupd-test.ps1 -EnableExit -ExcludeRule PSAvoidUsingWriteHost,PSAvoidUsingInvokeExpression,PSUseShouldProcessForStateChangingFunctions
       - name: Pester
         run: |
           pwsh.exe -Command Install-Module -Name Pester -Scope CurrentUser -Force -SkipPublisherCheck 
-          pwsh.exe -Comamnd Invoke-Pester
+          pwsh.exe -Command Invoke-Pester
