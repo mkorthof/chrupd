@@ -593,14 +593,14 @@ function Split-Script ($content) {
 			[int]$lineCount = ${lineCount} - 2
 		}
 		[object]$result.script = $content | Select-Object -Index ($lnCfgEnd..$lineCount)
-		[string]$result.hash = (Get-FileHash -Algorithm SHA1 -InputStream ([System.IO.MemoryStream]::new([System.Text.Encoding]::UTF8.GetBytes((($result.script)))))).Hash
+		[string]$result.hash = (Get-FileHash -Algorithm SHA256 -InputStream ([System.IO.MemoryStream]::new([System.Text.Encoding]::UTF8.GetBytes((($result.script)))))).Hash
 	} else {
 		return $false
 	}
 	return $result
 }
 
-function Update-Script () {
+function Update-ChrScript () {
 	<#	.SYNOPSIS
 			Compare date and version, update if available
 		.NOTES
@@ -610,7 +610,7 @@ function Update-Script () {
 	<# TEST: $cmdParams += @{ Verbose = $true } #>
 	if ($debug -ge 1) {
 		$cmdParams += @{ WhatIf = $true }
-		Write-Msg -o dbg, 1, Yellow "Update-Script debug=`"$debug`" (!) NOT CHANGING FILES"
+		Write-Msg -o dbg, 1, Yellow "Update-ChrScript debug=`"$debug`" (!) NOT CHANGING FILES"
 	}
 	<# get date/version from readme #>
 	[System.Net.ServicePointManager]::SecurityProtocol = @("Tls13", "Tls12", "Tls11", "Tls")
@@ -622,29 +622,29 @@ function Update-Script () {
 		)
 	} else {
 		<# TEST: fake new version = ghReadmeObj_20291231.json, old version = ghReadmeObj_20211002.json)) #>
-		Write-Msg -o dbg, 1 "Update-Script TEST MODE"
+		Write-Msg -o dbg, 1 "Update-ChrScript TEST MODE"
 		[pscustomobject]$ghReadmeObj = (
 			ConvertFrom-Json(Get-Content .\test\ghReadme_20291231.json)
 		)
 	}
 	[string]$ghReadmeContent = [System.Text.Encoding]::UTF8.GetString(([System.Convert]::FromBase64String((($ghReadmeObj).content)))) -split "`r?`n"
 	[string]$newDate = ($ghReadmeContent | Select-String -Pattern "Latest version.* 20[2-3]\d{5} ") -replace '.*Latest version: (20[2-3]\d{5}) .*', '$1'
-	Write-Msg -o dbg, 1 "Update-Script curScriptDate=`"$curScriptDate`" newDate=`"$newDate`""
+	Write-Msg -o dbg, 1 "Update-ChrScript curScriptDate=`"$curScriptDate`" newDate=`"$newDate`""
 	<# compare date in remote 'README.md' with local 'chrupd.cmd' #>
 	if ($newDate -and (([DateTime]::ParseExact($newDate, 'yyyyMMdd', $null)) -gt ([DateTime]::ParseExact($curScriptDate, 'yyyyMMdd', $null)))) {
 		Write-Msg -o tee "New chrupd version `"$newDate`" available, updating script..."
 		<# SPLIT: current script file #>
-		Write-Msg -o dbg, 1 "Update-Script Split-Script `$scriptCmd=`"$scriptCmd`""
+		Write-Msg -o dbg, 1 "Update-ChrScript Split-Script `$scriptCmd=`"$scriptCmd`""
 		$localSplit = Split-Script $(Get-Content "${scriptDir}\${scriptCmd}")
 		<# SPLIT: new script content from github #>
-		Write-Msg -o dbg, 1 "Update-Script getting chrupd contents from api.github.com"
+		Write-Msg -o dbg, 1 "Update-ChrScript getting chrupd contents from api.github.com"
 		[pscustomobject]$ghScriptObj = (
 			ConvertFrom-Json(
 				Invoke-WebRequest -UseBasicParsing -TimeoutSec 300 -Uri "$ghApiUrl/contents/chrupd.cmd"
 			)
 		)
 		$ghScriptContent = [System.Text.Encoding]::UTF8.GetString(([System.Convert]::FromBase64String((($ghScriptObj).content)))) -split "`r?`n"
-		Write-Msg -o dbg, 1 "Update-Script Split-Script `"`$ghScriptContent`""
+		Write-Msg -o dbg, 1 "Update-ChrScript Split-Script `"`$ghScriptContent`""
 		if ($debug -ge 1) {
 			Split-Script $ghScriptContent | Out-Null
 		}
@@ -658,7 +658,7 @@ function Update-Script () {
 		if ($ghSplit) {
 			if ($localSplit) {
 				$newContent = $ghSplit.head, $localSplit.config, $ghSplit.script
-				Write-Msg -o dbg, 1 "Update-Script localSplit.hash=`"$($localSplit.hash)`" ghSplit.hash=`"$($ghSplit.hash)`""
+				Write-Msg -o dbg, 1 "Update-ChrScript localSplit.hash=`"$($localSplit.hash)`" ghSplit.hash=`"$($ghSplit.hash)`""
 			} else {
 				$newContent = $ghScriptContent
 				Write-Msg -o warn "Current script configuration not found, using defaults"
@@ -702,19 +702,19 @@ function Update-Script () {
 			Write-Msg "No script updates available"
 			Write-Msg
 		} else {
-			Write-Msg -o dbg, 1 "Update-Script cUpdate=`"$cUpdate`" no updates available"
+			Write-Msg -o dbg, 1 "Update-ChrScript cUpdate=`"$cUpdate`" no updates available"
 		}
 	}
 }
 
 <# OPTION: UPDATE SCRIPT AND EXIT #>
 if ($cUpdate) {
-	Update-Script
+	Update-ChrScript
 	Exit
 }
 <# OPTION: AUTO UPDATE #>
 if ($cAutoUp -eq 1) {
-	Update-Script
+	Update-ChrScript
 }
 
 <###################>
