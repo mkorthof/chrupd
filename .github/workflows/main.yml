@@ -26,4 +26,4 @@ jobs:
       - name: Pester
         run: |
           pwsh.exe -Command Install-Module -Name Pester -Scope CurrentUser -Force -SkipPublisherCheck 
-          pwsh.exe -Comamnd Invoke-Pester
+          pwsh.exe -Command Invoke-Pester
