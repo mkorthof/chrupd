@@ -1,39 +1,29 @@
-# This is a basic workflow to help you get started with Actions
-
 name: PowerShell CI
-
-# Controls when the action will run. 
 on:
-#  # Triggers the workflow on push or pull request events but only for the master branch
 #  push:
 #    branches: [ master ]
 #  pull_request:
 #    branches: [ master ]
-
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
   test:
     # The type of runner that the job will run on
     runs-on: windows-latest
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
-
-      # Runs a set of commands using the runners shell
-      - name: Run chrupd.cmd and check log
+      - name: Run chrupd.ps1 and check log
         run: |
-          pwsh.exe -File chrupd.cmd || true
-          grep 'Latest Chromium version already installed\|New Chromium version\|Done\.' chrupd.log
-
-      
-      # Runs a set of commands using the runners shell
+          copy chrupd.cmd chrupd-test.ps1
+          pwsh.exe .\chrupd-test.ps1 || true
+          pwsh.exe -Command "Get-Content -Path chrupd.log -Tail 4|Select-String -Pattern 'Latest Chromium version already installed|New Chromium version|Done\.'"
       - name: PSScriptAnalyzer
         run: |
           copy chrupd.cmd chrupd-test.ps1
-          pwsh.exe -Command 'Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Confirm:$false -Force; Invoke-ScriptAnalyzer -Path chrupd-test.ps1 -EnableExit'
+          pwsh.exe -Command Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Confirm:$false -Force
+          pwsh.exe -Command Invoke-ScriptAnalyzer -Path chrupd-test.ps1 -EnableExit
+      - name: Pester
+        run: |
+          pwsh.exe -Command Install-Module -Name Pester -Scope CurrentUser -Confirm:$false -Force -SkipPublisherCheck 
+          pwsh.exe -Comamnd Invoke-Pester
