@@ -9,21 +9,21 @@ on:
 
 jobs:
   test:
-    # The type of runner that the job will run on
+    name: Run Tests
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Run chrupd.ps1 and check log
         run: |
           copy chrupd.cmd chrupd-test.ps1
-          pwsh.exe .\chrupd-test.ps1 || true
-          pwsh.exe -Command "Get-Content -Path chrupd.log -Tail 4|Select-String -Pattern 'Latest Chromium version already installed|New Chromium version|Done\.'"
+          pwsh.exe .\chrupd-test.ps1 -ignDotSrc 1 || true
+          pwsh.exe -Command "Get-Content -Path .\chrupd.log -Tail 4|Select-String -Pattern 'Latest Chromium version already installed|New Chromium version|Done\.'"
       - name: PSScriptAnalyzer
         run: |
           copy chrupd.cmd chrupd-test.ps1
           pwsh.exe -Command Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Confirm:$false -Force
-          pwsh.exe -Command Invoke-ScriptAnalyzer -Path chrupd-test.ps1 -EnableExit
+          pwsh.exe -Command Invoke-ScriptAnalyzer -Path .\chrupd-test.ps1 -EnableExit -ExcludeRule PSAvoidUsingWriteHost,PSAvoidUsingInvokeExpression,PSUseShouldProcessForStateChangingFunctions
       - name: Pester
         run: |
-          pwsh.exe -Command Install-Module -Name Pester -Scope CurrentUser -Confirm:$false -Force -SkipPublisherCheck 
+          pwsh.exe -Command Install-Module -Name Pester -Scope CurrentUser -Force -SkipPublisherCheck 
           pwsh.exe -Comamnd Invoke-Pester
