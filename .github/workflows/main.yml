@@ -12,7 +12,7 @@ jobs:
     # The type of runner that the job will run on
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Run chrupd.ps1 and check log
         run: |
           copy chrupd.cmd chrupd-test.ps1
