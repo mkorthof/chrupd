@@ -17,7 +17,7 @@ Describe "Read-RssFeed" {
 		if ($env:CI) {
 			Read-RssFeed -rssFeed "https://raw.githubusercontent.com/mkorthof/chrupd/master/test/windows-64-bit" -cdataMethod "htmlfile" | Should -Be $testRssFeed
 		} else {
-			Read-RssFeed -rssFeed "file://$PSScriptRoot/windows-64-bit" -cdataMethod "htmlfile" | Should -Be $testRssFeed }
-
+			Read-RssFeed -rssFeed "file://$PSScriptRoot/windows-64-bit" -cdataMethod "htmlfile" | Should -Be $testRssFeed
+		}
 	}	
 }

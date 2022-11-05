@@ -1546,7 +1546,8 @@ function Read-GhJson ([string]$jsonUrl) {
 			$jdataObj.revision = $jdata.body -replace [Environment]::NewLine, '' -replace '.*Revision ([a-f0-9]+-refs/branch-heads/[0-9]*@{#[0-9]*}).*', '$1'
 	}  #>
 	if ($jdata.published_at) {
-		$jdataObj.date = $jdata.published_at.Split('T')[0]
+		<# $jdataObj.date = $($jdata.published_at).Split('T')[0] #>
+		$jdataObj.date = (Get-Date "$($jdata.published_at)").ToString("yyyy-MM-dd")
 	}
 	switch ($arch) {
 		'64-bit' { $archPattern = 'x64|win64' }
