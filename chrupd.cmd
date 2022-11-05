@@ -7,7 +7,7 @@ ENDLOCAL & dir "%~f0.tmp" >nul 2>&1 && move /Y "%~f0" "%~f0.bak" >nul 2>&1 && mo
 <#
 .SYNOPSIS
    -------------------------------------------------------------------------
-    20221103 MK: Simple Chromium Updater (chrupd.cmd)
+    20221105 MK: Simple Chromium Updater (chrupd.cmd)
    -------------------------------------------------------------------------
 
 .DESCRIPTION
@@ -57,6 +57,7 @@ $cfg = @{
 $_Args = $Args
 
 <# check if dot sourced #>
+[boolean]$dotSourced = $false
 if ($MyInvocation.InvocationName -eq '.' -or $MyInvocation.Line -eq '') {
 	$dotSourced = $true
 }
@@ -87,7 +88,7 @@ if ($MyInvocation.MyCommand.Name) {
 }
 
 <# VAR: CHRUPD VERSION #>
-[string]$curScriptDate = (Select-String -Pattern " 202\d{5} " "${scriptDir}\${scriptCmd}") -replace '.* (202\d{5}) .*', '$1'
+[string]$curScriptDate = (Select-String -Pattern " 20[2-3]\d{5} " "${scriptDir}\${scriptCmd}") -replace '.* (20[2-3]\d{5}) .*', '$1'
 if (-not $curScriptDate) {
 	$curScriptDate = "19700101"
 }
@@ -270,7 +271,7 @@ the RSS feed from `"chromium.woolyss.com`" or the GitHub REST API.`r`n
 <########>
 
 if ($_Args -iMatch "[-/?]h") {
-	$_Header = ("{0} {1} ( {2} )" -f "$scriptName", "$scriptCmd", "$curScriptDate")
+	$_Header = ("{0} ( {1} {2} )" -f "$scriptName", "$scriptCmd", "$curScriptDate")
 	Write-Host "`r`n$_Header"
 	Write-Host ("-" * $_Header.Length)"`r`n"
 	Write-Host "Uses RSS feed from `"chromium.woolyss.com`" or GitHub API"
@@ -293,11 +294,9 @@ if ($_Args -iMatch "[-/?]h") {
 
 <# ADVANCED HELP #>
 if ($_Args -iMatch "[-/?]ad?v?he?l?p?") {
-	$_Header = ("{0} {1} ( {2} ) - Advanced options" -f "$scriptName", "$scriptCmd", "$curScriptDate")
+	$_Header = ("{0} ( {1} {2} ) - Advanced options" -f "$scriptName", "$scriptCmd", "$curScriptDate")
 	Write-Host "`r`n$_Header"
 	Write-Host ("-" * $_Header.Length)"`r`n"
-	#Write-Host ("-" * 80)"`r`n"
-	#write-host $_Header.length
 	Write-Host "USAGE: $scriptCmd -[tsMode|rmTask|noVbs|confirm]"
 	Write-Host "`t`t", " -[proxy|cAutoUp|appDir|linkArgs|ignVer] or [-cUpdate]", "`r`n"
 	Write-Host "`t", "-tsMode    *see NOTES below* set option to <1|2|3> or `"auto`""
@@ -431,7 +430,7 @@ function Write-Msg {
 	param (
 		[Alias("o")]
 		[ValidateScript({
-				if ("$_" -match "dbg|warn|err|nnl|log|tee|^[0-9]$|^(?-i:[A-Z][a-zA-Z]{2,})") {
+				if ("$_" -match "dbg|warn|err|nnl|log|tee|out|^[0-9]$|^(?-i:[A-Z][a-zA-Z]{2,})") {
 					$true
 				} else {
 					Throw "Invalid value is: `"$_`""
@@ -453,6 +452,7 @@ function Write-Msg {
 			'nnl'	{ $msgParams += @{NoNewLine = $true} }
 			'log'	{ $log = $true }
 			'tee'	{ $tee = $true }
+			'out'	{ $out = $true }
 			'^[0-9]$'	{ $lvl = $($matches[0]) }
 			'^(?-i:[A-Z][a-zA-Z]{2,})' {
 				if ($cnt -ge 1) {
@@ -470,7 +470,11 @@ function Write-Msg {
 			$s = $msg.Split()
 			$msg = $s[1..$s.Length]
 		}
-		Write-Host @msgParams ("{0}$msg" -f $pf)
+		if ($out) {
+			Write-Output @msgParams ("{0}$msg" -f $pf)
+		} else {
+			Write-Host @msgParams ("{0}$msg" -f $pf)
+		}
 	}
 	if ($cfg.log -and ($log -or $tee)) {
 		Add-Content $logFile -Value (((Get-Date).toString("yyyy-MM-dd HH:mm:ss")) + " $msg")
@@ -569,26 +573,26 @@ if ($cAutoUp -notmatch "^(0|1)$") {
 <# UPDATE SCRIPT #>
 <#################>
 
-function Split-Script ([object]$content) {
+function Split-Script ($content) {
 	<#	.SYNOPSIS
 			Splits header and config from script content
 		.INPUTS
-			<content>  (not filename)
+			$content   Object of strings/lines (do not use filename)
 		.OUTPUTS
-			$result as Object (or $false)  #>
+			$result    Object or Boolean $false  #>
 	[int]$lnCfgStart = ($content | Select-String -Pattern "<# CONFIGURATION:? \s+ #>").LineNumber
 	[int]$lnCfgEnd = ($content | Select-String -Pattern "<# END OF CONFIGURATION ?[#-]+ ?#>").LineNumber
-	$result = @{}
+	[hashtable]$result = @{}
 	if (($lnCfgStart -gt 1) -and ($lnCfgEnd -gt 1)) {
-		$result.head = $content | Select-Object -Index (0..(${lnCfgStart} - 2))
-		$result.config = $content | Select-Object -Index ((${lnCfgStart} - 1)..$(${lnCfgEnd} - 1))
+		[object]$result.head = $content | Select-Object -Index (0..(${lnCfgStart} - 2))
+		[object]$result.config = $content | Select-Object -Index ((${lnCfgStart} - 1)..$(${lnCfgEnd} - 1))
 		[int]$lineCount = ($content).Count
-		$lastLine = $content | Select-Object -Skip (${lineCount} - 1)
+		[string]$lastLine = $content | Select-Object -Skip (${lineCount} - 1)
 		if ($lineCount -and $lastLine -eq "") {
-			$lineCount = ${lineCount} - 2
+			[int]$lineCount = ${lineCount} - 2
 		}
-		$result.script = $content | Select-Object -Index ($lnCfgEnd..$lineCount)
-		$result.hash = (Get-FileHash -Algorithm SHA1 -InputStream ([System.IO.MemoryStream]::new([System.Text.Encoding]::UTF8.GetBytes((($result.script)))))).Hash
+		[object]$result.script = $content | Select-Object -Index ($lnCfgEnd..$lineCount)
+		[string]$result.hash = (Get-FileHash -Algorithm SHA1 -InputStream ([System.IO.MemoryStream]::new([System.Text.Encoding]::UTF8.GetBytes((($result.script)))))).Hash
 	} else {
 		return $false
 	}
@@ -600,54 +604,62 @@ function Update-Script () {
 			Compare date and version, update if available
 		.NOTES
 			REMOTE  : README.md "Latest version: YYYYMMMDD"
-			LOCAL   : chrupd.cmd " 202\d{5} " (e.g. 20201231)  #>
-	$cmdParams = @{}
+			LOCAL   : chrupd.cmd " 20[2-3]\d{5} " (e.g. 20201231)  #>
+	[hashtable]$cmdParams = @{}
 	<# TEST: $cmdParams += @{ Verbose = $true } #>
 	if ($debug -ge 1) {
 		$cmdParams += @{ WhatIf = $true }
 		Write-Msg -o dbg, 1, Yellow "Update-Script debug=`"$debug`" (!) NOT CHANGING FILES"
 	}
-	<# get data/version from readme #>
+	<# get date/version from readme #>
 	[System.Net.ServicePointManager]::SecurityProtocol = @("Tls13", "Tls12", "Tls11", "Tls")
-	[string]$ghApi = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String("aHR0cHM6Ly9hcGkuZ2l0aHViLmNvbS9yZXBvcy9ta29ydGhvZi9jaHJ1cGQ="))
-	<# skip req when dot sourced or debugging, so we dont hit api rate limit #>
+	[string]$ghApiUrl = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String("aHR0cHM6Ly9hcGkuZ2l0aHViLmNvbS9yZXBvcy9ta29ydGhvZi9jaHJ1cGQ="))
+	<# skip api req when dot sourced or debugging, so we dont hit api rate limit #>
 	if (!$dotSourced -and ($debug -eq 0)) {
-		[pscustomobject]$ghContentsJson = (ConvertFrom-Json(Invoke-WebRequest -UseBasicParsing -TimeoutSec 300 -Uri "$ghApi/contents/README.md"))
+		[pscustomobject]$ghReadmeObj = (
+			ConvertFrom-Json(Invoke-WebRequest -UseBasicParsing -TimeoutSec 300 -Uri "$ghApiUrl/contents/README.md")
+		)
 	} else {
+		<# TEST: fake new version = ghReadmeObj_20291231.json, old version = ghReadmeObj_20211002.json)) #>
 		Write-Msg -o dbg, 1 "Update-Script TEST MODE"
-		<# TEST: new version = ghContentsJson_20291231, old version = ghContentsJson_20211002)) #>
-		[pscustomobject]$ghContentsJson = (ConvertFrom-Json(Get-Content .\test\ghContentsJson_20211002))
+		[pscustomobject]$ghReadmeObj = (
+			ConvertFrom-Json(Get-Content .\test\ghReadme_20291231.json)
+		)
 	}
-	[string]$ghReadmeContent = [System.Text.Encoding]::UTF8.GetString(([System.Convert]::FromBase64String((($ghContentsJson).content)))) -split "`n"
-	[string]$newDate = ($ghReadmeContent | Select-String -Pattern "Latest version.* 202\d{5} ") -replace '.*Latest version: (202\d{5}) .*', '$1'
+	[string]$ghReadmeContent = [System.Text.Encoding]::UTF8.GetString(([System.Convert]::FromBase64String((($ghReadmeObj).content)))) -split "`r?`n"
+	[string]$newDate = ($ghReadmeContent | Select-String -Pattern "Latest version.* 20[2-3]\d{5} ") -replace '.*Latest version: (20[2-3]\d{5}) .*', '$1'
 	Write-Msg -o dbg, 1 "Update-Script curScriptDate=`"$curScriptDate`" newDate=`"$newDate`""
 	<# compare date in remote 'README.md' with local 'chrupd.cmd' #>
 	if ($newDate -and (([DateTime]::ParseExact($newDate, 'yyyyMMdd', $null)) -gt ([DateTime]::ParseExact($curScriptDate, 'yyyyMMdd', $null)))) {
 		Write-Msg -o tee "New chrupd version `"$newDate`" available, updating script..."
-		<# split current script file #>
+		<# SPLIT: current script file #>
 		Write-Msg -o dbg, 1 "Update-Script Split-Script `$scriptCmd=`"$scriptCmd`""
-		$loSplit = Split-Script $(Get-Content "${scriptDir}\${scriptCmd}")
-		<# split new script content #>
+		$localSplit = Split-Script $(Get-Content "${scriptDir}\${scriptCmd}")
+		<# SPLIT: new script content from github #>
 		Write-Msg -o dbg, 1 "Update-Script getting chrupd contents from api.github.com"
-		[pscustomobject]$ghContentsJson = (ConvertFrom-Json(Invoke-WebRequest -UseBasicParsing -TimeoutSec 300 -Uri "$ghApi/contents/chrupd.cmd"))
-		[string]$ghContent = [System.Text.Encoding]::UTF8.GetString(([System.Convert]::FromBase64String((($ghContentsJson).content)))) -split "`r`n"
-		Write-Msg -o dbg, 1 "Update-Script Split-Script `"`$ghContent`""
+		[pscustomobject]$ghScriptObj = (
+			ConvertFrom-Json(
+				Invoke-WebRequest -UseBasicParsing -TimeoutSec 300 -Uri "$ghApiUrl/contents/chrupd.cmd"
+			)
+		)
+		$ghScriptContent = [System.Text.Encoding]::UTF8.GetString(([System.Convert]::FromBase64String((($ghScriptObj).content)))) -split "`r?`n"
+		Write-Msg -o dbg, 1 "Update-Script Split-Script `"`$ghScriptContent`""
 		if ($debug -ge 1) {
-			Split-Script $ghContent | Out-Null
+			Split-Script $ghScriptContent | Out-Null
 		}
-		if ($ghContent) {
-			$ghSplit = Split-Script $ghContent
+		if ($ghScriptContent) {
+			$ghSplit = Split-Script $ghScriptContent
 		} else {
 			Write-Msg -o err, tee "Could not download new script, skipped update"
 			break
 		}
-		<# merge current local config if found, else just write new script #>
+		<# write new script, merge current local config if found #>
 		if ($ghSplit) {
-			if ($loSplit) {
-				$newContent = $ghSplit.head, $loSplit.config, $ghSplit.script
-				Write-Msg -o dbg, 1 "Update-Script loSplit.hash=$($loSplit.hash) ghSplit.hash=$($ghSplit.hash)"
+			if ($localSplit) {
+				$newContent = $ghSplit.head, $localSplit.config, $ghSplit.script
+				Write-Msg -o dbg, 1 "Update-Script localSplit.hash=`"$($localSplit.hash)`" ghSplit.hash=`"$($ghSplit.hash)`""
 			} else {
-				$newContent = $ghContent
+				$newContent = $ghScriptContent
 				Write-Msg -o warn "Current script configuration not found, using defaults"
 			}
 			if ( $(try { (&Test-Path "${scriptDir}\${scriptCmd}.tmp") } catch { $false }) ) {
@@ -665,7 +677,7 @@ function Update-Script () {
 				Write-Msg -o err, tee "Could not write script, skipped update"
 				break
 			}
-			<# replace 'in use' script only if we're running as ps1 (chrupd.ps1) #>
+			<# replace 'in use' script only if we're running as ps1 (.\chrupd.ps1) #>
 			if ($scriptCmd.Split(".")[1] -eq "ps1") {
 				try {
 					Move-Item @cmdParams -Force -EA 0 -WA 0 -Path "${scriptDir}\${scriptCmd}" -Destination "${scriptDir}\${scriptCmd}.bak"
@@ -681,12 +693,12 @@ function Update-Script () {
 				}
 			}
 		} else {
-			Write-Msg -o err, tee "Unable to read new script, skipped update"
+			Write-Msg -o err, tee "Unable to get new script, skipped update"
 			break
 		}
 	} else {
 		if ($cUpdate) {
-			Write-Msg "No script updates available "
+			Write-Msg "No script updates available"
 			Write-Msg
 		} else {
 			Write-Msg -o dbg, 1 "Update-Script cUpdate=`"$cUpdate`" no updates available"
@@ -1208,7 +1220,7 @@ function Invoke-VirusTotal ([string]$apiKey, [string]$url, [string]$savePath, [s
 		.NOTES
 			(TEST) Requires API KEY: https://www.virustotal.com/gui/join-us
 	#>
-	$cmdParams = @{}
+	[hashtable]$cmdParams = @{}
 	if ($debug -gt 2) {
 		$cmdParams = @{ Verbose = $true; WhatIf = $true }
 	}
@@ -1789,7 +1801,7 @@ if ($_pcnt -gt 0) {
 <# DOWNLOAD AND CHECK VERSION #>
 <##############################>
 
-$cmdParams = @{}
+[hashtable]$cmdParams = @{}
 if ($debug -gt 2) {
 	$cmdParams = @{ Verbose = $true; WhatIf = $true }
 }
