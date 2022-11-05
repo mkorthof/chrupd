@@ -9,7 +9,7 @@ on:
 
 jobs:
   test:
-    # The type of runner that the job will run on
+    name: Run Tests
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v3
