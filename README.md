@@ -2,13 +2,15 @@
 
 " _Self executable PowerShell script to auto update Chromium for Windows_ "
 
-- [x] Runs on all Windows versions
-- [x] One file download, no need to install and no other software required
-- [x] Needs little to no configuration, but (advanced) options are available
+✔ Runs on all Windows versions
+
+✔ One file download, no need to install and no other software required
+
+✔ Needs little to no configuration, but (advanced) options are available
 
 ---
 
-**Latest version: 20221105 ([CHANGES.md](CHANGES.md))**
+**🗓 Latest version: 20221105 ([CHANGES.md](CHANGES.md))**
 
 ---
 
@@ -24,7 +26,7 @@ When you run the script it does the following:
 
 Options can be set in script or by using command line arguments.
 
-## Chromium versions
+## ⚙Chromium versions
 
 | Source    | Name*                              | Channel         |
 |:----------|:-----------------------------------|:----------------|
@@ -51,23 +53,25 @@ Make sure the combination of name and channel you pick is correct. You can also 
 - for the builds from chromium.org use `Official`
 - some authors release archive files instead of installers, more info: [docs/Archives.md](/docs/Archives.md)
 
-## Scheduled Task
+## ⏰Scheduled Task
 
 To make sure Chromium is always automatically updated to the latest version you can optionally add a Scheduled Task by using `chrupd.cmd -crTask`. A VBS wrapper will be written to **chrupd.vbs** which is used to hide it's window. Option `noVbs` disables the wrapper, this will however cause a flashing window when the task runs. Specifed settings for 'name' and 'channel' are used to run the script every day.
 
-## Updating Script
+## 🔃Updating Script
 
 The script auto updates itself (since v20210109).
 
+(**!**) If you keep getting an error about "Unable to get new script, skipped update", this means a new version was detected but the script was unable to get the new version from GitHub. Try again later or manually update.
+
 To manually update to a newer script version just replace "chrupd.cmd". Copy "name" and "channel" if set. If you have Scheduled Task setup you do not need to change the task.
 
-## File Formats
+## 📁File Formats
 
 For easy execution this PowerShell script is embedded in a Batch .CMD file, which can be renamed to .PS1.
 
 See [docs/Formats.md](/docs/Formats.md) for details.
 
-## Command Line Options
+## 💻Command Line Options
 
 `chrupd.cmd -h`
 

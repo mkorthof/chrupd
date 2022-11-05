@@ -108,6 +108,7 @@ if (-not $curScriptDate) {
 [string]$proxy = [string]$linkArgs = [string]$vtApikey = ""
 [int]$appDir = 0
 [int]$cAutoUp = 1
+[int]$ignDotSrc = 0
 
 if ($dotSourced) {
 	[int]$cAutoUp = 0
@@ -577,7 +578,7 @@ function Split-Script ($content) {
 	<#	.SYNOPSIS
 			Splits header and config from script content
 		.INPUTS
-			$content   Object of strings/lines (do not use filename)
+			$content   Array of strings/lines (do not use filename)
 		.OUTPUTS
 			$result    Object or Boolean $false  #>
 	[int]$lnCfgStart = ($content | Select-String -Pattern "<# CONFIGURATION:? \s+ #>").LineNumber
@@ -1645,7 +1646,7 @@ function Show-CheckBox ([bool]$state, [string]$c1 = "Green", [string]$ok = "OK",
 <# MAIN #>
 <########>
 
-if ($dotSourced) {
+if ($dotSourced -and ($ignDotSrc -eq 0)) {
 	Write-Msg -o Yellow "Dot sourced, exiting script (dotsourced=$dotSourced debug=$debug cAutoUp=$cAutoUp)"
 	exit 0
 }
@@ -1903,7 +1904,7 @@ if (( $(try { (Test-Path variable:local:fileHash) -and (-not [string]::IsNullOrW
 	[scriptblock]$_doneMsg = {
 		Show-CheckBox $true
 		Write-Msg " Done. "
-		Write-Msg -o Yellow "${_dMsg}."
+		Write-Msg -o Yellow "`r`n${_dMsg}."
 		Write-Msg -o log "Done. $_dMsg"
 	}
 
