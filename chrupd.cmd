@@ -45,7 +45,7 @@ $cfg = @{
 };
 <# END OF CONFIGURATION ---------------------------------------------------- #>
 
-<# Set-StrictMode -Version 3.0 #>
+<# NOTE: Set-StrictMode -Version 3.0 #>
 
 <####################>
 <# SCRIPT VARIABLES #>
