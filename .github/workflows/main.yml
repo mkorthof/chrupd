@@ -16,7 +16,7 @@ jobs:
       - name: Run chrupd.ps1 and check log
         run: |
           copy chrupd.cmd chrupd-test.ps1
-          pwsh.exe -File chrupd-test.ps1 || true
+          pwsh.exe .\chrupd-test.ps1 || true
           pwsh.exe -Command "Get-Content -Path chrupd.log -Tail 4|Select-String -Pattern 'Latest Chromium version already installed|New Chromium version|Done\.'"
       - name: PSScriptAnalyzer
         run: |
@@ -25,5 +25,5 @@ jobs:
           pwsh.exe -Command Invoke-ScriptAnalyzer -Path chrupd-test.ps1 -EnableExit
       - name: Pester
         run: |
-          pwsh.exe -Command Install-Module -Name Pester -Force -SkipPublisherCheck -Scope CurrentUser -Confirm:$false -Force
+          pwsh.exe -Command Install-Module -Name Pester -Scope CurrentUser -Confirm:$false -Force -SkipPublisherCheck 
           pwsh.exe -Comamnd Invoke-Pester
