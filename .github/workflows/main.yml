@@ -16,7 +16,7 @@ jobs:
       - name: Run chrupd.ps1 and check log
         run: |
           copy chrupd.cmd chrupd-test.ps1
-          pwsh.exe .\chrupd-test.ps1 -ignDotSrc || true
+          pwsh.exe .\chrupd-test.ps1 -ignDotSrc 1 || true
           pwsh.exe -Command "Get-Content -Path .\chrupd.log -Tail 4|Select-String -Pattern 'Latest Chromium version already installed|New Chromium version|Done\.'"
       - name: PSScriptAnalyzer
         run: |
