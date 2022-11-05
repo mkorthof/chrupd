@@ -25,5 +25,5 @@ jobs:
           pwsh.exe -Command Invoke-ScriptAnalyzer -Path .\chrupd-test.ps1 -EnableExit -ExcludeRule PSAvoidUsingWriteHost,PSAvoidUsingInvokeExpression,PSUseShouldProcessForStateChangingFunctions
       - name: Pester
         run: |
-          pwsh.exe -Command Install-Module -Name Pester -Scope CurrentUser -Confirm:$false -Force -SkipPublisherCheck 
+          pwsh.exe -Command Install-Module -Name Pester -Scope CurrentUser -Force -SkipPublisherCheck 
           pwsh.exe -Comamnd Invoke-Pester
