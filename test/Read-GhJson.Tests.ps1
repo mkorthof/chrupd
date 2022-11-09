@@ -2,7 +2,7 @@ BeforeAll {
     <#
     Import-Script `
 		-EntryPoint Write-Msg `
-		-Path $PSScriptRoot/../chrupd.ps1 
+		-Path $PSScriptRoot/../chrupd.ps1
     #>
     
     . $PSScriptRoot\..\chrupd.ps1 -cAutoUp 0
@@ -12,9 +12,9 @@ BeforeAll {
 Describe "Read-GhJson" {
     It "Extract JSON values from GitHub repos api" {
         if ($env:CI) {
-            Read-GhJson -jsonUrl "https://raw.githubusercontent.com/mkorthof/chrupd/master/test/releases.json" | Should -Be $testGhJson
+            Read-GhJson -jsonUrl "https://raw.githubusercontent.com/mkorthof/chrupd/master/test/releases.json" | Should -Be $testGhJson | ConvertTo-Json
         } else {
-            Read-GhJson -jsonUrl "file://$PSScriptRoot/releases.json" | Should -Be $testGhJson
+            Read-GhJson -jsonUrl "file://$PSScriptRoot/releases.json" | Should -Be $testGhJson | ConvertTo-Json
         }
     }
 }
