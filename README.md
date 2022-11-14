@@ -36,7 +36,7 @@ Options can be set in script or by using command line arguments.
 |           |  Marmaduke                         | stable, dev     |
 |           |  Ungoogled-Marmaduke               | stable          |
 |           |  Ungoogled-Portable                | stable          |
-|           |  ’Official‘ (The Chromium Authors)   | dev             |
+|           |  `Official` (The Chromium Authors)   | dev             |
 |||
 |||
 | _GitHub_  |                                    |                 |
