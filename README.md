@@ -36,7 +36,7 @@ Options can be set in script or by using command line arguments.
 |           |  Marmaduke                         | stable, dev     |
 |           |  Ungoogled-Marmaduke               | stable          |
 |           |  Ungoogled-Portable                | stable          |
-|           |  Official (The Chromium Authors)   | dev             |
+|           |  ’Official‘ (The Chromium Authors)   | dev             |
 |||
 |||
 | _GitHub_  |                                    |                 |
@@ -49,7 +49,7 @@ Options can be set in script or by using command line arguments.
 
 Make sure the combination of name and channel you pick is correct. You can also use `chrupd.cmd -list`. For more information about versions check [chromium.woolyss.com](https://chromium.woolyss.com/?cut=1&ago=1), it's [feed](https://chromium.woolyss.com/feed/windows-64-bit) and [chromium.org](https://www.chromium.org).
 
-- using `-author Ungoogled` still works (now done by Marmaduke)
+- using `-name Ungoogled` still works (now done by Marmaduke)
 - for the builds from chromium.org use `Official`
 - some authors release archive files instead of installers, more info: [docs/Archives.md](/docs/Archives.md)
 
