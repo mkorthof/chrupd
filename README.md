@@ -8,12 +8,6 @@
 
 ✔ Needs little to no configuration, but (advanced) options are available
 
----
-
-**🗓 Latest version: 20221105 ([CHANGES.md](CHANGES.md))**
-
----
-
 This script uses the RSS feed from <https://chromium.woolyss.com> or GitHub API to download and install the latest Chromium version, if a newer version is available.
 
 Download and run `chrupd.cmd` or read below for more details.
@@ -25,6 +19,12 @@ When you run the script it does the following:
 - chrupd auto updates itself
 
 Options can be set in script or by using command line arguments.
+
+---
+
+**🗓 Latest version: 20221105 ([CHANGES.md](CHANGES.md))**
+
+---
 
 ## ⚙Chromium versions
 
