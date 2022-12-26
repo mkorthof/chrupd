@@ -108,5 +108,5 @@ More info about advanced options can be found here: [docs/Options.md](/docs/Opti
 
 > NOTES:
 >
-> - Using modified code from <http://www.mobzystems.com/code/7-zip-powershell-module/>
+> - Uses modified code from <http://www.mobzystems.com/code/7-zip-powershell-module/>
 > - _This script has no connection to the preexisting [ChrUpdWin.cmd](https://gist.github.com/mikhaelkh/>12dec36d4a1c4136628b#file-chrupdwin-cmd) Batch file by [Michael Kharitonov](https://github.com/mikhaelkh)_
