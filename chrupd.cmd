@@ -64,10 +64,13 @@ if ($MyInvocation.InvocationName -eq '.' -or $MyInvocation.Line -eq '') {
 
 <# VAR: SCRIPTDIR #>
 [string]$scriptDir = $_Args[0]
-if ( $(try {
+if ($(try {
 		(Test-Path variable:local:scriptDir) -and (&Test-Path $scriptDir -EA 4 -WA 4) -and
 		(-not [string]::IsNullOrWhiteSpace($scriptDir))
-		} catch { $false }) ) {
+	} catch {
+		$false
+	})
+   ) {
 	$rm = ($_Args[0])
 	$_Args = ($_Args) | Where-Object { $_ -ne $rm }
 } else {
@@ -687,7 +690,7 @@ function Update-ChrScript () {
 					break
 				}
 				try {
-					Move-Item @cmdParams -Force -EA 0 -WA 0 -Path "${scriptDir}\${scriptCmd}.tmp" -Destination s"${scriptDir}\${scriptCmd}"
+					Move-Item @cmdParams -Force -EA 0 -WA 0 -Path "${scriptDir}\${scriptCmd}.tmp" -Destination "${scriptDir}\${scriptCmd}"
 				} catch {
 					Write-Host -o err, tee "Could not move `"${scriptCmd}.tmp`" to `"$contentCmd`""
 					break
