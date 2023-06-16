@@ -45,7 +45,7 @@ $cfg = @{
 };
 <# END OF CONFIGURATION ---------------------------------------------------- #>
 
-<# NOTE: Set-StrictMode -Version 3.0 #>
+<# Set-StrictMode -Version 3.0 #>
 
 <####################>
 <# SCRIPT VARIABLES #>
@@ -84,14 +84,15 @@ if ($(try {
 [string]$installLog = "$env:TEMP\chromium_installer.log"
 <# DISABLED: $shaFile = $scriptDir + "\chrupd.sha" #>
 if ($PSCommandPath) {
+	$scriptDir = Split-Path -parent $PSCommandPath
 	$scriptCmd = (Get-Item $PSCommandPath).Name
-}
-if ($MyInvocation.MyCommand.Name) {
+} elseif ($MyInvocation.MyCommand.Name) {
+	$scriptDir = Split-Path -parent $MyInvocation.MyCommand.Path##
 	$scriptCmd = $MyInvocation.MyCommand.Name
 }
 
 <# VAR: CHRUPD VERSION #>
-[string]$curScriptDate = (Select-String -Pattern " 20[2-3]\d{5} " "${scriptDir}\${scriptCmd}") -replace '.* (20[2-3]\d{5}) .*', '$1'
+[string]$curScriptDate = (Select-String -EA 0 -WA 0 -Pattern " 20[2-3]\d{5} " "${scriptDir}\${scriptCmd}") -replace '.* (20[2-3]\d{5}) .*', '$1'
 if (-not $curScriptDate) {
 	$curScriptDate = "19700101"
 }
