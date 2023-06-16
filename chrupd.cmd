@@ -7,7 +7,7 @@ ENDLOCAL & dir "%~f0.tmp" >nul 2>&1 && move /Y "%~f0" "%~f0.bak" >nul 2>&1 && mo
 <#
 .SYNOPSIS
    -------------------------------------------------------------------------
-    20221105 MK: Simple Chromium Updater (chrupd.cmd)
+    20230616 MK: Simple Chromium Updater (chrupd.cmd)
    -------------------------------------------------------------------------
 
 .DESCRIPTION
@@ -109,7 +109,7 @@ if (-not $curScriptDate) {
 [int]$tsMode = [int]$crTask = [int]$rmTask = [int]$shTask = [int]$xmlTask = [int]$manTask = [int]$noVbs = [int]$confirm = 0
 <# adv options #>
 [string]$proxy = [string]$linkArgs = [string]$vtApikey = ""
-[int]$appDir = 0
+[int]$appDir = [int]$sysLvl = 0
 [int]$cAutoUp = 1
 [int]$ignDotSrc = 0
 
@@ -302,7 +302,7 @@ if ($_Args -iMatch "[-/?]ad?v?he?l?p?") {
 	Write-Host "`r`n$_Header"
 	Write-Host ("-" * $_Header.Length)"`r`n"
 	Write-Host "USAGE: $scriptCmd -[tsMode|rmTask|noVbs|confirm]"
-	Write-Host "`t`t", " -[proxy|cAutoUp|appDir|linkArgs|ignVer] or [-cUpdate]", "`r`n"
+	Write-Host "`t`t", " -[proxy|cAutoUp|appDir|linkArgs|sysLvl|ignVer] or [-cUpdate]", "`r`n"
 	Write-Host "`t", "-tsMode    *see NOTES below* set option to <1|2|3> or `"auto`""
 	Write-Host "`t", "-rmTask    remove scheduled task"
 	Write-Host "`t", "-noVbs     do not use vbs wrapper to hide window when creating task"
@@ -311,6 +311,7 @@ if ($_Args -iMatch "[-/?]ad?v?he?l?p?") {
 	Write-Host "`t", "-cAutoUp   auto update this script, set option to <0|1> (default=1)"
 	Write-Host "`t", "-appDir    extract archives to %AppData%\Chromium\Application\`$name"
 	Write-Host "`t", "-linkArgs  option sets <arguments> for chrome.exe in Chromium shortcut"
+	Write-Host "`t", "-sysLvl    set system level, install for all users on machine", "`r`n"
 	Write-Host "`t", "-ignVer    ignore version mismatch between feed and filename", "`r`n"
 	Write-Host "`t", "-cUpdate   manually update this script to latest version", "`r`n"
 	Write-Host "NOTES: Option `"tsMode`" supports these task scheduler modes:"
@@ -327,7 +328,7 @@ if ($_Args -iMatch "[-/?]ad?v?he?l?p?") {
 
 foreach ($a in $_Args) {
 	<# handle only 'flags', no options with args #>
-	$flags = "[-/](force|fakeVer|list|rss|crTask|rmTask|shTask|xmlTask|manTask|noVbs|confirm|scheduler|ignHash|ignVer|cUpdate|appDir)"
+	$flags = "[-/](force|fakeVer|list|rss|crTask|rmTask|shTask|xmlTask|manTask|noVbs|confirm|scheduler|ignHash|ignVer|sysLvl|cUpdate|appDir)"
 	if ($match = $(Select-String -CaseSensitive -Pattern $flags -AllMatches -InputObject $a)) {
 		Invoke-Expression ('{0}="{1}"' -f ($match -replace "^-", "$"), 1);
 		$_Args = ($_Args) | Where-Object { $_ -ne $match }
@@ -1915,6 +1916,9 @@ if (( $(try { (Test-Path variable:local:fileHash) -and (-not [string]::IsNullOrW
 	<# handle "executable" (installer exe) and "archive" (7z) #>
 	if ($fileFmt -eq "EXECUTABLE") {
 		[string]$exeArgs = "--do-not-launch-chrome"
+		if ($sysLvl -eq 1) {
+			$exeArgs += " --system-level"
+		}
 		Write-Msg -o dbg, 1 "`$p = Start-Process -FilePath `"$saveAsPath`" -ArgumentList $exeArgs -Wait -NoNewWindow -PassThru"
 		$p = Start-Process -FilePath "$saveAsPath" -ArgumentList $exeArgs -Wait -NoNewWindow -PassThru
 		if ($p.ExitCode -eq 0) {
