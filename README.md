@@ -22,7 +22,7 @@ Options can be set in script or by using command line arguments.
 
 ---
 
-**🗓 Latest version: 20230616 ([CHANGES.md](CHANGES.md))**
+**🗓 Latest version: 20230623 ([CHANGES.md](CHANGES.md))**
 
 ---
 

@@ -2,6 +2,8 @@
 
 See [commits](https://github.com/mkorthof/chrupd/commits/master) or `git log`
 
+**2023-06-23** Detect chromium install when using `sysLvl` ([#25](https://github.com/mkorthof/chrupd/issues/25))
+
 **2023-06-16** Added `sysLvl` option for system wide installs ([#20](https://github.com/mkorthof/chrupd/issues/20))
 
 **2022-11-03** Cleaned up and refactored script
