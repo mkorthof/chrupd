@@ -7,7 +7,7 @@ ENDLOCAL & dir "%~f0.tmp" >nul 2>&1 && move /Y "%~f0" "%~f0.bak" >nul 2>&1 && mo
 <#
 .SYNOPSIS
    -------------------------------------------------------------------------
-    20230616 MK: Simple Chromium Updater (chrupd.cmd)
+    20230623 MK: Simple Chromium Updater (chrupd.cmd)
    -------------------------------------------------------------------------
 
 .DESCRIPTION
@@ -99,7 +99,6 @@ if (-not $curScriptDate) {
 
 <# VAR: CHROMIUM VERSION #>
 [string]$curVersion = (Get-ItemProperty -EA 0 -WA 0 HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Chromium).Version
-
 <# VAR: DEFAULT VALUES #>
 [int]$scheduler = 0
 [int]$list = 0
@@ -229,6 +228,7 @@ $osObj = @{
 		"Windows Vista"          = @( 6, 0, 1, 2);
 		"Windows XP 64bit"       = @( 5, 2, 1, 3);
 		"Windows XP"             = @( 5, 1, 1, 3);
+		"Windows Server 2022"    = @(10, 0, 3, 1);
 		"Windows Server 2019"    = @(10, 0, 3, 1);
 		"Windows Server 2016"    = @(10, 0, 3, 1);
 		"Windows Server 2012 R2" = @( 6, 3, 3, 1);
@@ -406,6 +406,11 @@ if ( $(try { (Test-Path variable:local:name) -and (-not [string]::IsNullOrWhiteS
 		$arch = $_.Value
 	}
 }
+
+if ($sysLvl -eq 1) {
+	$curVersion = (Get-ItemProperty -EA 0 -WA 0 HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Chromium).Version
+}
+
 
 <# OLD:	Function Write-Err ($msg) {	Write-Host -ForeGroundColor Red "ERROR: $msg" }
 		Function Write-Log ($msg) {	if ($cfg.log) { Add-Content $logFile -Value (((Get-Date).toString("yyyy-MM-dd HH:mm:ss")) + " $msg") } }
@@ -1679,7 +1684,14 @@ Write-Msg -o log "Start (pid:$pid name:$($(Get-PSHostProcessInfo | Where-Object 
 
 <# OUTPUT: VERIFY CURRENT CHROME VERSION #>
 if (!$curVersion) {
-	$curVersion = (Get-ChildItem ${env:LocalAppData}\Chromium\Application -EA 0 -WA 0 |
+	[string]$installPath = "${env:LocalAppData}\Chromium\Application"
+	if ($sysLvl -eq 1) {
+		$installPath = "${env:ProgramFiles}\Chromium\Application" # 64bit
+		if (!$installPath) {
+			$installPath = "${env:ProgramFiles(x86)}\Chromium\Application" # 32bit
+		}
+	}
+	$curVersion = (Get-ChildItem $installPath -EA 0 -WA 0 |
 		Where-Object { $_.Key -match "\d\d.\d.\d{4}\.\d{1,3}" } ).Key |
 	Sort-Object | Select-Object -Last 1
 }
