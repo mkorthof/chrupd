@@ -24,6 +24,7 @@ USAGE: chrupd.cmd -[tsMode|rmTask|noVbs|confirm]
          -cAutoUp   auto update this script, set option to <0|1> (default=1)
          -appDir    extract archives to %AppData%\Chromium\Application\$name
          -linkArgs  option sets <arguments> for chrome.exe in Chromium shortcut
+         -sysLvl    system-level install, for all users on machine
          -ignVer    ignore version mismatch between feed and filename
 
          -cUpdate   manually update this script to latest version
