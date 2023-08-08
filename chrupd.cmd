@@ -7,7 +7,7 @@ ENDLOCAL & dir "%~f0.tmp" >nul 2>&1 && move /Y "%~f0" "%~f0.bak" >nul 2>&1 && mo
 <#
 .SYNOPSIS
    -------------------------------------------------------------------------
-    20230623 MK: Simple Chromium Updater (chrupd.cmd)
+    20230806 MK: Simple Chromium Updater (chrupd.cmd)
    -------------------------------------------------------------------------
 
 .DESCRIPTION
@@ -117,6 +117,23 @@ if ($dotSourced) {
 	[int]$cAutoUp = 0
 }
 
+<# VAR: 7-ZIP CONFIG #>
+[hashtable]$7zConfig = @{
+	"Paths" = (
+		"7z.exe",
+		"7za.exe",
+		"$env:ProgramFiles\7-Zip\7z.exe",
+		"$env:ProgramData\chocolatey\tools\7z.exe",
+		"$env:ProgramData\chocolatey\bin\7z.exe"
+	);
+	"Urls" = @{
+		"7zip.org"         = @{ hash = "C136B1467D669A725478A6110EBAAAB3CB88A3D389DFA688E06173C066B76FCF"; url = "https://www.7-zip.org/a/7za920.zip" };
+		"github-chromium"  = @{ hash = "EA308C76A2F927B160A143D94072B0DCE232E04B751F0C6432A94E05164E716D"; url = "https://github.com/chromium/chromium/raw/master/third_party/lzma_sdk/Executable/7za.exe" };
+		"googlesource.com" = @{ hash = "5A1C1F4D007344EE61F6F02AAB49E6333A2E6CE39A27913EF598F418BBE8BF80"; url = "https://chromium.googlesource.com/chromium/src.git/+/0a6a88b4a4c747c3d95c41fb3f9fc5cc726d04ba/third_party/lzma_sdk/Executable/7za.exe?format=TEXT" };
+		"chocolatey.org"   = @{ hash = "31FD52F8996986623CF52C3B4D0F7AC74A9DEC63FC16C902CEF673EED550C435"; url = "https://chocolatey.org/7za.exe" };
+	}
+}
+
 <# VAR: ARCHIVE EXTRACT PATHS #>
 $arcInstPaths = @(
 	"$env:LocalAppData\Chromium\Application",
@@ -157,7 +174,7 @@ $items = @{
 		repo     = "https://github.com/macchrome/winchrome/releases/download/";
 		#filemask = "ungoogled-chromium-"
 		filemask = "ungoogled_mini_installer.exe"
-		alias    = @( "Ungoogled-Marmaduke", "Ungoogled")
+		alias    = @( "Ungoogled-Marmaduke", "Ungoogled" )
 	};
 	"Ungoogled-Portable" = @{
 		author   = "Portapps";
@@ -312,7 +329,7 @@ if ($_Args -iMatch "[-/?]ad?v?he?l?p?") {
 	Write-Host "`t", "-cAutoUp   auto update this script, set option to <0|1> (default=1)"
 	Write-Host "`t", "-appDir    extract archives to %AppData%\Chromium\Application\`$name"
 	Write-Host "`t", "-linkArgs  option sets <arguments> for chrome.exe in Chromium shortcut"
-	Write-Host "`t", "-sysLvl    set system level, install for all users on machine", "`r`n"
+	Write-Host "`t", "-sysLvl    system-level install, for all users on machine", "`r`n"
 	Write-Host "`t", "-ignVer    ignore version mismatch between feed and filename", "`r`n"
 	Write-Host "`t", "-cUpdate   manually update this script to latest version", "`r`n"
 	Write-Host "NOTES: Option `"tsMode`" supports these task scheduler modes:"
@@ -1092,64 +1109,68 @@ function Test-HashFormat ([pscustomobject]$dataObj) {
 
 function Get-SevenZip () {
 	<#	.SYNOPSIS
-			Find local or download 7z exe  #>
-	$7zBin = ""
-	$7zPaths = @(
-		"7z.exe", "7za.exe",
-		"$env:ProgramFiles\7-Zip\7z.exe",
-		"$env:ProgramData\chocolatey\tools\7z.exe"
-		"$env:ProgramData\chocolatey\bin\7z.exe"
-	)
-	$7zUrls = @{
-		"7zip.org"         = @{ hash = "2A3AFE19C180F8373FA02FF00254D5394FEC0349F5804E0AD2F6067854FF28AC"; url = "https://www.7-zip.org/a/7za920.zip" };
-		"github-chromium"  = @{ hash = "F5D52F0AC0CF81DF4D9E26FD22D77E2D2B0F29B1C28F36C6423EA6CCCB63C6B4"; url = "https://github.com/chromium/chromium/raw/master/third_party/lzma_sdk/Executable/7za.exe" };
-		"googlesource.com" = @{ hash = "F5D52F0AC0CF81DF4D9E26FD22D77E2D2B0F29B1C28F36C6423EA6CCCB63C6B4"; url = "https://chromium.googlesource.com/chromium/src/+/master/third_party/lzma_sdk/Executable/7za.exe?format=TEXT" };
-		"chocolatey.org"   = @{ hash = "8E679F87BA503F3DFAD96266CA79DE7BFE3092DC6A58C0FE0438F7D4B19F0BBD"; url = "https://chocolatey.org/7za.exe" };
-	}
+			Find local or download 7z exe
+	.PARAMETER 7zConfig
+			Paths and urls #>
+	[string]$7zBin
+	[bool]$7zCheck = $false
 	<# check if 7zip is already present #>
 	$cnt = 0;
-	foreach ($7zBin in $7zPaths) {
+	foreach ($7zBin in $7zConfig.Paths) {
 		if (($7zBin -ne "") -and (Test-Path $7zBin -pathType Leaf -EA 0 -WA 0)) {
 			$cnt++
 			break
 		}
 	}
+	$cnt = 0
 	<# if not, try to download 7za.exe #>
 	if ($cnt -lt 1) {
 		$i = 1
-		$7zUrls.GetEnumerator() | ForEach-Object {
-			Write-Msg -o tee "Could find `"7za.exe`", downloading from `"$($_.Value.url)`""
-			if ($_.Key -eq "googlesource.com") {
-				<# convert from b64 #>
-				$ProgressPreference = 'SilentlyContinue'
-				$7zaText = Invoke-WebRequest -Uri $_.Value.url
-					[IO.File]::WriteAllBytes("7za.exe", [System.Convert]::FromBase64String(($7zaText).Content))
-			} else {
-				[System.Net.ServicePointManager]::SecurityProtocol = @("Tls12", "Tls11", "Tls")
-				$wc = New-Object System.Net.WebClient
-				if ($proxy) {
-					$wc.Proxy = $webproxy
-				}
-				$wc.DownloadFile($_.Value.url, "7za.exe")
-			}
-			if ($_.Key -eq "7zip.org") {
-				Expand-Archive .\7za920.zip 7za.exe
-			}
-			if ( $(try { (&Test-Path "7za.exe") } catch { $false }) ) {
-				if ((((Get-FileHash "7za.exe").Hash) -eq $_.Value.hash)) {
-					$7zBin = "7za.exe"
-					Write-Msg "Download successful (`"7za.exe`" hash: OK)"
-					return $7zBin
+		$7zConfig.Urls.GetEnumerator() | ForEach-Object {
+			if ( $(try {-not (&Test-Path "7za.exe") } catch { $false }) -and ($7zCheck -eq $false) ) {
+				Write-Msg -o tee "[$i/$($7zConfig.Urls.count)] Could not find 7z, downloading from `"$($_.Value.url)`" ..."
+				if ($_.Key -eq "googlesource.com") {
+					<# convert from b64 #>
+					$ProgressPreference = 'SilentlyContinue'
+					$7zaText = Invoke-WebRequest -Uri $_.Value.url
+					if ($7zaText.Length -gt 1024) {
+						[IO.File]::WriteAllBytes("7za.exe", [System.Convert]::FromBase64String(($7zaText).Content))
+					}
+				} elseif ($_.Key -eq "7zip.org") {
+						Invoke-WebRequest -Uri $_.Value.url -OutFile "7za920.zip"
+						if ( $(try { (&Test-Path "7za920.zip") } catch { $false }) ) {
+							Expand-Archive -Force .\7za920.zip 7za920.tmp
+							Move-Item -Force -EA 0 -WA 0 -Path "7za920.tmp\7za.exe" -Destination "."
+						}
 				} else {
-					try { Remove-Item "7za.exe" } catch { $false }
-					if ($i -lt $7zUrls.count) {
-						Write-Msg "[$i/$($7zUrls.count)] Download failed, file hash did not match. Trying next URL..."
+					<#
+						[System.Net.ServicePointManager]::SecurityProtocol = @("Tls12", "Tls11", "Tls")
+						$wc = New-Object System.Net.WebClient
+						if ($proxy) {
+							$wc.Proxy = $webproxy
+						}
+						$wc.DownloadFile($_.Value.url, "7za.exe")
+					#>
+					Invoke-WebRequest -Uri $_.Value.url -OutFile "7za.exe"
+				}
+				if (((Get-FileHash -WA 0 -EA 0 "7za.exe").Hash) -eq $_.Value.hash) {
+					$7zBin = "7za.exe"
+					$7zCheck = $true
+					Write-Msg "Download successful (`"${7zBin}`" hash: OK)"
+				} else {
+					try {
+						Remove-Item -WA 0 -EA 0 "7za.exe" 
+					} catch {
+						$false
+					}
+					if ($i -lt ($7zConfig.Urls).count) {
+						Write-Msg "Download failed, file hash did not match. Trying next URL..."
 					} else {
-						Write-Msg "Unable to download `"7za.exe`"..."
+						Write-Msg "Unable to download `"7za.exe`""
 					}
 				}
-			}
 			$i++
+			}
 		}
 	}
 	return $7zBin
