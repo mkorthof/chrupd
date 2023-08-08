@@ -97,7 +97,7 @@ if (-not $curScriptDate) {
 	$curScriptDate = "19700101"
 }
 
-<# VAR: CHROMIUM VERSION #>
+<# VAR: CHROMIUM VERSION FROM REGKEY #>
 [string]$curVersion = (Get-ItemProperty -EA 0 -WA 0 HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Chromium).Version
 <# VAR: DEFAULT VALUES #>
 [int]$scheduler = 0
@@ -135,11 +135,18 @@ if ($dotSourced) {
 }
 
 <# VAR: ARCHIVE EXTRACT PATHS #>
-$arcInstPaths = @(
+[object]$archiveInstallPaths = @(
 	"$env:LocalAppData\Chromium\Application",
 	"$([Environment]::GetFolderPath('Desktop'))",
 	"$env:USERPROFILE\Desktop",
 	"$env:TEMP"
+)
+
+<# VAR: SYSTEM LEVEL INSTALL PATHS #>
+<# 64bit, 32bit #>
+[object]$sysLvlInstallPaths = @(
+	"${env:ProgramFiles}\Chromium\Application",
+	"${env:ProgramFiles(x86)}\Chromium\Application"
 )
 
 <# VAR: RELEASES #>
@@ -234,25 +241,25 @@ $items = @{
 }
 
 <# VAR: OS #>
-<# Windows @(majorVer, minorVer, osType[1=ws,3=server], tsMode) #>
+<# Windows @(majorVer, minorVer, build, osType[1=ws,3=server], tsMode) #>
 $osObj = @{
 	winVer = [ordered]@{
-		"Windows 11"             = @(11, 0, 1, 1);
-		"Windows 10"             = @(10, 0, 1, 1);
-		"Windows 8.1"            = @( 6, 3, 1, 1);
-		"Windows 8"              = @( 6, 2, 1, 1);
-		"Windows 7"              = @( 6, 1, 1, 2);
-		"Windows Vista"          = @( 6, 0, 1, 2);
-		"Windows XP 64bit"       = @( 5, 2, 1, 3);
-		"Windows XP"             = @( 5, 1, 1, 3);
-		"Windows Server 2022"    = @(10, 0, 3, 1);
-		"Windows Server 2019"    = @(10, 0, 3, 1);
-		"Windows Server 2016"    = @(10, 0, 3, 1);
-		"Windows Server 2012 R2" = @( 6, 3, 3, 1);
-		"Windows Server 2012"    = @( 6, 2, 3, 1);
-		"Windows Server 2008 R2" = @( 6, 1, 3, 2);
-		"Windows Server 2008"    = @( 6, 0, 3, 2);
-		"Windows Server 2003"    = @( 5, 2, 3, 3);
+		"Windows 11"             = @(10, 0, 22000, 1, 1);
+		"Windows 10"             = @(10, 0, 00000, 1, 1);
+		"Windows 8.1"            = @( 6, 3, 00000, 1, 1);
+		"Windows 8"              = @( 6, 2, 00000, 1, 1);
+		"Windows 7"              = @( 6, 1, 00000, 1, 2);
+		"Windows Vista"          = @( 6, 0, 00000, 1, 2);
+		"Windows XP 64bit"       = @( 5, 2, 00000, 1, 3);
+		"Windows XP"             = @( 5, 1, 00000, 1, 3);
+		"Windows Server 2022"    = @(10, 0, 20285, 3, 1);
+		"Windows Server 2019"    = @(10, 0, 17134, 3, 1);
+		"Windows Server 2016"    = @(10, 0, 00000, 3, 1);
+		"Windows Server 2012 R2" = @( 6, 3, 00000, 3, 1);
+		"Windows Server 2012"    = @( 6, 2, 00000, 3, 1);
+		"Windows Server 2008 R2" = @( 6, 1, 00000, 3, 2);
+		"Windows Server 2008"    = @( 6, 0, 00000, 3, 2);
+		"Windows Server 2003"    = @( 5, 2, 00000, 3, 3);
 	}
 	osTypeName = @{
 		1 = "Workstation";
@@ -424,8 +431,18 @@ if ( $(try { (Test-Path variable:local:name) -and (-not [string]::IsNullOrWhiteS
 	}
 }
 
+<# for system-level installs use diff version regkey #>
 if ($sysLvl -eq 1) {
-	$curVersion = (Get-ItemProperty -EA 0 -WA 0 HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Chromium).Version
+	@{
+		"HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Chromium" = "Version"
+		"HKLM:\SOFTWARE\Chromium" = "pv"
+		"HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Chromium" = "Version"
+		"HKLM:\SOFTWARE\WOW6432Node\Chromium" = "pv"
+	}.GetEnumerator() | ForEach-Object {
+		if (-not $curVersion) {
+			$curVersion = (Get-ItemProperty -EA 0 -WA 0 $_.Name).$($_.Value)
+		}
+	}
 }
 
 
@@ -438,7 +455,7 @@ function Write-Msg {
 		.SYNOPSIS
 			Helper function to format and output (debug) messages
 		.NOTES
-			Place on top of script, *before* first msg call
+			Place on top of main script, *before* first msg call
 		.PARAMETER options
 				dbg                "DEBUG: some msg"
 				dbg, 1              if ($debug -ge 4) { "DEBUG:level 1" }
@@ -514,25 +531,34 @@ function Get-WinVer {
 		.SYNOPSIS
 			Get Windows Version and supported Task Scheduler Mode
 		.NOTES
-			Place in script *before* using 'tsMode' variable
+			Place in main script *before* using 'tsMode' variable
 	#>
 	param(
 		[hashtable]$osInfo,
 		[int]$tsModeNum
 	)
 
-	<# Write-Msg -o dbg, 3 "`$osTypeNameHash[1]=$($osTypeNameHash[1])" #>
 	[bool]$osFound = $false
-	[version]$osVersion = ("{0}.{1}" -f ([System.Environment]::OSVersion).Version.Major, ([System.Environment]::OSVersion).Version.Minor)
+	[version]$osVersion = [System.Environment]::OSVersion.Version
 	[int]$osProdType = (Get-CIMInstance Win32_OperatingSystem).ProductType
 	[string]$osFullName = "Unknown Windows Version"
-	<# DEBUG: TEST WINVER	if ($debug -ge 3) {	$osVersion = "6.1"; $osType = 3 } #>
+
+	<# DEBUG: TEST WINVER
+	if ($debug -ge 3) {
+			[version]$osVersion = "6.1"; $osProdType = 3
+			[version]$osVersion = '10.0.22621.0'
+			[version]$osVersion = '10.0.19042'; $osProdType = 3
+	#>
+
 	$osInfo.winVer.GetEnumerator() | ForEach-Object {
-		if (($osVersion.CompareTo(([version]("{0}.{1}" -f $_.Value[0..1]))) -eq 0) -and ($osProdType -eq $_.Value[2])) {
-			$osFound = $true
-			$osFullName = ("`"{0}`" ({1}, {2})" -f $_.Key, $osVersion, $osInfo.osTypeName[$osProdType])
-			$osTsModeNum = $_.Value[3]
-			return $osFound, $osFullName, $osTsModeNum
+		if (-not $osFound) {
+			$compareVersion = ([version]("{0}.{1}" -f $osVersion.Major, $osVersion.Minor).ToString()).CompareTo(([version]("{0}.{1}" -f $_.Value[0..1])))
+			if ($compareVersion -eq 0 -and ($osVersion.Build -ge $_.Value[2]) -and ($osProdType -eq $_.Value[3])) {
+				$osFound = $true
+				$osFullName = ("`"{0}`" ({1}.{2}.{3}, {4})" -f $_.Key, $osVersion.Major, $osVersion.Minor, $osVersion.Build, $osInfo.osTypeName[$osProdType])
+				$osTsModeNum = $_.Value[4]
+				return $osFound, $osFullName, $osTsModeNum
+			}
 		}
 	} | Out-Null
 	if ($tsModeNum -notmatch '^[1-3]$') {
@@ -1703,18 +1729,24 @@ if ($cfg.log) {
 <# OUTPUT: START MSG #>
 Write-Msg -o log "Start (pid:$pid name:$($(Get-PSHostProcessInfo | Where-Object ProcessId -eq $pid).ProcessName) scheduler:$scheduler v:$curScriptDate )"
 
-<# OUTPUT: VERIFY CURRENT CHROME VERSION #>
+<# OUTPUT: CURRENT CHROME VERSION #>
+<# if needed use install path to get version #>
+$curVersion=""
 if (!$curVersion) {
-	[string]$installPath = "${env:LocalAppData}\Chromium\Application"
+	[string]$installPath
 	if ($sysLvl -eq 1) {
-		$installPath = "${env:ProgramFiles}\Chromium\Application" # 64bit
-		if (!$installPath) {
-			$installPath = "${env:ProgramFiles(x86)}\Chromium\Application" # 32bit
+		$sysLvlInstallPaths | ForEach-Object {
+			if ((-not $installPath) -and (&Test-Path $_)) {
+				$installPath = $_
+			}
 		}
+	} else {
+		<# default: user-level #>
+		$installPath = "${env:LocalAppData}\Chromium\Application"
 	}
 	$curVersion = (Get-ChildItem $installPath -EA 0 -WA 0 |
-		Where-Object { $_.Key -match "\d\d.\d.\d{4}\.\d{1,3}" } ).Key |
-	Sort-Object | Select-Object -Last 1
+		Where-Object { $_.Name -match "\d\d.\d.\d{4}\.\d{1,3}" } ).Name |
+		Sort-Object | Select-Object -Last 1
 }
 if ($force -eq 1) {
 	Write-Msg -o tee "Forcing update, ignoring currently installed Chromium version `"$curVersion`""
@@ -1725,7 +1757,6 @@ if ($force -eq 1) {
 	$curVersion = "6.6.6.0-fake"
 } else {
 	if ( $(try { (Test-Path variable:local:curVersion) -and (-not [string]::IsNullOrWhiteSpace($curVersion)) } catch { $false }) ) {
-		Write-Msg
 		Write-Msg -o tee "Currently installed Chromium version: `"$curVersion`""
 		Write-Msg
 	} else {
@@ -1924,7 +1955,7 @@ if (( $(try { (Test-Path variable:local:fileHash) -and (-not [string]::IsNullOrW
 		[string]$fileFmt = "ARCHIVE"
 		[string]$extractPath = ""
 		$i = 0
-		foreach ($extractPath in $arcInstPaths) {
+		foreach ($extractPath in $archiveInstallPaths) {
 			if (($extractPath -ne "") -and (Test-Path -pathType Container -EA 0 -WA 0 $extractPath)) {
 				$i++
 				break
@@ -1952,6 +1983,9 @@ if (( $(try { (Test-Path variable:local:fileHash) -and (-not [string]::IsNullOrW
 		[string]$exeArgs = "--do-not-launch-chrome"
 		if ($sysLvl -eq 1) {
 			$exeArgs += " --system-level"
+			if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
+				Write-Msg -o Yellow "Start this script as Administrator to run installer"
+			}
 		}
 		Write-Msg -o dbg, 1 "`$p = Start-Process -FilePath `"$saveAsPath`" -ArgumentList $exeArgs -Wait -NoNewWindow -PassThru"
 		$p = Start-Process -FilePath "$saveAsPath" -ArgumentList $exeArgs -Wait -NoNewWindow -PassThru

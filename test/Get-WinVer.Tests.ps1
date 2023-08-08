@@ -6,9 +6,9 @@ BeforeAll {
     #>
     . $PSScriptRoot\..\chrupd.ps1 -cAutoUp 0
     if ($env:CI) {
-        $testVer = $(@{osFullName="`"Windows Server 2016`" (10.0, Server)"; tsModeName="Normal"; tsMode=1;} | ConvertTo-Json)
+        $testVer = $(@{osFullName="`"Windows Server 2016`" (10.0.0, Server)"; tsModeName="Normal"; tsMode=1;} | ConvertTo-Json)
     } else {
-        $testVer = $(@{osFullName="`"Windows 10`" (10.0, Workstation)"; tsModeName="Normal"; tsMode=1;} | ConvertTo-Json)
+        $testVer = $(@{osFullName="`"Windows 10`" (10.0.19045, Workstation)"; tsModeName="Normal"; tsMode=1;} | ConvertTo-Json)
     }
 }
 
