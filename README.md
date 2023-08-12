@@ -51,7 +51,7 @@ Make sure the combination of name and channel you pick is correct. You can also 
 
 - using `-name Ungoogled` still works (now done by Marmaduke)
 - for the builds from chromium.org use `Official`
-- some authors release archive files instead of installers, more info: [docs/Archives.md](/docs/Archives.md)
+- some authors release archive files instead of installers, more info: [docs/Files.md](/docs/Files.md#archives)
 
 ## ⏰Scheduled Task
 
@@ -65,11 +65,11 @@ The script auto updates itself (since v20210109).
 
 To manually update to a newer script version just replace "chrupd.cmd". Copy "name" and "channel" if set. If you have Scheduled Task setup you do not need to change the task.
 
-## 📁File Formats
+## 📁Files
 
-For easy execution this PowerShell script is embedded in a Batch .CMD file, which can be renamed to .PS1.
+For easy execution this PowerShell script is embedded in a Batch .CMD file 'chrupd.cmd' which is all you need to run.
 
-See [docs/Formats.md](/docs/Formats.md) for details.
+See [docs/Files.md](/docs/Files.md) for details about other files.
 
 ## 💻Command Line Options
 
@@ -77,30 +77,29 @@ See [docs/Formats.md](/docs/Formats.md) for details.
 
 ```text
 
-Simple Chromium Updater (chrupd.cmd)
-------------------------------------
+Simple Chromium Updater (chrupd.cmd:20230811)
+---------------------------------------------
 
-Uses RSS feed from "chromium.woolyss.com" or GitHub API
-to install latest available Chromium version
+Installs latest available Chromium version
+Checks RSS feed from "chromium.woolyss.com" and GitHub API
 
-USAGE: chrupd.cmd -[name|arch|channel|force]
-                  -[crTask|rmTask|shTask] or [-list]
+USAGE: chrupd.cmd -[name|arch|channel|force] or -[list|crTask|shTask]
 
-         -name    option must be set to a release name:   (fka "editor")
+         -name    option must be set to a release name:   (default=Hibbiki)
                   <Official|Hibbiki|Marmaduke|Ungoogled|justclueless|Eloston>
-         -channel can be set to [stable|dev] default: stable
-         -arch    can be set to [64bit|32bit] default: 64bit
-         -force   always (re)install, even if latest ver is installed
+         -channel can be set to [stable|dev] (default=stable)
+         -arch    can be set to [64bit|32bit] (default=64bit)
 
-         -list    show available releases
-
-         -crTask  create a daily scheduled task
-         -shTask  show scheduled task details
+         -list    show available releases and exit
+         -crTask  create a daily scheduled task and exit
+         -shTask  show scheduled task details and exit
+         -force   always (re)install, even if latest version is installed
 
 EXAMPLE: ".\chrupd.cmd -name Marmaduke -arch 64bit -channel stable [-crTask]"
 
 NOTES:   Options "name" and "channel" need an argument (CasE Sensive)
-         See ".\chrupd.cmd -advhelp" for 'advanced' options
+         Try 'chrupd.cmd -advhelp' for "advanced" options
+y 'chrupd.cmd -advhelp' for "advanced" options
 
 ```
 
