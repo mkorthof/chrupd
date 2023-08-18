@@ -12,21 +12,14 @@ ENDLOCAL & dir "%~f0.tmp" >nul 2>&1 && move /Y "%~f0" "%~f0.bak" >nul 2>&1 && mo
 
 .DESCRIPTION
 	Installs latest available Chromium version
-    Checks RSS feed from "chromium.woolyss.com" and GitHub API
-
-    Options can be set below or using command line arguments. Defaults are:
-      - Get the "64bit" "stable" Installer by "Hibbiki"
-      - Verify sha/md5 hash and run installer
+	Checks RSS feed from "chromium.woolyss.com" and GitHub API
+	
+	Downloads, verifies sha/md5 hash and runs installer:
+	default name: "Hibbiki", channel "stable", arch "64bit"
+	set options using cli args or under CONFIGURATION in script
 
 .EXAMPLE
     PS> .\chrupd.ps1 -name Marmaduke -arch 64bit -channel stable [-crTask]
-
-.NOTES
-    - For easy execution this PowerShell script is embedded in a Batch .CMD
-      file using a "polyglot wrapper". Renaming to .ps1 also works.
-    - If you add a scheduled task with -crTask, a VBS wrapper is written to
-      chrupd.vbs which is used to hide it's window. Use -noVbs to disable.
-    - To update chrupd to a newer version just replace this cmd file.
 #>
 
 <# ------------------------------------------------------------------------- #>
@@ -37,10 +30,8 @@ ENDLOCAL & dir "%~f0.tmp" >nul 2>&1 && move /Y "%~f0" "%~f0.bak" >nul 2>&1 && mo
 <# ------------------------------------------------------------------------- #>
 $cfg = @{
     name     = "Hibbiki";       <# Name of Chromium release (fka "editor")   #>
-    arch     = "64bit";         <# Architecture: 32bit or 64bit (default)    #>
     channel  = "stable";        <# dev, stable                               #>
-    proxy    = "";              <# set <uri> to use a http proxy             #>
-    linkArgs = "";              <# see '.\chrupd.cmd -advhelp'               #>
+    arch     = "64bit";         <# Architecture: 32bit or 64bit (default)    #>
     log      = $true            <# enable or disable logging <$true|$false>  #>
     cAutoUp  = $true            <# auto update this script <$true|$false>    #>
 };
@@ -244,7 +235,6 @@ the script needs to be updated or there could be an issue with
 the RSS feed from `"chromium.woolyss.com`" or the GitHub REST API.`r`n
 "@
 
-<# VAR: SET SCRIPT DIR, CMD AND LOG #>
 <# check if we're dot sourced #>
 [boolean]$dotSourced = $false
 if ($MyInvocation.InvocationName -eq '.' -or $MyInvocation.Line -eq '') {
@@ -254,7 +244,7 @@ if ($MyInvocation.InvocationName -eq '.' -or $MyInvocation.Line -eq '') {
 [object]$_Args = $Args
 [string]$scriptDir = $_Args[0]
 
-<# XXX: Order matters for 'script functions' keep them on top, before the rest of script #>
+<# XXX: Order matters for 'script functions'; keep them on top, before the rest of script #>
 
 <# SCRIPT FUNC: TEST VAR #>
 function script:Test-Variable($v) {
@@ -270,6 +260,7 @@ function script:Test-Variable($v) {
 	return $false
 }
 
+<# VAR: SET SCRIPT DIR, CMD AND LOG #>
 <# XXX: EA|WA = ErrorAction|WarningAction: 0=SilentlyContinue 1=Stop 2=Continue 3=Inquire 4=Ignore 5=Suspend  #>
 if ( (Test-Variable "scriptDir") -and (&Test-Path -EA 4 -WA 4 $scriptDir)) {
 	$rm = $_Args[0]
@@ -277,7 +268,6 @@ if ( (Test-Variable "scriptDir") -and (&Test-Path -EA 4 -WA 4 $scriptDir)) {
 } else {
 	$scriptDir = ($ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath('.\'))
 }
-
 [string]$logFile = $scriptDir + "\chrupd.log"
 [string]$scriptName = "Simple Chromium Updater"
 [string]$scriptCmd = "chrupd.cmd"
@@ -345,11 +335,11 @@ if ($_Args -iMatch "[-/?]h") {
 	Write-Host "`t", "-name    option must be set to a release name:   (default=Hibbiki)"
 	Write-Host "`t`t", " <Official|Hibbiki|Marmaduke|Ungoogled|justclueless|Eloston>"
 	Write-Host "`t", "-channel can be set to [stable|dev] (default=stable)"
-	Write-Host "`t", "-arch    can be set to [64bit|32bit] (default=64bit)"
-	Write-Host "`t", "-force   always (re)install, even if latest version is installed", "`r`n"
+	Write-Host "`t", "-arch    can be set to [64bit|32bit] (default=64bit)", "`r`n"
 	Write-Host "`t", "-list    show available releases and exit"
 	Write-Host "`t", "-crTask  create a daily scheduled task and exit"
-	Write-Host "`t", "-shTask  show scheduled task details and exit", "`r`n"
+	Write-Host "`t", "-shTask  show scheduled task details and exit"
+	Write-Host "`t", "-force   always (re)install, even if latest version is installed", "`r`n"
 	Write-Host "EXAMPLE: `".\$scriptCmd -name Marmaduke -arch 64bit -channel stable [-crTask]`"", "`r`n"
 	Write-Host "NOTES:   Options `"name`" and `"channel`" need an argument (CasE Sensive)"
 	Write-Host "`t", "Try '$scriptCmd -advhelp' for `"advanced`" options", "`r`n"
@@ -373,7 +363,7 @@ if ($_Args -iMatch "[-/?]ad?v?he?l?p?") {
 	Write-Host "`t", "-cUpdate   manually update this script to latest version and exit", "`r`n"
 	Write-Host "`t", "-appDir    extract archives to %AppData%\Chromium\Application\`$name"
 	Write-Host "`t", "-linkArgs  option sets chrome.exe <arguments> in Chromium shortcut"
-	Write-Host "`t", "-sysLvl    system-level install, install for all users on machine"
+	Write-Host "`t", "-sysLvl    system-level, install for all users on machine"
 	Write-Host "`t", "-ignVer    ignore version mismatch between rss feed and filename", "`r`n"
 	exit 0
 }
@@ -434,11 +424,6 @@ if (!$cAutoUp -and ($cfg.cAutoUp -eq $true) -and (!$dotSourced)) {
 if ($cfg.linkArgs) {
 	$srcExeArgs = $cfg.linkArgs
 }
-if ($proxy) {
-	$PSDefaultParameterValues.Add("Invoke-WebRequest:Proxy", "$proxy")
-	$webproxy = New-Object System.Net.WebProxy
-	$webproxy.Address = $proxy
-}
 if ($linkArgs) {
 	$srcExeArgs = $linkArgs
 }
@@ -451,7 +436,11 @@ if (!$vtApiKey -and $cfg.vtApiKey) {
 if ($cfg.sysLvl) {
 	$sysLvl =  $cfg.sysLvl
 }
-
+if ($proxy) {
+	$PSDefaultParameterValues.Add("Invoke-WebRequest:Proxy", "$proxy")
+	$webproxy = New-Object System.Net.WebProxy
+	$webproxy.Address = $proxy
+}
 <# check for alias match, overrides var #>
 if (Test-Variable "name") {
 	$items.GetEnumerator() | ForEach-Object {
@@ -902,8 +891,7 @@ if ($crTask -eq 1) {
 		}
 	}
 	switch ($tsMode) {
-		<# CRTASK: 1 NORMAL MODE #>
-		1 {
+		1 { <# crtask: 1 normal mode #>
 			$action = New-ScheduledTaskAction -Execute $taskCmd -Argument "$taskArgs" -WorkingDirectory "$scriptDir"
 			$trigger = New-ScheduledTaskTrigger -RandomDelay (New-TimeSpan -Hour 1) -Daily -At 17:00
 			if (-not (&Get-ScheduledTask -EA 0 -TaskName "$scriptName")) {
@@ -923,8 +911,7 @@ if ($crTask -eq 1) {
 				Write-Msg ("{0}`r`n`r`n  {1}`r`n  {2}`r`n" -f $taskMsg.failed, $taskMsg.manual, $taskMsg.export)
 			}
 		}
-		<# CRTASK: 2 LEGACY MODE #>
-		2 {
+		2 { <# crtask: 2 legacy mode #>
 			$taskService = New-Object -ComObject("Schedule.Service")
 			$taskService.Connect()
 			$taskFolder = $taskService.GetFolder("\")
@@ -967,8 +954,7 @@ if ($crTask -eq 1) {
 				Write-Msg ("Task: `"{0}{1}`"`r`nDescription: `"{2}`", State: {3}.`r`n" -f $($task.Path), "", $($task.Definition.RegistrationInfo.Description), $($task.State))
 			}
 		}
-		<# CRTASK: 3 CMD MODE #>
-		3 {
+		3 { <# crtask: 3 cmd mode #>
 			Write-Msg "$($taskMsg.create)`r`n"
 			Write-Msg "Creating Task XML File..."
 			Set-Content "$env:TEMP\chrupd.xml" -Value $xmlContent
@@ -995,11 +981,10 @@ if ($crTask -eq 1) {
 		}
 	}
 	exit 0
-	<# RMTASK: REMOVE SCHEDULED TASK #>
+<# RMTASK: REMOVE SCHEDULED TASK #>
 } elseif ($rmTask -eq 1) {
 	switch ($tsMode) {
-		<# RMTASK: 1 NORMAL MODE #>
-		1 {
+		1 { <# rmtask: 1 normal mode #>
 			if ($confirm -eq 1) { $confirmParam = $false }
 			if (&Get-ScheduledTask -EA 0 -TaskName "$scriptName") {
 				Write-Msg "$($taskMsg.remove)`r`n"
@@ -1018,8 +1003,7 @@ if ($crTask -eq 1) {
 				}
 			}
 		}
-		<# RMTASK: 2 LEGACY MODE #>
-		2 {
+		2 { <# rmtask: 2 legacy mode #>
 			$taskService = New-Object -ComObject("Schedule.Service")
 			$taskService.Connect()
 			$taskFolder = $taskService.GetFolder("\")
@@ -1039,8 +1023,7 @@ if ($crTask -eq 1) {
 				Write-Msg ("{0}`r`n`r`n{1}`r`n" -f $taskMsg.rmfailed, $taskMsg.manual)
 			}
 		}
-		<# RMTASK: 3 COMMAND MODE #>
-		3 {
+		3 { <# rmtask: 3 command mode #>
 			Write-Msg "$taskMsg.remove`r`n"
 			$a = "/Delete /TN \\`"$scriptName`""
 			$p = Start-Process -FilePath "$env:SystemRoot\system32\schtasks.exe" -ArgumentList $a -Wait -NoNewWindow -PassThru
@@ -1054,11 +1037,10 @@ if ($crTask -eq 1) {
 		}
 	}
 	exit 0
-	<# SHTASK: SHOW SCHEDULED TASK #>
+<# SHTASK: SHOW SCHEDULED TASK #>
 } elseif ($shTask -eq 1) {
 	switch ($tsMode) {
-		<# SHTASK: 1 NORMAL MODE #>
-		1 {
+		1 { <# shtask: 1 normal mode #>
 			if (&Get-ScheduledTask -EA 0 -TaskName "$scriptName" -OutVariable task) {
 				if (Test-Variable "task") {
 					$taskinfo = (&Get-ScheduledTaskInfo -TaskName "$scriptName")
@@ -1070,8 +1052,7 @@ if ($crTask -eq 1) {
 				Write-Msg "$($taskMsg.notfound)`r`n"
 			}
 		}
-		<# SHTASK: 2 LEGACY MODE #>
-		2 {
+		2 { <# shtask: 2 legacy mode #>
 			$taskService = New-Object -ComObject("Schedule.Service")
 			$taskService.Connect()
 			$taskFolder = $taskService.GetFolder("\")
@@ -1083,8 +1064,7 @@ if ($crTask -eq 1) {
 			} else {
 				Write-Msg "$($taskMsg.notfound)`r`n"
 			}
-		}
-		<# SHTASK: 3 CMD MODE #>
+		} <# shtask: 3 cmd mode #>
 		3 {
 			$a = "/Query /TN \\`"${scriptName}`" /XML"
 			<# $p = Start-Process -FilePath "$env:SystemRoot\system32\schtasks.exe" -ArgumentList $a -Wait -NoNewWindow -PassThru #>
@@ -1116,7 +1096,7 @@ if ($crTask -eq 1) {
 		}
 	}
 	exit 0
-	<# TASK: CREATE MANUALLY #>
+<# TASK: CREATE MANUALLY #>
 } elseif ($manTask -eq 1) {
 	Write-Msg "Check settings and retry, use a different tsMode (see help)"
 	Write-Msg "Or try manually by going to: `"Start > Task Scheduler`" or `"Run taskschd.msc`".`r`n"
@@ -1124,7 +1104,7 @@ if ($crTask -eq 1) {
 	Write-Msg ("  Name: `"{0}`"`r`n    Description `"{1}`"`r`n    Trigger: Daily 17:00 (1H random delay)`r`n    Action: `"{2}`"`r`n    Arguments: `"{3}`"`r`n    WorkDir: `"{4}`"`r`n" `
 			-f $scriptName, $taskMsg.descr, $taskCmd, $taskArgs, $scriptDir)
 	exit 0
-	<# TASK: EXPORT XML #>
+<# TASK: EXPORT XML #>
 } elseif ($xmlTask -eq 1) {
 	Set-Content "$env:TEMP\chrupd.xml" -Value $xmlContent
 	if ( $(try { (&Test-Path "$env:TEMP\chrupd.xml") } catch { $false }) ) {
@@ -1405,7 +1385,12 @@ function Set-CdataHtml ([int]$idx, [string]$cdata, [hashtable]$cfg, [hashtable]$
 			Index of XML RSS Item
 	#>
 	Write-Msg -o dbg, 1 "Set-CdataHtml `$i=$i"
-	$html = New-Object -ComObject "htmlfile"
+	try {
+		$html = New-Object -ComObject "htmlfile"
+	} catch {
+		Write-Msg -o err, tee "HTML filetype not supported, exiting..."
+		exit 1
+	}
 	<# XXX: https://stackoverflow.com/a/48859819 #>
 	try {
 		<# This works in PowerShell with Office installed #>
@@ -1488,7 +1473,7 @@ function Set-CdataRegex ([int]$idx, [string]$cdata, [hashtable]$cfg, [hashtable]
 	$cdataObj.date = $cdata -replace ".*(?i)$($channel).*?Date: <abbr title=`"Date format: YYYY-MM-DD`">([\d-]{10})</abbr>.*", '$1'
 	$urlReHtml = ".*?(?i)$($channel).*?Download from.*?repository:.*?<li>"
 	$urlReLink = "<a href=`"($($items[$name].repo)(?:v$($cdataObj.version)-r)?$($cdataObj.revision)(?i:-win$($arch.replace('-bit','')))?/"
-	<#$ urlReFile = "$($($items[$name].filemask).replace('.*',''))($($cdataObj.version).*\.7z)?)" #>
+	<# $urlReFile = "$($($items[$name].filemask).replace('.*',''))($($cdataObj.version).*\.7z)?)" #>
 	$urlReFile = "$($items[$name].filemask)($($cdataObj.version).*\.7z)?)"
 	$cdataObj.url = $cdata -replace "${urlReHtml}${urlReLink}${urlReFile}`">.*", '$1'
 	$_hash = ($cdata -replace ".*?(?i)$($channel).*?<a href=`"$($cdataObj.url)`">$($items[$name].filemask)</a><br />(?:(sha1|md5|sha256): ([0-9a-f]{32}|[0-9a-f]{40}|[0-9a-f]{64})) .*", '$1 $2')
@@ -1626,7 +1611,7 @@ function Read-RssFeed ([string]$rssFeed, [string]$cdataMethod) {
 function Read-GhJson ([string]$jsonUrl) {
 	<#
 		.SYNOPSIS
-			Extract JSON values from GitHub repos api
+			Extract JSON values from GitHub Repos API
 	#>
 	<# ps object for json data #>
 	$jdataObj = New-Object -Type PSObject -Property @{
@@ -1648,8 +1633,8 @@ function Read-GhJson ([string]$jsonUrl) {
 	if ($debug -eq 0) {
 		$jdata = (ConvertFrom-Json(Invoke-WebRequest -UseBasicParsing -TimeoutSec 300 -Uri $jsonUrl))[0]
 	} else {
-		<# XXX: To test/debug: skip request to prevent hitting api rate limit, instead download 1x" #>
 		<#		"$repo/(justclueless|ungoogled-eloston)/releases.json"  #>
+		<# XXX: To test/debug: skip request to prevent hitting api rate limit, instead download 1x" #>
 		$jdata = (Get-Content test\releases.json | ConvertFrom-Json)[0]
 	}
 	<# EXAMPLE:
