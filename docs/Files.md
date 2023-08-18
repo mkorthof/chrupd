@@ -41,7 +41,7 @@ TODO
 
 ## Logs: chrupd.log
 
-Logs got to 'chrupd.log', as defined by `$logFile` variable. Default path is same dir as script.
+Logs go to 'chrupd.log', as defined by `$logFile` variable. Default path is same dir as script.
 
 If the file is not writable the script will let you know and output to console only.
 
