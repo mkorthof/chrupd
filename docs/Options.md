@@ -6,7 +6,7 @@ All options can also be set as permanent defaults using variables inside script 
 
 ## Advanced Options
 
-Additionally there's some extra options you'll normally won't need but are available for special cases where you *do* need them. Other options were add for particular user requests.
+Additionally there's some extra options you'll normally won't need but are available for special cases where you *do* need them. Other options were added for particular user requests.
 
 ### Proxy
 
@@ -20,7 +20,7 @@ Set option `tsMode` to change task scheduler modes. If unset, OS and mode will b
 - 2: Legacy (Windows 7)
 - 3: Command (schtasks.exe)
 
-Try `-tsMode 2` (or 3) when  you're having isses creating a task.
+Try `-tsMode 2` (or 3) when  you're having issues creating a task.
 
 ### Archive Installs
 
