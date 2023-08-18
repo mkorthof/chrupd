@@ -1,37 +1,63 @@
-# Advanced Options
+# Options
 
-Besides the normal options (`chrupd.cmd -h`), there's some extra options you'll normally won't need but are available in case you *do* need them.
+For standard options see help (`chrupd.cmd -h`) and [README.md](/README.md).
 
-For example if you use proxy or are having issues with scheduled tasks.
+All options can also be set as permanent defaults using variables inside script under `CONFIGURATION` and `SCRIPT VARIABLES`.
 
-There also options `appDir` and `linkArgs` which are related to [archive installs](/docs/Archives.md).
+## Advanced Options
 
-`chrupd.cmd -ah`
+Additionally there's some extra options you'll normally won't need but are available for special cases where you *do* need them. Other options were add for particular user requests.
+
+### Proxy
+
+If you need to use a web proxy use: `-proxy http://myproxy.example.org:3128`
+
+### Task scheduler
+
+Set option `tsMode` to change task scheduler modes. If unset, OS and mode will be auto detected (Default). The script also supports setting mode 1-3 manually:
+
+- 1: Normal (Windows 8+)
+- 2: Legacy (Windows 7)
+- 3: Command (schtasks.exe)
+
+Try `-tsMode 2` (or 3) when  you're having isses creating a task.
+
+### Archive Installs
+
+There's also options `appDir` and `linkArgs` which are related to installing [Archives](/docs/Files.md#archives).
+
+- `-appDir foo` installs to %AppData%\Chromium\Application\foo
+- `-linkArgs myargs` changes the Chromium shortcut on Desktop from 'chrome.exe' to 'chrome.exe myargs'
+
+### Install for all users
+
+Instead of the default "user-level", this option does a chromium "system-level" install: `-sysLvl`.
+
+## Advanced help
+
+Run `chrupd.cmd -advhelp` to show help specifically for these options.
 
 ``` text
 
-Simple Chromium Updater (chrupd.cmd) - Advanced options
+Simple Chromium Updater - Advanced options
+----------------------------------------------------------------
 
-USAGE: chrupd.cmd -[tsMode|rmTask|noVbs|confirm]
-                  -[proxy|cAutoUp|appDir|linkArgs|ignVer] or [-cUpdate]
+USAGE: chrupd.cmd -[tsMode|rmTask|noVbs|confirm|proxy|cAutoUp|cUpdate]
+                  -[appDir|linkArgs|sysLvl|ignVer]
 
-         -tsMode    *see NOTES below* set option to <1|2|3> or "auto"
-         -rmTask    remove scheduled task
+         -tsMode    task scheduler mode, set option to <1|2|3> (default=auto)
+                    where 1=normal:win8+ 2=legacy:win7 3=cmd:schtasks
+         -rmTask    remove scheduled task and exit
          -noVbs     do not use vbs wrapper to hide window when creating task
          -confirm   answer 'Y' on prompt about removing scheduled task
-
          -proxy     use a http proxy server, set option to <uri>
+
          -cAutoUp   auto update this script, set option to <0|1> (default=1)
+         -cUpdate   manually update this script to latest version and exit
+
          -appDir    extract archives to %AppData%\Chromium\Application\$name
-         -linkArgs  option sets <arguments> for chrome.exe in Chromium shortcut
-         -ignVer    ignore version mismatch between feed and filename
-
-         -cUpdate   manually update this script to latest version
-
-NOTES: Option "tsMode" supports these task scheduler modes:
-         - Unset: OS will be auto detected (Default)
-         - Or set: 1=Normal (Windows8+), 2=Legacy (Win7), 3=Command (schtasks)
-       Flags "xxTask" can also be used without other settings
-       All options can be set permanently using variables inside script
+         -linkArgs  option sets chrome.exe <arguments> in Chromium shortcut
+         -sysLvl    system-level install, install for all users on machine
+         -ignVer    ignore version mismatch between rss feed and filename
 
 ```
