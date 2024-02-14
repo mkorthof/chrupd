@@ -15,7 +15,7 @@ More details about this method can be found here:
 
 ## PowerShell: chrupd.ps1
 
-The script can be renamed to `chrupd.ps1`. Now you can run it as a normal PowerShell script e.g. `.\chrupd.ps1` and `powershell.exe chrupd1.ps1`. 
+The script can be renamed to `chrupd.ps1`. Now you can run it as a normal PowerShell script e.g. `.\chrupd.ps1` and `powershell.exe chrupd1.ps1` or `pwsh.exe chrupd.ps1`. 
 
 If you plan on using it only from PS (or if theres issues) the first few lines of the script can be removed. These are a multi line PS comment `<# ... #>`
 
