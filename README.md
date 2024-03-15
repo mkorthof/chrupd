@@ -26,22 +26,22 @@ Options can be set in script or by using command line arguments.
 
 ---
 
-## ⚙Chromium versions
+## ⚙ Chromium versions
 
 | Source    | Name*                              | Channel         |
 |:----------|:-----------------------------------|:----------------|
 |||
-| _Woolyss_ |                                    |                 |
-|           |  **Hibbiki**                       | **stable**, dev |
-|           |  Marmaduke                         | stable, dev     |
-|           |  Ungoogled-Marmaduke               | stable          |
-|           |  Ungoogled-Portable                | stable          |
-|           |  `Official` (The Chromium Authors)   | dev             |
+| _[Woolyss](https://chromium.woolyss.com)_ |                                               |                 |
+|           |  **[Hibbiki](https://github.com/Hibbiki)**                                    | **stable**, dev |
+|           |  [Marmaduke](https://github.com/macchrome/winchrome/)                         | stable, dev     |
+|           |  [Ungoogled-Marmaduke](https://github.com/macchrome/winchrome/)               | stable          |
+|           |  [Ungoogled](https://github.com/portapps/)-Portable                           | stable          |
+|           |  `Official` ([The Chromium Authors](https://www.chromium.org))                | dev             |
 |||
 |||
-| _GitHub_  |                                    |                 |
-|           |  justclueless                      | dev             |
-|           |  Ungoogled-Eloston                 | dev             |
+| _GitHub_  |                                                                             |                 |
+|           |  [justclueless](https://github.com/JustClueless/)                           | dev             |
+|           |  [Ungoogled-Eloston](https://github.com/ungoogled-software)                 | dev             |
 
 \* _Name used be called "Editor" in previous versions_
 
@@ -53,11 +53,11 @@ Make sure the combination of name and channel you pick is correct. You can also 
 - for the builds from chromium.org use `Official`
 - some authors release archive files instead of installers, more info: [docs/Files.md](/docs/Files.md#archives)
 
-## ⏰Scheduled Task
+## ⏰ Scheduled Task
 
 To make sure Chromium is always automatically updated to the latest version you can optionally add a Scheduled Task by using `chrupd.cmd -crTask`. A VBS wrapper will be written to **chrupd.vbs** which is used to hide it's window. Option `noVbs` disables the wrapper, this will however cause a flashing window when the task runs. Specifed settings for 'name' and 'channel' are used to run the script every day.
 
-## 🔃Updating Script
+## 🔃 Script Updates
 
 The script auto updates itself (since v20210109).
 
@@ -69,9 +69,9 @@ To manually update to a newer script version just replace "chrupd.cmd". Copy "na
 
 For easy execution this PowerShell script is embedded in a Batch .CMD file 'chrupd.cmd' which is all you need to run.
 
-See [docs/Files.md](/docs/Files.md) for details about other files.
+See [docs/Files.md](/docs/Files.md) for details about other repository files.
 
-## 💻Command Line Options
+## 💻 Command Line Options
 
 `chrupd.cmd -h`
 
@@ -99,13 +99,9 @@ EXAMPLE: ".\chrupd.cmd -name Marmaduke -arch 64bit -channel stable [-crTask]"
 
 NOTES:   Options "name" and "channel" need an argument (CasE Sensive)
          Try 'chrupd.cmd -advhelp' for "advanced" options
-y 'chrupd.cmd -advhelp' for "advanced" options
 
 ```
 
 More info about advanced options can be found here: [docs/Options.md](/docs/Options.md)
 
-> NOTES:
->
-> - Uses modified code from <http://www.mobzystems.com/code/7-zip-powershell-module/>
-> - _This script has no connection to the preexisting [ChrUpdWin.cmd](https://gist.github.com/mikhaelkh/>12dec36d4a1c4136628b#file-chrupdwin-cmd) Batch file by [Michael Kharitonov](https://github.com/mikhaelkh)_
+> _chrupd uses modified code from [http://www.mobzystems.com/code/7-zip-powershell-module/](www.mobzystems.com/code/7-zip-powershell-module)_
