@@ -1643,7 +1643,7 @@ function Read-GhJson ([string]$jsonUrl) {
 	} else {
 		<#		"$repo/(justclueless|ungoogled-eloston)/releases.json"  #>
 		<# XXX: To test/debug: skip request to prevent hitting api rate limit, instead download 1x" #>
-		$jdata = (Get-Content test\releases.json | ConvertFrom-Json)[0]
+		$jdata = (Get-Content test\releases-1.json | ConvertFrom-Json)[0]
 	}
 	<# EXAMPLE:
 		[
@@ -1697,17 +1697,17 @@ function Read-GhJson ([string]$jsonUrl) {
 	if ($debug -gt 1) {
 		Write-Host "DEBUG: JSON compare urls :"
 		Write-Host "DEBUG: JSON   $($jdataObj.url)  (`$jdataObj.url)"
-		Write-Host "DEBUG: JSON   $($items[$name].url)/releases/download/$($jdataObj.version)$($items[$name].filemask)  (`$items.[`$name].url ...)"
+		Write-Host "DEBUG: JSON   $($items[$name].url)/releases/download/$($jdataObj.version)/$($items[$name].filemask)  (`$items.[`$name].url ...)"
 	}
 	$jdataObj.archMatch = ($jdataObj.url -match $archPattern) -or ($jdata.name -match $archPattern) -or ($jdata.body -match $archPattern)
-	$jdataObj.hashAlgo = $jdata.body -replace [Environment]::NewLine, '' -replace ".*(md5|sha1|sha256)[ :].*", '$1'
+	$jdataObj.hashAlgo = $jdata.body -replace [Environment]::NewLine, '' -replace ".*(md5|sha1|sha-1|sha256)[ :-].*", '$1' -replace "sha-1", "SHA1"
 	if ($jdataObj.hashAlgo -eq "SHA1") {
 		$len = 40
 	} elseif ($jdataObj.hashAlgo -eq "SHA256") {
 		$len = 64
 	}
 	if ($jdata.body) {
-		$hashRe = (".*(?:$($($items[$name].filemask).replace(`".exe`",'')))[ :]*([0-9a-f]{$($len)})")
+		$hashRe = (".*(?:$($($items[$name].filemask).replace(`".exe`",'(?:.exe)?')))[ :-]*([0-9a-f]{$($len)})")
 		$vtRe = ("(https://www.virustotal.com[^ ]+)")
 		$script:vtMatch = $false
 		$jdata.body.Split([Environment]::NewLine) | ForEach-Object {
