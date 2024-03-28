@@ -12,9 +12,9 @@ BeforeAll {
 Describe "Read-GhJson" {
     It "Extract JSON values from GitHub repos api" {
         if ($env:CI) {
-            Read-GhJson -jsonUrl "https://raw.githubusercontent.com/mkorthof/chrupd/master/test/releases.json" | Should -Be $testGhJson | ConvertTo-Json
+            Read-GhJson -jsonUrl "https://raw.githubusercontent.com/mkorthof/chrupd/master/test/releases-1.json" | Should -Be $testGhJson | ConvertTo-Json
         } else {
-            Read-GhJson -jsonUrl "file://$PSScriptRoot/releases.json" | Should -Be $testGhJson | ConvertTo-Json
+            Read-GhJson -jsonUrl "file://$PSScriptRoot/releases-1.json" | Should -Be $testGhJson | ConvertTo-Json
         }
     }
 }
