@@ -121,6 +121,14 @@ $cfg = @{
 		repo     = "https://api.github.com/repos/justclueless/chromium-win64/releases";
 		filemask = "mini_installer.exe"
 	};
+	"RobRich" = @{
+		author   = "RobRich999";
+		fmt      = "JSON";
+		url      = "https://github.com/RobRich999/Chromium_Clang";
+		repo     = "https://api.github.com/repos/RobRich999/Chromium_Clang/releases";
+		filemask = "mini_installer.exe";
+		alias    = "RobRich999";
+	};
 	<# DISABLED: not added to woolyss' api yet
 	"justclueless" = @{
 		author   = "justclueless";
@@ -333,7 +341,7 @@ if ($_Args -iMatch "[-/?]h") {
 	Write-Host "Checks RSS feed from `"chromium.woolyss.com`" and GitHub API", "`r`n"
 	Write-Host "USAGE: $scriptCmd -[name|arch|channel|force] or -[list|crTask|shTask]", "`r`n"
 	Write-Host "`t", "-name    option must be set to a release name:   (default=Hibbiki)"
-	Write-Host "`t`t", " <Official|Hibbiki|Marmaduke|Ungoogled|justclueless|Eloston>"
+	Write-Host "`t`t", " <Official|Hibbiki|Marmaduke|Ungoogled|justclueless|Eloston|RobRich>"
 	Write-Host "`t", "-channel can be set to [stable|dev] (default=stable)"
 	Write-Host "`t", "-arch    can be set to [64bit|32bit] (default=64bit)", "`r`n"
 	Write-Host "`t", "-list    show available releases and exit"
