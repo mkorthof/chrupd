@@ -2,6 +2,8 @@
 
 See [commits](https://github.com/mkorthof/chrupd/commits/master) or `git log`
 
+**2024-03-37** Readded Editor RobRich999 (github api) ([#29](https://github.com/mkorthof/chrupd/issues/29))
+
 **2023-08-12** Refactor parts of script: 7z func, test-path checks, easier to change script vars for user, updated help and docs
 
 **2023-08-06** Fix system level install paths and regkeys to detect chromium version ([#26](https://github.com/mkorthof/chrupd/issues/26))

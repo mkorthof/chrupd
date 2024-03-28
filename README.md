@@ -2,11 +2,11 @@
 
 " _Self executable PowerShell script to auto update Chromium for Windows_ "
 
-✔ Runs on all Windows versions
+✅ Runs on all Windows versions
 
-✔ One file download, no need to install and no other software required
+✅ One file download, no need to install and no other software required
 
-✔ Needs little to no configuration, but (advanced) options are available
+✅ Needs little to no configuration, but (advanced) options are available
 
 This script uses the RSS feed from <https://chromium.woolyss.com> or GitHub API to download and install the latest Chromium version, if a newer version is available.
 
@@ -22,7 +22,7 @@ Options can be set in script or by using command line arguments.
 
 ---
 
-**🗓 Latest version: 20230818 ([CHANGES.md](CHANGES.md))**
+**🗓 Latest version: 20240327 ([CHANGES.md](CHANGES.md))**
 
 ---
 
@@ -39,9 +39,10 @@ Options can be set in script or by using command line arguments.
 |           |  `Official` ([The Chromium Authors](https://www.chromium.org))                | dev             |
 |||
 |||
-| _GitHub_  |                                                                             |                 |
-|           |  [justclueless](https://github.com/JustClueless/)                           | dev             |
-|           |  [Ungoogled-Eloston](https://github.com/ungoogled-software)                 | dev             |
+| _GitHub_  |                                                                                           |                 |
+|           |  [justclueless](https://github.com/justclueless/chromium-win64)                           | dev             |
+|           |  [Ungoogled-Eloston](https://github.com/ungoogled-software/ungoogled-chromium-windows)    | dev             |
+|           |  [RobRich](https://github.com/RobRich999/Chromium_Clang)                                  | dev             |
 
 \* _Name used be called "Editor" in previous versions_
 
@@ -57,7 +58,7 @@ Make sure the combination of name and channel you pick is correct. You can also 
 
 To make sure Chromium is always automatically updated to the latest version you can optionally add a Scheduled Task by using `chrupd.cmd -crTask`. A VBS wrapper will be written to **chrupd.vbs** which is used to hide it's window. Option `noVbs` disables the wrapper, this will however cause a flashing window when the task runs. Specifed settings for 'name' and 'channel' are used to run the script every day.
 
-## 🔃 Script Updates
+## 🔃 Updating Script
 
 The script auto updates itself (since v20210109).
 
@@ -65,7 +66,7 @@ The script auto updates itself (since v20210109).
 
 To manually update to a newer script version just replace "chrupd.cmd". Copy "name" and "channel" if set. If you have Scheduled Task setup you do not need to change the task.
 
-## 📁Files
+## 📁 Files
 
 For easy execution this PowerShell script is embedded in a Batch .CMD file 'chrupd.cmd' which is all you need to run.
 
@@ -86,7 +87,7 @@ Checks RSS feed from "chromium.woolyss.com" and GitHub API
 USAGE: chrupd.cmd -[name|arch|channel|force] or -[list|crTask|shTask]
 
          -name    option must be set to a release name:   (default=Hibbiki)
-                  <Official|Hibbiki|Marmaduke|Ungoogled|justclueless|Eloston>
+                  <Official|Hibbiki|Marmaduke|Ungoogled|justclueless|Eloston|RobRich>
          -channel can be set to [stable|dev] (default=stable)
          -arch    can be set to [64bit|32bit] (default=64bit)
 
