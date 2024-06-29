@@ -1,12 +1,17 @@
 # Options
 
+When you run the script it does the following by default:
+
+- get Chromium "stable" 64-bit Installer by "Hibbiki"
+- verifies file hash and run installer (sha1/md5)
+
 For standard options see help (`chrupd.cmd -h`) and [README.md](/README.md).
 
 All options can also be set as permanent defaults using variables inside script under `CONFIGURATION` and `SCRIPT VARIABLES`.
 
 ## Advanced Options
 
-Additionally there's some extra options you'll normally won't need but are available for special cases where you *do* need them. Other options were added for particular user requests.
+Additionally there's some extra options you'll normally won't need but are available for special cases where you *do* need them. Other options were added for particular [user requests](https://github.com/mkorthof/chrupd/issues?q=is%3Aissue+label%3Aenhancement).
 
 ### Proxy
 
@@ -33,31 +38,54 @@ There's also options `appDir` and `linkArgs` which are related to installing [Ar
 
 Instead of the default "user-level", this option does a chromium "system-level" install: `-sysLvl`.
 
+### Tags
+
+Set [regular expression](https://en.wikipedia.org/wiki/Regular_expression) matching for filtering GitHub releases on [tag](https://docs.github.com/en/repositories/releasing-projects-on-github/viewing-your-repositorys-releases-and-tags).
+
+Use double quotation marks around the regex, single quotes might return parser error.
+
+For example:
+
+- if you only want AVX2 releases: `-tag ".*avx2"`
+- or, for AVX: `-tag "avx$"`.
+
 ## Advanced help
 
 Run `chrupd.cmd -advhelp` to show help specifically for these options.
 
 ``` text
 
-Simple Chromium Updater - Advanced options
-----------------------------------------------------------------
+Simple Chromium Updater: Advanced Options
+-----------------------------------------
 
-USAGE: chrupd.cmd -[tsMode|rmTask|noVbs|confirm|proxy|cAutoUp|cUpdate]
-                  -[appDir|linkArgs|sysLvl|ignVer]
-
-         -tsMode    task scheduler mode, set option to <1|2|3> (default=auto)
-                    where 1=normal:win8+ 2=legacy:win7 3=cmd:schtasks
-         -rmTask    remove scheduled task and exit
-         -noVbs     do not use vbs wrapper to hide window when creating task
-         -confirm   answer 'Y' on prompt about removing scheduled task
-         -proxy     use a http proxy server, set option to <uri>
+USAGE: chrupd.cmd -[cAutoUp|cUpdate|appDir|linkArgs|proxy|sysLvl|ignVer|tag]
+                  -[tsMode|rmTask|noVbs|confirm]
 
          -cAutoUp   auto update this script, set option to <0|1> (default=1)
          -cUpdate   manually update this script to latest version and exit
+         -proxy     use a http proxy server, set option to <uri>
 
-         -appDir    extract archives to %AppData%\Chromium\Application\$name
-         -linkArgs  option sets chrome.exe <arguments> in Chromium shortcut
-         -sysLvl    system-level install, install for all users on machine
+         -appDir    (archives) extract to %AppData%\Chromium\Application\$name
+         -linkArgs  (archives) sets Chromion shortcut to chrome.exe <arguments>
+
+         -sysLvl    system-level, install for all users on machine
          -ignVer    ignore version mismatch between rss feed and filename
+         -tag       can be set to filter releases on matching "<regex>"
+                    e.g. "avx$" note: use double quotes around regex
+
+         -tsMode    (task) scheduler mode, set to <1|2|3> (default=auto)
+                           option 1=normal:win8+ 2=legacy:win7 3=cmd:schtasks
+         -rmTask    (task) remove scheduled task and exit
+         -noVbs     (task) do not use vbs wrapper to hide tasks window
+         -confirm   (task) answer 'Y' on prompt about removing scheduled task
 
 ```
+
+## Virus Scanner
+
+_**TEST** feature (unsupported), might or not not work_
+
+Call Virus Total API to check downloaded file "id" i.e. hash:
+
+- requires API key: <https://www.virustotal.com/gui/join-us>
+- set `$vtApiKey` to try

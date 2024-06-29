@@ -2,6 +2,10 @@
 
 See [commits](https://github.com/mkorthof/chrupd/commits/master) or `git log`
 
+**2024-05-27** Added thorium and Supermium (github) ([#31](https://github.com/mkorthof/chrupd/issues/30))
+
+**2024-05-26** Added `tag` option to match on github tags, e.g. for "avx": `-tag ".*avx$"` ([#31](https://github.com/mkorthof/chrupd/issues/31))
+
 **2024-03-37** Readded Editor RobRich999 (github api) ([#29](https://github.com/mkorthof/chrupd/issues/29))
 
 **2023-08-12** Refactor parts of script: 7z func, test-path checks, easier to change script vars for user, updated help and docs

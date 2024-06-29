@@ -2,9 +2,13 @@
 
 Description of all files included in repo, and used by script
 
-## Batch: chrupd.cmd
+## Repository
 
-To make this script self executable a "polyglot wrapper" or "header" with batch commands has been added. This makes sure the script can be started from GUI, cmd.exe and PowerShell.
+### Batch: chrupd.cmd
+
+For easy execution this PowerShell script is embedded in a Batch .CMD.
+
+To make the script self executable a "polyglot wrapper" or "header" with batch commands has been added. This makes sure the script can be started from GUI, cmd.exe and PowerShell.
 
 Basicly what it does is start powershell.exe and run the contents of the file as ScriptBlock. Also arguments are 'handed over' to PS. It will skip the header because it's a comment.
 
@@ -13,7 +17,7 @@ More details about this method can be found here:
 - [https://blogs.msdn.microsoft.com/jaybaz_ms/2007/04/26/powershell-polyglot](https://blogs.msdn.microsoft.com/jaybaz_ms/2007/04/26/powershell-polyglot)
 - [https://stackoverflow.com/q/29645](https://stackoverflow.com/q/29645)
 
-## PowerShell: chrupd.ps1
+### PowerShell: chrupd.ps1
 
 The script can be renamed to `chrupd.ps1`. Now you can run it as a normal PowerShell script e.g. `.\chrupd.ps1` and `powershell.exe chrupd.ps1` or PS Core: `pwsh.exe chrupd.ps1`. 
 
@@ -31,7 +35,7 @@ You might have to change PS Execution Policy (see `Get-Help about_Execution_Poli
 
 Instead of renaming, the .ps1 file can also be [symlink](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/mklink), which it is by default in the GitHub repo.
 
-## Executable: chrupd.exe
+### Executable: chrupd.exe
 
 TODO
 
@@ -39,7 +43,20 @@ TODO
 
 ~~It might be somewhat slower.~~
 
-## Logs: chrupd.log
+### Windows Defender
+
+It seems the script gets detected as false positive sometimes: 'Trojan:PowerShell/Mountsi.A!ml' (amsi).
+
+You could add an exception by using the Allow action in Windows Security, ofcourse always check the script first.
+
+Another workaround is to remove the batch/ps1 polyglot header.
+
+More information:
+
+- [https://www.microsoft.com/en-us/wdsi/threats/malware-encyclopedia-description?Name=Trojan:O97M/Mountsi.A!ml](https://www.microsoft.com/en-us/wdsi/threats/malware-encyclopedia-description?Name=Trojan:O97M/Mountsi.A!ml)
+- [https://docs.microsoft.com/en-us/windows/win32/amsi/how-amsi-help](https://docs.microsoft.com/en-us/windows/win32/amsi/how-amsi-help)
+
+## Logs
 
 Logs go to 'chrupd.log', as defined by `$logFile` variable. Default path is same dir as script.
 
@@ -47,7 +64,9 @@ If the file is not writable the script will let you know and output to console o
 
 The Chromium installer will separately log to 'chromium_installer.log' in TEMP dir as defined by `$installLog`.
 
-## Archives
+## Downloads
+
+### Archives
 
 Usually Chromium installation is automatically taken care of by running the downloaded Installer ('mini_installer.exe').
 
@@ -76,16 +95,3 @@ More information about 7zip cli:
 
 - [https://www.7-zip.org/history.txt](https://www.7-zip.org/history.txt)
 - [https://sourceforge.net/p/sevenzip/discussion/45798/thread/b599cf02/?limit=25](https://sourceforge.net/p/sevenzip/discussion/45798/thread/b599cf02/?limit=25)
-
-## Windows Defender
-
-It seems the script gets detected as false positive sometimes: 'Trojan:PowerShell/Mountsi.A!ml' (amsi).
-
-You could add an exception by using the Allow action in Windows Security, ofcourse always check the script first.
-
-Another workaround is to remove the batch/ps1 polyglot header.
-
-More information:
-
-- [https://www.microsoft.com/en-us/wdsi/threats/malware-encyclopedia-description?Name=Trojan:O97M/Mountsi.A!ml](https://www.microsoft.com/en-us/wdsi/threats/malware-encyclopedia-description?Name=Trojan:O97M/Mountsi.A!ml)
-- [https://docs.microsoft.com/en-us/windows/win32/amsi/how-amsi-help](https://docs.microsoft.com/en-us/windows/win32/amsi/how-amsi-help)
