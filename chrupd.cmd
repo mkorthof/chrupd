@@ -636,7 +636,9 @@ if ($list -eq 1) {
 	Write-Msg $curVersion
 	Write-Msg "`r`n"
 	Write-Msg "Available releases:"
-	$items.GetEnumerator() | Where-Object Value | `
+	$items.GetEnumerator() | `
+		Where-Object { $_.Value -and !$_.Value.disabled } | `
+		Sort-Object -Property Name | `
 		Format-Table @{l = 'Name'; e = { $_.Key } }, `
 					 @{l = 'Website'; e = { $_.Value.url } }, `
 					 @{l = 'Repository'; e = { $_.Value.repo } }, `
@@ -654,7 +656,11 @@ if (-not ($items.Keys -ceq $name)) {
 } else {
 	$items.GetEnumerator() | ForEach-Object {
 		if ($_.Name -ceq $name) {
-			if ($items[$_.Name].fmt -cnotmatch"^(XML|JSON)$") {
+			if ($_.Value.disabled) {
+				Write-Msg -o err "$($_.Value.disabled) Release is disabled. Exiting ..."
+				exit 1
+			}
+			if ($_.Value.fmt -cnotmatch"^(XML|JSON)$") {
 				Write-Msg -o err "Invalid format `"${items[$_.Name].fmt}`", must be `"XML`" or `"JSON`". Exiting ..."
 				exit 1
 			}
