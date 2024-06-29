@@ -225,16 +225,16 @@ $cfg = @{
 <# VAR: define task user msgs #>
 [hashtable]$taskMsg = @{
 	descr    = "Download and install latest Chromium version";
-	create   = "Creating Daily Task `"$scriptName`" in Task Scheduler...";
+	create   = "Creating Daily Task `"{0}`" in Task Scheduler...";
 	failed   = "Creating Scheduled Task failed.";
 	problem  = "Something went wrong...";
 	exists   = "Scheduled Task already exists.";
 	notfound = "Scheduled Task not found.";
-	remove   = "Removing Daily Task `"$scriptName`" from Task Scheduler...";
-	rmfailed = "Could not remove Task: $scriptName.";
+	remove   = "Removing Daily Task `"{0}`" from Task Scheduler...";
+	rmfailed = "Could not remove Task:";
 	notask   = "Scheduled Task already removed.";
-	manual   = "Run `"$scriptCmd -manTask`" for manual instructions";
-	export   = "Run `"$scriptCmd -xmlTask`" to export a Task XML File"
+	manual   = "Run `"{0} -manTask`" for manual instructions";
+	export   = "Run `"{0} -xmlTask`" to export a Task XML File"
 }
 
 [string]$noMatchMsg = @"
@@ -657,7 +657,7 @@ if (-not ($items.Keys -ceq $name)) {
 	$items.GetEnumerator() | ForEach-Object {
 		if ($_.Name -ceq $name) {
 			if ($_.Value.disabled) {
-				Write-Msg -o err "$($_.Value.disabled) Release is disabled. Exiting ..."
+				Write-Msg -o err "Release is disabled. Exiting ..."
 				exit 1
 			}
 			if ($_.Value.fmt -cnotmatch"^(XML|JSON)$") {
@@ -709,6 +709,7 @@ function Split-Script ($content) {
 }
 
 function Update-ChrScript () {
+	return
 	<#
 		.SYNOPSIS
 			Compare date and version, update if available
@@ -933,11 +934,11 @@ if ($crTask -eq 1) {
 			$action = New-ScheduledTaskAction -Execute $taskCmd -Argument "$taskArgs" -WorkingDirectory "$scriptDir"
 			$trigger = New-ScheduledTaskTrigger -RandomDelay (New-TimeSpan -Hour 1) -Daily -At 17:00
 			if (-not (&Get-ScheduledTask -EA 0 -TaskName "$scriptName")) {
-				Write-Msg $($taskMsg.create)
+				Write-Msg "$($taskMsg.create -f "$scriptName")"
 				try { (Register-ScheduledTask -Action $action -Trigger $trigger -TaskName "$scriptName" -Description "$($taskMsg.descr)") | Out-Null }
 				catch { Write-Msg "$($taskMsg.problem)`r`nERROR: `"$($_.Exception.Message)`"" }
 			} else {
-				Write-Msg $($taskMsg.exists)
+				Write-Msg $taskMsg.exists
 			}
 			if (&Get-ScheduledTask -EA 0 -TaskName "$scriptName" -OutVariable task) {
 				if (Test-Variable "task") {
@@ -946,7 +947,7 @@ if ($crTask -eq 1) {
 					Write-Msg $taskMsg.failed
 				}
 			} else {
-				Write-Msg ("{0}`r`n`r`n  {1}`r`n  {2}`r`n" -f $taskMsg.failed, $taskMsg.manual, $taskMsg.export)
+				Write-Msg ("{0}`r`n`r`n  {1}`r`n  {2}`r`n" -f $taskMsg.failed, $($taskMsg.manual -f $scriptCmd), $($taskMsg.export -f $scriptCmd))
 			}
 		}
 		2 { <# crtask: 2 legacy mode #>
@@ -982,7 +983,7 @@ if ($crTask -eq 1) {
 				if (Test-Variable "regTask") {
 					Write-Msg -o dbg, 1 "regTask = $regTask"
 				} else {
-					Write-Msg ("{0}`r`n`r`n  {1}`r`n  {2}`r`n" -f $taskMsg.failed, $taskMsg.manual, $taskMsg.export)
+					Write-Msg ("{0}`r`n`r`n  {1}`r`n  {2}`r`n" -f $taskMsg.failed, $($taskMsg.manual -f $scriptCmd), $($taskMsg.export -f $scriptCmd))
 				}
 			} else {
 				Write-Msg $taskMsg.exists
@@ -1008,7 +1009,7 @@ if ($crTask -eq 1) {
 			if ($p.ExitCode -eq 0) {
 				Write-Msg
 			} else {
-				Write-Msg ("`r`n{0}`r`n`r`n  {1}`r`n  {2}`r`n" -f $taskMsg.failed, $taskMsg.manual, $taskMsg.export)
+				Write-Msg ("`r`n{0}`r`n`r`n  {1}`r`n  {2}`r`n" -f $taskMsg.failed, $($taskMsg.manual -f $scriptCmd), $($taskMsg.export -f $scriptCmd))
 			}
 			try {
 				Remove-Item -EA 0 -WA 0 -Force "$env:TEMP\chrupd.xml"
@@ -1025,7 +1026,7 @@ if ($crTask -eq 1) {
 		1 { <# rmtask: 1 normal mode #>
 			if ($confirm -eq 1) { $confirmParam = $false }
 			if (&Get-ScheduledTask -EA 0 -TaskName "$scriptName") {
-				Write-Msg "$($taskMsg.remove)`r`n"
+				Write-Msg "$($taskMsg.remove -f $scriptName)`r`n"
 				try {
 					UnRegister-ScheduledTask -confirm:${confirmParam} -TaskName "$scriptName"
 				} catch {
@@ -1037,7 +1038,7 @@ if ($crTask -eq 1) {
 			if (&Get-ScheduledTask -EA 0 -TaskName "$scriptName" -OutVariable task) {
 				if (Test-Variable "task") {
 					Write-Msg ("Could not remove Task: `"{0}{1}`", Description: `"{2}`", State: {3}`r`n" -f ($task).TaskPath, ($task).TaskName, ($task).Description, ($task).State)
-					Write-Msg ("{0}`r`n`r`n{1}`r`n" -f $taskMsg.rmfailed, $taskMsg.manual)
+					Write-Msg ("{0} {1}.`r`n`r`n{2}`r`n" -f $taskMsg.rmfailed, $scriptName, $($taskMsg.manual -f $scriptCmd))
 				}
 			}
 		}
@@ -1058,7 +1059,7 @@ if ($crTask -eq 1) {
 			if ( $(try { $taskFolder.GetTask("$scriptName") } catch { $false }) ) {
 				$task = $taskFolder.GetTask("$scriptName")
 				Write-Msg ("Could not remove Task: `"{0}{1}`", Description: `"{2}`", State: {3}`r`n" -f "", ($task).TaskName, ($task).Description, ($task).State)
-				Write-Msg ("{0}`r`n`r`n{1}`r`n" -f $taskMsg.rmfailed, $taskMsg.manual)
+				Write-Msg ("{0} {1}.`r`n`r`n{1}`r`n" -f $taskMsg.rmfailed, $scriptName, $($taskMsg.manual -f $scriptCmd))
 			}
 		}
 		3 { <# rmtask: 3 command mode #>
@@ -1070,7 +1071,7 @@ if ($crTask -eq 1) {
 			if ($p.ExitCode -eq 0) {
 				Write-Msg
 			} else {
-				Write-Msg ("{0}`r`n`r`n{1}`r`n" -f $taskMsg.rmfailed, $taskMsg.manual)
+				Write-Msg ("{0}`r`n`r`n{1}`r`n" -f $taskMsg.rmfailed, $($taskMsg.manual -f $scriptCmd))
 			}
 		}
 	}
