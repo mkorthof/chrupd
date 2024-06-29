@@ -8,6 +8,18 @@ IF NOT EXIST .\chrupd.ps1 (
   echo Run from git repo dir, exiting...
   EXIT /B
 )
+SET /A BROKEN_LINK=0
+FOR %%i IN ("chrupd.ps1") DO (
+  SET attribs=%%~ai
+)
+IF NOT "%attribs:~-3%" == "l--" (
+  SET /A BROKEN_LINK=1
+)
+( findstr -r "^chrupd.cmd$" chrupd.ps1 >nul 2>&1 ) && SET /A BROKEN_LINK=1
+IF %BROKEN_LINK% EQU 1 (
+  echo Link chrupd.ps1 broken
+  EXIT /B
+)
 SETLOCAL
 FOR %%a IN ( "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe", "C:\Program Files\PowerShell\6\pwsh.exe", "C:\Program Files\PowerShell\7\pwsh.exe" ) DO (
     IF EXIST "%%~a" (
