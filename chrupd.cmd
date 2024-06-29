@@ -2042,11 +2042,20 @@ if (-not ($dataObj.hash) -or ([string]::IsNullOrWhiteSpace($dataObj.hash))) {
 	}
 	if ($saveAsPath -match "\.exe$") {
 		[string]$fileFmt = "EXECUTABLE"
+		if ($appDir -eq 1) {
+			Write-Msg -o tee "Not an archive, `"appDir`" setting has not effect"
+		}
+		if ($linkArgs -or $srcExeArgs) {
+			Write-Msg -o tee "Not an archive, `"linkArgs`" setting has not effect"
+		}
 		Write-Msg -o tee "$_hMsg"
 		Write-Msg -o tee "Executing `"$($saveAsPath.Substring($saveAsPath.LastIndexOf("\") + 1))`" "
 	} elseif ($saveAsPath -match "\.(7z|zip)$") {
 		[string]$fileFmt = "ARCHIVE"
 		[string]$extractPath = ""
+		if ($sysLvl -eq 1) {
+			Write-Msg -o tee "Not an executable installer, `"sysLvl`" setting has not effect"
+		}
 		$i = 0
 		foreach ($extractPath in $archiveInstallPaths) {
 			if (($extractPath -ne "") -and (Test-Path -pathType Container -EA 0 -WA 0 $extractPath)) {
