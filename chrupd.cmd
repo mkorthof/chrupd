@@ -1510,11 +1510,10 @@ function Set-CdataRegex ([int]$idx, [string]$cdata, [hashtable]$cfg, [hashtable]
 	$cdataObj.revision = $cdata -replace ".*(?i)$($channel).*?Revision: (?:<[^>]+>)?(\d{3}|\d{6,7})<[^>]+>.*", '$1'
 	$cdataObj.date = $cdata -replace ".*(?i)$($channel).*?Date: <abbr title=`"Date format: YYYY-MM-DD`">([\d-]{10})</abbr>.*", '$1'
 	$urlReHtml = ".*?(?i)$($channel).*?Download from.*?repository:.*?<li>"
-	$urlReLink = "<a href=`"($($items[$name].repo)(?:v$($cdataObj.version)-r)?$($cdataObj.revision)(?i:-win$($arch.replace('-bit','')))?/"
-	<# $urlReFile = "$($($items[$name].filemask).replace('.*',''))($($cdataObj.version).*\.7z)?)" #>
-	$urlReFile = "$($items[$name].filemask)($($cdataObj.version).*\.7z)?)"
-	$cdataObj.url = $cdata -replace "${urlReHtml}${urlReLink}${urlReFile}`">.*", '$1'
-	$_hash = ($cdata -replace ".*?(?i)$($channel).*?<a href=`"$($cdataObj.url)`">$($items[$name].filemask)</a><br />(?:(sha1|md5|sha256): ([0-9a-f]{32}|[0-9a-f]{40}|[0-9a-f]{64})) .*", '$1 $2')
+	$urlReLink = "$($items[$name].repo)(?:v$($cdataObj.version)-r)?$($cdataObj.revision)(?i:-win$($arch.replace('-bit','')))?/"
+	$urlReFile = "$($items[$name].filemask).*(?:$($cdataObj.version).*\.7z)?"
+	$cdataObj.url = $cdata -replace "${urlReHtml}<a href=`"(${urlReLink}${urlReFile})`">$urlReFile</a>.*", '$1'
+	$_hash = ($cdata -replace ".*?(?i)$($channel).*?<a href=`"$($cdataObj.url)`">$($cdataObj.url.Split('/')[-1])</a><br />(?:(sha1|md5|sha256): ([0-9a-f]{32}|[0-9a-f]{40}|[0-9a-f]{64})) .*", '$1 $2')
 	if (-not ($_hash -eq $cdata)) {
 		$cdataObj.hashAlgo, $cdataObj.hash = $_hash.split(' ')
 	}
@@ -1532,7 +1531,7 @@ function Set-CdataRegex ([int]$idx, [string]$cdata, [hashtable]$cfg, [hashtable]
 
 	if ($ignVer -eq 1) {
 		$cdataObj.revision = '\d{6}'
-		$cdataObj.url = $cdata -replace "${urlReHtml}<a href=`"($($items[$name].repo)(?:v[\d.]+-r)?$($cdataObj.revision)(?:-win$($arch.replace('-bit','')))?/$($items[$name].filemask))`".*", '$1'
+		$cdataObj.url = $cdata -replace "${urlReHtml}<a href=`"($($items[$name].repo)(?:v[\d.]+-r)?$($cdataObj.revision)(?:-win$($arch.replace('-bit','')))?/$($items[$name].filemask).*)`".*", '$1'
 		$vMsg = "Ignoring version mismatch between RSS feed and filename"
 		Write-Msg -o nnl, Yellow "`r`n(!) $vMsg"
 		Write-Msg
@@ -1541,7 +1540,7 @@ function Set-CdataRegex ([int]$idx, [string]$cdata, [hashtable]$cfg, [hashtable]
 	if ($debug -ge 1) {
 		$cnt = 0
 		if ($cdataObj.titleMatch) {
-			$_tMsg = "Set-CdataRegex `$idx=$idx xml.rss.channel.Item.title=`"$($xml.rss.channel.Item[$idx].title)`" -match author=`"$($items[$name].author)`r`n"
+			$_tMsg = "Set-CdataRegex `$idx=$idx xml.rss.channel.Item.title=`"$($xml.rss.channel.Item[$idx].title)`" -match author=`"$($items[$name].author)`"`r`n"
 			$cnt++
 		}
 		if ($cdataObj.editorMatch) {
