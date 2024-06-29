@@ -845,6 +845,8 @@ if (-not (Test-Variable "tsMode")) {
 [string]$vbsWrapper = $scriptDir + "\chrupd.vbs"
 [string]$taskArgs = "-scheduler -name $name -arch $arch -channel $channel -cAutoUp $cAutoUp"
 if ($proxy) {
+	$taskArgs += " -proxy $proxy "
+}
 if ($tag) {
 	$taskArgs += " -tag $tag "
 }
@@ -1168,34 +1170,34 @@ function Test-HashFormat ([pscustomobject]$dataObj) {
 		if (($dataObj.hashAlgo -match "md5|sha1|sha256") -and ($dataObj.hash -match "[0-9a-f]{32}|[0-9a-f]{40}|[0-9a-f]{64}")) {
 			$dataObj.hashFormatMatch = $true
 		} else {
-			Write-Msg -o tee, err "No valid hash for installer/archive found, exiting..."
+			Write-Msg -o tee, err "No valid hash for installer or archive found, exiting..."
 			exit 0
 		}
-		Write-Msg -o dbg, 1 "`$i=$i Test-HashFormat dataObj.hash=$($dataObj.hash)`r`n"
+		Write-Msg -o dbg, 1 "`$i=$i Test-HashFormat dataObj.hash=$($dataObj.hash)"
 	} else {
 		<# prompt user #>
-		$_hMsg = "Ignoring hash. Could not verify checksum of installer/archive."
-		Write-Msg -o Yellow "`r`n(!) ${_hMsg}`r`n    Press any key to abort or `"c`" to continue...`r`n"
+		$_hMsg = "Ignoring hash. Could not verify checksum of installer or archive:`r`n$(' '*9)$($dataObj.url)"
+		Write-Msg -o warn "${_hMsg}"
+		Write-Msg -o Cyan "$(' '*9)Press any key to abort or `"c`" key to continue..."
 		Write-Msg -o log "$_hMsg"
 		$host.UI.RawUI.FlushInputBuffer()
 		$startTime = Get-Date
 		$waitTime = New-TimeSpan -Seconds 30
-		While ((-not $host.ui.RawUI.KeyAvailable) -and ($curTime -lt ($startTime + $waitTime))) {
+		while ((-not $host.ui.RawUI.KeyAvailable) -and ($curTime -lt ($startTime + $waitTime))) {
 			$curTime = Get-Date
 			$RemainTime = (($startTime - $curTime) + $waitTime).Seconds
-			Write-Msg -o nnl, Yellow "`r    Waiting $($waitTime.TotalSeconds) seconds before continuing, ${remainTime}s left "
+			Write-Msg -o nnl, Yellow "`r$(' '*9)Waiting $($waitTime.TotalSeconds) seconds before continuing, ${remainTime}s left "
 		}
 		Write-Msg
 		Write-Msg
 		if ($host.ui.RawUI.KeyAvailable) {
 			$x = $host.ui.RawUI.ReadKey("IncludeKeyDown, NoEcho")
-			if ($x.VirtualKeyCode -ne "67") {
+			if ($x.VirtualKeyCode -ne "67" -And $x.VirtualKeyCode -ne "99") {
 				Write-Msg -o tee "Aborting..."
 				exit 1
 			}
 		}
 		$dataObj.hashFormatMatch = $true
-		$dataObj.hash = $null
 		if (-not $dataObj.hashAlgo) {
 			$dataObj.hashAlgo = "SHA1"
 		}
@@ -1527,26 +1529,6 @@ function Set-CdataRegex ([int]$idx, [string]$cdata, [hashtable]$cfg, [hashtable]
 			}
 		}
 	}
-
-	<# DISABLED: author exception "Marmaduke"
-	if ( ($($xml.rss.channel.Item[$idx].title) -match "Ungoogled") -and
-		 ($cdata -match '(?i)' + $channel + '.*?(Editor: <a href="' + $items[$name].url + '/">' + "Marmaduke" + '</a>).*(?i)' + $channel) )
-	{
-		$cdataObj.titleMatch = $true
-		$cdataObj.editorMatch = $true
-		$items[$name].filemask += "$($cdataObj.version).*\.7z"
-	} #>
-
-	<# DISABLED: author exception "ThumbApps"
-	elseif ($cdata -match '(?i)' + $channel + '.*?(Editor: <a href="' + $items[$name].url + '/">' + "ThumbApps" + '</a>).*(?i)' + $channel) {
-		$cdataObj.titleMatch = $true
-		$cdataObj.editorMatch = $true
-		$items[$name].filemask += "${version}_Dev_32_64_bit.paf.exe"
-		$cdataObj.revision = "thumbapps"
-		$cdataObj.url = $cdata -replace "${urlReHtml}<a href=`"($($items[$name].repo)$($items[$name].filemask))`".*", '$1'
-		$script:ignHash = 1
-		Write-Msg -o tee "There is no hash provided for this installer"
-	} #>
 
 	if ($ignVer -eq 1) {
 		$cdataObj.revision = '\d{6}'
