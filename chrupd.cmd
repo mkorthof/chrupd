@@ -312,6 +312,7 @@ if ($PSCommandPath) {
 if ($dotSourced) {
 	[int]$cAutoUp = 0
 }
+[string]$tag = ""
 
 <# SET: chrupd script version #>
 [string]$curScriptDate = (Select-String -EA 0 -WA 0 -Pattern " 20[2-3]\d{5} " "${scriptDir}\${scriptCmd}") -replace '.* (20[2-3]\d{5}) .*', '$1'
@@ -359,20 +360,13 @@ if ($_Args -iMatch "[-/?]ad?v?he?l?p?") {
 	$_Header = ("{0}: Advanced Options" -f "$scriptName")
 	Write-Host "`r`n$_Header"
 	Write-Host ("-" * $_Header.Length)"`r`n"
-	Write-Host "USAGE: $scriptCmd -[tsMode|rmTask|noVbs|confirm|proxy|cAutoUp|cUpdate]"
-	Write-Host "`t`t", " -[appDir|linkArgs|sysLvl|ignVer]", "`r`n"
-	Write-Host "`t", "-tsMode    task scheduler mode, set option to <1|2|3> (default=auto)"
-	Write-Host "`t", "           where 1=normal:win8+ 2=legacy:win7 3=cmd:schtasks"
-	Write-Host "`t", "-rmTask    remove scheduled task and exit"
-	Write-Host "`t", "-noVbs     do not use vbs wrapper to hide window when creating task"
-	Write-Host "`t", "-confirm   answer 'Y' on prompt about removing scheduled task"
-	Write-Host "`t", "-proxy     use a http proxy server, set option to <uri>", "`r`n"
+	Write-Host "USAGE: $scriptCmd -[cAutoUp|cUpdate|appDir|linkArgs|proxy|sysLvl|ignVer|tag]"
 	Write-Host "`t", "-cAutoUp   auto update this script, set option to <0|1> (default=1)"
 	Write-Host "`t", "-cUpdate   manually update this script to latest version and exit", "`r`n"
 	Write-Host "`t", "-appDir    extract archives to %AppData%\Chromium\Application\`$name"
 	Write-Host "`t", "-linkArgs  option sets chrome.exe <arguments> in Chromium shortcut"
 	Write-Host "`t", "-sysLvl    system-level, install for all users on machine"
-	Write-Host "`t", "-ignVer    ignore version mismatch between rss feed and filename", "`r`n"
+	Write-Host "`t", "-tag       can be set to filter releases on matching `"<regex>`""
 	exit 0
 }
 
@@ -443,6 +437,9 @@ if (!$vtApiKey -and $cfg.vtApiKey) {
 }
 if ($cfg.sysLvl) {
 	$sysLvl =  $cfg.sysLvl
+}
+if (!$tag -and $cfg.tag) {
+	$tag = $cfg.tag
 }
 if ($proxy) {
 	$PSDefaultParameterValues.Add("Invoke-WebRequest:Proxy", "$proxy")
@@ -822,6 +819,9 @@ if (-not (Test-Variable "tsMode")) {
 [string]$vbsWrapper = $scriptDir + "\chrupd.vbs"
 [string]$taskArgs = "-scheduler -name $name -arch $arch -channel $channel -cAutoUp $cAutoUp"
 if ($proxy) {
+if ($tag) {
+	$taskArgs += " -tag $tag "
+}
 if ($noVbs -eq 0) {
 	[string]$taskCmd = "$vbsWrapper"
 } else {
@@ -1574,6 +1574,7 @@ function Read-RssFeed ([string]$rssFeed, [string]$cdataMethod) {
 		channelMatch    = $false
 		urlMatch        = $false
 		hashFormatMatch = $false
+		tagMatch        = $true
 	}
 
 	<# 	XXX: docs  https://paullimblog.wordpress.com/2017/08/08/ps-tip-parsing-html-from-a-local-file-or-a-string #>
@@ -1614,7 +1615,7 @@ function Read-RssFeed ([string]$rssFeed, [string]$cdataMethod) {
 			}
 		}
 		$i++
-		Write-Msg -o dbg, 1
+		Write-Msg -o dbg, 1 "i=$i"
 	}
 	return $cdataObj
 }
@@ -1663,54 +1664,15 @@ function Read-GhJson ([string]$jsonUrl) {
 				"body": "..."
 		...
 	#>
+				date            = $null
+				tagMatch		= $false
 	if ($debug -gt 1) {
 		<# Write-Host "DEBUG: JSON contents:`r`n$($jdata)" #>
 		Write-Host ("DEBUG: JSON match `$jdata.author.login=`"{0}`" -> `$items[`$name].author=`"{1}`"" -f $jdata.author.login, $items[$name].author)
 		Write-Host ("DEBUG: JSON match `$jdata.url=`"{0}`" -> `$items[`$name].repo=`"{1}`"" -f $jdata.url, "$($items[$name].repo).*")
 	}
-	$jdataObj.editorMatch = ($jdata.author.login -eq $items[$name].author) -or ($jdata.author.login -eq "github-actions[bot]")
-	$jdataObj.channelMatch = $channel -eq "dev"
-	$jdataObj.urlMatch = $jdata.url -match "$($items[$name].repo).*"
-	$jdataObj.version = $jdata.tag_name
-	<# if ($jdata.body -match "Revision") {
-			$jdataObj.revision = $jdata.body -replace [Environment]::NewLine, '' -replace '.*Revision ([a-f0-9]+-refs/branch-heads/[0-9]*@{#[0-9]*}).*', '$1'
-	}  #>
-	if ($jdata.published_at) {
-		<# $jdataObj.date = $($jdata.published_at).Split('T')[0] #>
-		$jdataObj.date = (Get-Date "$($jdata.published_at)").ToString("yyyy-MM-dd")
-	}
-	switch ($arch) {
-		'64-bit' { $archPattern = 'x64|win64' }
-		'32-bit' { $archPattern = 'x86' }
-	}
-	$script:urlMatch = $false
-	$jdata.assets.browser_download_url | ForEach-Object {
-		if ($debug -gt 1) {
-			Write-Host "DEBUG: JSON foreach url -> $($_)"
-		}
-		if (-not $jdataObj.url -and ("$_" -match "$($items[$name].url)/releases/download/$($jdataObj.version)/$($items[$name].filemask).*($($archPattern))?.*")) {
-			$script:urlMatch = $true
-			$jdataObj.url = $_
-		}
-	}
-	if (-not $script:urlMatch) {
-		$jdataObj.url = $null
-		$jdataObj.urlMatch = $false
-	}
-	if ($debug -gt 1) {
-		Write-Host "DEBUG: JSON compare urls :"
-		Write-Host "DEBUG: JSON   $($jdataObj.url)  (`$jdataObj.url)"
-		Write-Host "DEBUG: JSON   $($items[$name].url)/releases/download/$($jdataObj.version)/$($items[$name].filemask)  (`$items.[`$name].url ...)"
-	}
-	$jdataObj.archMatch = ($jdataObj.url -match $archPattern) -or ($jdata.name -match $archPattern) -or ($jdata.body -match $archPattern)
-	$jdataObj.hashAlgo = $jdata.body -replace [Environment]::NewLine, '' -replace ".*(md5|sha1|sha-1|sha256)[ :-].*", '$1' -replace "sha-1", "SHA1"
-	if ($jdataObj.hashAlgo -eq "SHA1") {
-		$len = 40
-	} elseif ($jdataObj.hashAlgo -eq "SHA256") {
-		$len = 64
-	}
-	if ($jdata.body) {
-		$hashRe = (".*(?:$($($items[$name].filemask).replace(`".exe`",'(?:.exe)?')))[ :-]*([0-9a-f]{$($len)})")
+			$jdataObj.version		= $_.tag_name
+			$jdataObj.tagMatch		= if ($tag) { $_.tag_name -match $tag } else { $true }
 		$vtRe = ("(https://www.virustotal.com[^ ]+)")
 		$script:vtMatch = $false
 		$jdata.body.Split([Environment]::NewLine) | ForEach-Object {
@@ -1724,9 +1686,8 @@ function Read-GhJson ([string]$jsonUrl) {
 		}
 	}
 	if ($debug -gt 1) {
-		'jdataObj.editorMatch', 'jdataObj.archMatch', 'jdataObj.channelMatch', 'jdataObj.version', 'channel', `
-			'jdataObj.revision', 'jdataObj.date', 'jdataObj.url', 'jdataObj.hashAlgo', 'jdataObj.hash', 'jdataObj.virusTotalUrl' | ForEach-Object {
-			Write-Host "DEBUG: JSON `$i=$i ${_} ="$(Invoke-Expression `$$_)
+				'jdataObj.urlMatch', 'jdataObj.editorMatch', 'jdataObj.archMatch', 'jdataObj.channelMatch', 'jdataObj.version', 'channel', `
+					'jdataObj.tagMatch' |
 		}
 	}
 	<# author/url match & hash check #>
@@ -1864,7 +1825,7 @@ if ($items[$name].fmt -eq "XML") {
 }
 
 if ($debug -ge 1) {
-	'dataObj.titleMatch', 'dataObj.editorMatch', 'dataObj.archMatch', 'dataObj.channelMatch', 'dataObj.urlMatch', 'dataObj.hashFormatMatch' | ForEach-Object {
+	'dataObj.titleMatch', 'dataObj.editorMatch', 'dataObj.archMatch', 'dataObj.channelMatch', 'dataObj.urlMatch', 'dataObj.tagMatch', 'dataObj.hashFormatMatch' | ForEach-Object {
 		Write-Msg -o dbg, 1 "postparse ${_} ="$(Invoke-Expression `$$_)
 	}
 	Write-Msg
@@ -1914,7 +1875,12 @@ if ($_pcnt -gt 0) {
 	if (!$dataObj.urlMatch) {
 		Write-Msg -o nnl "  "
 		Show-CheckBox -state $false -c2 "DarkRed" -nok "X"
-		Write-Msg " unable to find correct url to download installer"
+		Write-Msg " unable to find url to download installer"
+	}
+	if (!$dataObj.tagMatch) {
+		Write-Msg -o nnl "  "
+		Show-CheckBox -state $false -c2 "DarkRed" -nok "X"
+		Write-Msg " unable to match specified tag `"$($tag)`""
 	}
 	Write-Msg
 	if (!($dataObj.editorMatch -and $dataObj.urlMatch)) {
@@ -1935,7 +1901,7 @@ if ($debug -gt 2) {
 if ($saveAsPath -notmatch "\.(exe|7z|zip)$") {
 	$saveAsPath = ("{0}\{1}" -f $env:TEMP, $dataObj.url.Substring($dataObj.url.LastIndexOf("/") + 1))
 }
-if ( ($dataObj.editorMatch -eq 1) -and ($dataObj.archMatch -eq 1) -and ($dataObj.channelMatch -eq 1) -and ($dataObj.urlMatch -eq 1) -and ($dataObj.hashFormatMatch -eq 1) )	{
+if ( ($dataObj.editorMatch -eq 1) -and ($dataObj.archMatch -eq 1) -and ($dataObj.channelMatch -eq 1) -and ($dataObj.urlMatch -eq 1) -and ($dataObj.hashFormatMatch -eq 1) -and ($dataObj.tagMatch -eq 1) ) {
 	if (($dataObj.url) -and ($dataObj.url -notmatch ".*$curVersion.*")) {
 		if (( $(try { [version]('{0}.{1}.{2}' -f $curVersion.split('.')) -gt [version]('{0}.{1}.{2}' -f $dataObj.version.split('.') -replace ('[^0-9.]', '')) } catch { $false }) )) {
 			$_nMsg = "Newer version `"$curVersion`" already installed, skipping `"$($dataObj.version)`""
