@@ -68,58 +68,52 @@ $cfg = @{
 <# items[$name] = @{ author, source, url, repository, filemask [alias, no_hash, no_arch, disabled] } #>
 [hashtable]$items = @{
 	"Official" = @{
+		enabled	 = $true;
 		author   = "The Chromium Authors";
 		fmt      = "XML";
 		url      = "https://www.chromium.org";
 		repo     = "https://storage.googleapis.com/chromium-browser-snapshots/Win_x64/";
 		filemask = "mini_installer.exe";
-		alias    = "Chromium"
+		alias    = "Chromium";
 	};
 	"Hibbiki" =	@{
+		enabled  = $true;
 		author   = "Hibbiki";
 		fmt      = "XML";
 		url      = "https://chromium.woolyss.com";
 		repo     = "https://github.com/Hibbiki/chromium-win64/releases/download/";
-		filemask = "mini_installer.sync.exe"
+		filemask = "mini_installer.sync.exe";
 	};
 	"Marmaduke" = @{
 		author   = "Marmaduke";
 		fmt      = "XML";
 		url      = "https://chromium.woolyss.com";
 		repo     = "https://github.com/macchrome/winchrome/releases/download/";
-		filemask = "mini_installer.exe"
+		filemask = "mini_installer.exe";
 	};
 	"Ungoogled-Marmaduke" = @{
 		author   = "Marmaduke";
 		fmt      = "XML";
 		url      = "https://chromium.woolyss.com";
 		repo     = "https://github.com/macchrome/winchrome/releases/download/";
-		<# filemask = "ungoogled-chromium-" #>
-		filemask = "ungoogled_mini_installer.exe"
-		alias    = @( "Ungoogled-Marmaduke", "Ungoogled" )
-	};
-	"Ungoogled-Portable" = @{
-		author   = "Portapps";
-		fmt      = "XML";
-		url      = "https://chromium.woolyss.com";
-		repo     = "https://github.com/portapps/ungoogled-chromium-portable/releases/";
-		filemask = "ungoogled-chromium-"
-		alias    = "Ungoogled-Portapps"
+		filemask = "ungoogled_mini_installer.exe";
+		alias    = @( "Ungoogled-Marmaduke", "Ungoogled" );
 	};
 	"Ungoogled-Eloston" = @{
 		author   = "Eloston";
 		fmt      = "JSON";
 		url      = "https://github.com/ungoogled-software/ungoogled-chromium-windows";
 		repo     = "https://api.github.com/repos/ungoogled-software/ungoogled-chromium-windows/releases";
-		filemask = "ungoogled-chromium_"
-		alias    = @( "Eloston-Ungoogled", "Eloston" )
+		filemask = "ungoogled-chromium_";
+		no_hash	 = $true;
+		alias    = @( "Eloston-Ungoogled", "Eloston" );
 	};
 	"justclueless" = @{
 		author   = "justclueless";
 		fmt      = "JSON";
 		url      = "https://github.com/justclueless/chromium-win64";
 		repo     = "https://api.github.com/repos/justclueless/chromium-win64/releases";
-		filemask = "mini_installer.exe"
+		filemask = "mini_installer.exe";
 	};
 	"RobRich" = @{
 		author   = "RobRich999";
@@ -129,37 +123,88 @@ $cfg = @{
 		filemask = "mini_installer.exe";
 		alias    = "RobRich999";
 	};
-	<# DISABLED: not added to woolyss' api yet
+	"Supermium" = @{
+		author   = "win32ss";
+		fmt      = "JSON";
+		url      = "https://github.com/win32ss/supermium";
+		repo     = "https://api.github.com/repos/win32ss/supermium/releases";
+		filemask = "supermium_";
+		no_hash	 = $true;
+	};
+	"thorium" = @{
+		author   = "Alex313031";
+		fmt      = "JSON";
+		url      = "https://github.com/Alex313031/Thorium-Win";
+		repo     = "https://api.github.com/repos/Alex313031/Thorium-Win/releases";
+		filemask = "thorium_.*mini_installer";
+		no_hash	 = $true;
+		no_arch  = $true;
+		alias    = @( "Thorium", "Thorium-Win" );
+	};
+	"thorium-avx2" = @{
+		author   = "Alex313031";
+		fmt      = "JSON";
+		url      = "https://github.com/Alex313031/Thorium-Win-AVX2";
+		repo     = "https://api.github.com/repos/Alex313031/Thorium-Win-AVX2/releases";
+		filemask = "thorium_.*mini_installer";
+		no_hash	 = $true;
+		no_arch  = $true;
+		alias    = @( "Thorium-Win-AVX2" );
+	};
+	"thorium-legacy" = @{
+		author   = "Alex313031";
+		fmt      = "JSON";
+		url      = "https://github.com/Alex313031/thorium-legacy";
+		repo     = "https://api.github.com/repos/Alex313031/thorium-legacy/releases";
+		filemask = "thorium_.*mini_installer|Thorium_.*\d\d\d";
+		no_hash	 = $true;
+	};
+	<# DISABLED: not updated anymore (2019) #>
+	"ThumbApps"  = @{
+		author   = "ThumbApps";
+		fmt      = "XML";
+		url      = "http://www.thumbapps.org";
+		repo     = "https://netix.dl.sourceforge.net/project/thumbapps/Internet/Chromium/";
+		filemask = "ChromiumPortable_.*_Dev_32_64_bit.paf"
+		no_hash  = $true;
+		disabled = $true;
+	};  #>
+	<# DISABLED: portapps seems no longer updated (dec 24, 2024) #>
+	"Ungoogled-Portable" = @{
+		author   = "Portapps";
+		fmt      = "XML";
+		url      = "https://chromium.woolyss.com";
+		repo     = "https://github.com/portapps/ungoogled-chromium-portable/releases/";
+		filemask = "ungoogled-chromium-";
+		alias    = "Ungoogled-Portapps";
+		disabled  = $true;
+	};
+	<# REMOVED: not added to woolyss' rss feed
 	"justclueless" = @{
 		author   = "justclueless";
 		fmt      = "XML";
 		url      = "https://chromium.woolyss.com";
 		repo     = "https://github.com/justclueless/chromium/releases/";
 		filemask = "mini_installer.exe"
+		disabled = $true;
 	};  #>
-	<# DISABLED: discontinued
+	<# REMOVED: discontinued (Mar 29 2022)
 	"RobRich" =	@{
 		author   = "RobRich";
 		fmt      = "XML";
 		url      = "https://chromium.woolyss.com";
 		repo     = "https://github.com/RobRich999/Chromium_Clang/releases/download/";
 		filemask = "mini_installer.exe"
+		disabled = $true;
 	};  #>
-	<# DISABLED: not updated anymore
-	"ThumbApps" = @{
-		author = "ThumbApps";
-		url = "http://www.thumbapps.org";
-		fmt = "XML";
-		repo = "https://netix.dl.sourceforge.net/project/thumbapps/Internet/Chromium/";
-		filemask = "ChromiumPortable_"
-	};  #>
-	<# DISABLED: OLD Chromium-ungoogled from GH, before Woolyss added it
-	"Chromium-ungoogled" = @{
-		author = "Marmaduke";
-		url = "https://github.com/macchrome/winchrome";
-		fmt = "JSON";
-		repo = "https://api.github.com/repos/macchrome/winchrome/releases";
-		filemask = "ungoogled-chromium-";
+	<# REMOVED: chromium-ungoogled from github (before woolyss added it)
+	"Ungoogled-Marmaduke" = @
+		author   = "Marmaduke";
+		fmt      = "JSON";
+		url      = "https://github.com/macchrome/winchrome";
+		repo     = "https://api.github.com/repos/macchrome/winchrome/releases";
+		filemask = "ungoogled_mini_installer.exe";
+		disabled = $true;
 	};  #>
 }
 
