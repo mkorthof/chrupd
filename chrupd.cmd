@@ -243,6 +243,17 @@ the script needs to be updated or there could be an issue with
 the RSS feed from `"chromium.woolyss.com`" or the GitHub REST API.`r`n
 "@
 
+[hashtable]$archRe = @{
+	'64-bit' = '(x64|win64|x64|[._-]64[._-])';
+	'32-bit' = '(x86|win32|x32|[._-]32[._-])'
+}
+
+[hashtable]$hashLen = @{
+	'SHA1'   = 40;
+	'SHA256' = 64;
+	'SHA512' = 128;
+}
+
 <# check if we're dot sourced #>
 [boolean]$dotSourced = $false
 if ($MyInvocation.InvocationName -eq '.' -or $MyInvocation.Line -eq '') {
@@ -1634,57 +1645,116 @@ function Read-GhJson ([string]$jsonUrl) {
 		.SYNOPSIS
 			Extract JSON values from GitHub Repos API
 	#>
-	<# ps object for json data #>
-	$jdataObj = New-Object -Type PSObject -Property @{
-		date            = $null
-		hash            = $null
-		hashAlgo        = $null
-		url             = $null
-		revision        = $null
-		version         = $null
-		virusTotalUrl   = $null
-		titleMatch      = $true
-		editorMatch     = $false
-		archMatch       = $false
-		channelMatch    = $false
-		urlMatch        = $false
-		hashFormatMatch = $false
-	}
-	<# get first release (=latest) #>
+
 	if ($debug -eq 0) {
-		$jdata = (ConvertFrom-Json(Invoke-WebRequest -UseBasicParsing -TimeoutSec 300 -Uri $jsonUrl))[0]
+		$jdata = (ConvertFrom-Json(Invoke-WebRequest -UseBasicParsing -TimeoutSec 300 -Uri $jsonUrl))
 	} else {
-		<#		"$repo/(justclueless|ungoogled-eloston)/releases.json"  #>
-		<# XXX: To test/debug: skip request to prevent hitting api rate limit, instead download 1x" #>
-		$jdata = (Get-Content test\releases-1.json | ConvertFrom-Json)[0]
+		<# XXX: for test/debug, use local downloaded file instead of making reqs to github
+		 	this prevents hitting api rate limit
+		 	get first release:
+		 		$jdata = (ConvertFrom-Json(Invoke-WebRequest -UseBasicParsing -TimeoutSec 300 -Uri $jsonUrl))[0]
+		 		$jdata = (Get-Content test\releases.json | ConvertFrom-Json)[0]  #>
+		$jdata = (Get-Content test\releases-$name.json | ConvertFrom-Json)
+			Write-Msg -o dbg, 1 "JSON set `$jdata to contents of test\releases-$name.json"
 	}
+	$break = $false
+	$jdata | ForEach-Object {
 	<# EXAMPLE:
 		[
 			{
+					# "url": { "https://api.github.com/repos/justclueless/chromium-win64/releases/..." }
 				"author": {
 					"login": "justclueless",
 				},
 				"assets": [
 					{
-						"name": "chrome.packed.7z",
-						"browser_download_url": "https://github.com/justclueless/chromium-win64/releases/download/v105.0.5155.0-r0-AVX2/chrome.packed.7z",
+							"name": "mini_installer.exe",
+							"browser_download_url": "https://github.com/justclueless/chromium-win64/releases/download/.../mini_installer.exe",
 					}
 				],
 				"body": "..."
 		...
 	#>
+
+		if (!$break) {
+
+			<# ps object for json data #>
+			$jdataObj = New-Object -Type PSObject -Property @{
 				date            = $null
+				hash            = $null
+				hashAlgo        = $null
+				url             = $null
+				revision        = $null
+				version         = $null
+				virusTotalUrl   = $null
+				titleMatch      = $true
+				editorMatch     = $false
+				archMatch       = $false
+				channelMatch    = $false
+				urlMatch        = $false
+				hashFormatMatch = $false
 				tagMatch		= $false
+			}
+
 	if ($debug -gt 1) {
 		<# Write-Host "DEBUG: JSON contents:`r`n$($jdata)" #>
-		Write-Host ("DEBUG: JSON match `$jdata.author.login=`"{0}`" -> `$items[`$name].author=`"{1}`"" -f $jdata.author.login, $items[$name].author)
-		Write-Host ("DEBUG: JSON match `$jdata.url=`"{0}`" -> `$items[`$name].repo=`"{1}`"" -f $jdata.url, "$($items[$name].repo).*")
+				Write-Msg -o dbg, 1 "JSON match author `$_.author.login=$($_.author.login) -> `$items[`$name].author=$($items[$name].author)"
+				Write-Msg -o dbg, 1 "JSON match urls  `$_.url             = $($_.url)"
+				Write-Msg -o dbg, 1 "                 `$items[`$name].repo = $($items[$name].repo).*"
 	}
+			<# DISABLED: archMatch, urlMatch and revision #>
+			$jdataObj.editorMatch	= ($_.author.login -eq $items[$name].author) -or ($_.author.login -eq "github-actions[bot]")
+			<# $jdataObj.archMatch		= (($_.name -match $archRe[$arch]) -or ($_.body -match $archRe[$arch])) #>
+			$jdataObj.channelMatch	= ($channel -eq "dev")
+			<# $jdataObj.urlMatch		= ($_.url -match $items[$name].repo) #>
 			$jdataObj.version		= $_.tag_name
 			$jdataObj.tagMatch		= if ($tag) { $_.tag_name -match $tag } else { $true }
+			$jdataObj.date			= if ($_.published_at) { (Get-Date $_.published_at).ToString("yyyy-MM-dd") }	<# $_.published_at.Split('T')[0] #>
+			<# $jdataObj.revision = if ($_.body -match "Revision") { $_.body -replace [Environment]::NewLine, '' -replace '.*Revision ([a-f0-9]+-refs/branch-heads/[0-9]*@{#[0-9]*}).*', '$1' } #>
+
+			<# iterate over assets to get url to download #>
+
+			<# TEST: if arch does not match after checking all assets, download the first file #>
+			if ($noArchMatch) {
+				$urlsNoArchMatch = @()
+			}
+			if ($_.url -match $items[$name].repo) {
+				foreach($asset in $_.assets) {
+					Write-Msg -o dbg, 1 "JSON assets foreach"
+					Write-Msg -o dbg, 1 "  `$jdataObj.version=$($jdataObj.version) `$asset.name=$($asset.name) filemask=$($items[$name].filemask)"
+					Write-Msg -o dbg, 1 "  `$asset.browser_download_url=$($asset.browser_download_url)"
+					if (($asset.browser_download_url -match $jdataObj.version) -and ($asset.name -match ".*$($items[$name].filemask).*$($archRe[$arch])?.*")) {
+						if (($asset.browser_download_url -match $archRe[$arch]) -or ($_.name -match $archRe[$arch]) -or ($_.body -match ".*$($asset.name).*$($archRe[$arch]).*") -or $($items[$name].no_arch)) {
+							write-msg -o dbg, 1 "MATCH"
+							$jdataObj.url = $asset.browser_download_url
+							$jdataObj.urlMatch = $true
+							$jdataObj.archMatch = $true
+							break
+						} elseif ($noArchMatch) {
+							$urlsNoArchMatch += $asset.browser_download_url
+							Write-Msg -o dbg, 1 "DEBUG: added `$urlsNoArchMatch=$($asset.browser_download_url)"
+						}
+					}
+				}
+			}
+			if (!$jdataObj.archMatch -and $noArchMatch -and $urlsNoArchMatch) {
+				$urlsNoArchMatch
+				$jdataObj.url = $urlsNoArchMatch[0]
+				$jdataObj.urlMatch = $true
+				$jdataObj.archMatch = $true
+				$items[$name].no_arch = $true
+			}
+			Write-Msg -o dbg, 1 "JSON compare urls `$jdataObj.url      = $($jdataObj.url) "
+			Write-Msg -o dbg, 1 "                  `$items.[`$name].url = $($items[$name].url)/releases/download/$($jdataObj.version)/$($items[$name].filemask)"
+			if ($_.body -match "(md5|sha1|sha-1|sha256|sha512)") {
+				$jdataObj.hashAlgo = $_.body -replace [Environment]::NewLine, '' -replace ".*(md5|sha1|sha-1|sha256|sha512)[ :-].*", '$1' -replace "sha-1", "SHA1"
+			}
+			if ($_.body) {
+				$hashN = if ($jdataObj.hashAlgo) { $hashLen[$jdataObj.hashAlgo] } else { 40 }
+				$hashRe = (".*(?:$($($items[$name].filemask).replace(`".exe`",'(?:.exe)?')))[ :-]*([0-9a-f]{$hashN})")
 		$vtRe = ("(https://www.virustotal.com[^ ]+)")
 		$script:vtMatch = $false
-		$jdata.body.Split([Environment]::NewLine) | ForEach-Object {
+				$_.body.Split([Environment]::NewLine) | ForEach-Object {
 			if ($_ -match $hashRe) {
 				$jdataObj.hash = $_ -replace $hashRe, '$1'
 			}
@@ -1696,19 +1766,29 @@ function Read-GhJson ([string]$jsonUrl) {
 	}
 	if ($debug -gt 1) {
 				'jdataObj.urlMatch', 'jdataObj.editorMatch', 'jdataObj.archMatch', 'jdataObj.channelMatch', 'jdataObj.version', 'channel', `
+					'jdataObj.revision', 'jdataObj.date', 'jdataObj.url', 'jdataObj.hashAlgo', 'jdataObj.hash', 'jdataObj.virusTotalUrl', `
 					'jdataObj.tagMatch' |
-		}
+				ForEach-Object {
+					Write-Msg -o dbg, 1 "JSON `$i=$i ${_} ="$(Invoke-Expression `$$_)
+				}
 	}
-	<# author/url match & hash check #>
-	if ($jdataObj.editorMatch -and $jdataObj.urlMatch) {
-		<# author exception "Eloston" since they do not provide hashes #>
-		if (($name -eq "Ungoogled-Eloston") -and (-not $jdataObj.hash)) {
+			<# author/url match and hash check #>
+			if ($jdataObj.editorMatch -and $jdataObj.urlMatch -and $jdataObj.archMatch -and $jdataObj.tagMatch) {
+				if ($items[$name].no_arch) {
+					Write-Msg -o warn, tee "Unable to verify architecture as it's not listed by repository..."
+				}
+				if ($($items[$name].no_hash) -and (-not $jdataObj.hash)) {
 			$script:ignHash = 1
 		}
 		Test-HashFormat $jdataObj | Out-Null
+				$break = $true
 	}
 	if ($debug -ge 8) {
-		Exit
+				exit
+			}
+			$i++
+			Write-Msg -o dbg, 1 "JSON i=$i break=$break"
+		}
 	}
 	return $jdataObj
 }
