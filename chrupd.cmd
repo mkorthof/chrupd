@@ -780,7 +780,7 @@ function Update-ChrScript () {
 		<# TEST: fake new version = ghReadmeObj_20291231.json, old version = ghReadmeObj_20211002.json)) #>
 		Write-Msg -o dbg, 1 "Update-ChrScript TEST MODE"
 		[pscustomobject]$ghReadmeObj = (
-			ConvertFrom-Json(Get-Content .\test\ghReadme_20291231.json)
+			ConvertFrom-Json(Get-Content .\test\data\ghReadme_20291231.json)
 		)
 	}
 	[string]$ghReadmeContent = [System.Text.Encoding]::UTF8.GetString(([System.Convert]::FromBase64String((($ghReadmeObj).content)))) -split "`r?`n"
@@ -1631,7 +1631,7 @@ function Read-RssFeed ([string]$rssFeed, [string]$cdataMethod) {
 	}
 
 	<# 	XXX: docs  https://paullimblog.wordpress.com/2017/08/08/ps-tip-parsing-html-from-a-local-file-or-a-string #>
-	<# 		 test  $xml = [xml](Get-Content "test\windows-64-bit") #>
+	<# 		 test  $xml = [xml](Get-Content "test\data\windows-64-bit") #>
 
 	<# MAIN OUTER WHILE LOOP: XML
 	   loops over items 'title' and 'author'   #>
@@ -1687,8 +1687,8 @@ function Read-GhJson ([string]$jsonUrl) {
 		 	get first release:
 		 		$jdata = (ConvertFrom-Json(Invoke-WebRequest -UseBasicParsing -TimeoutSec 300 -Uri $jsonUrl))[0]
 		 		$jdata = (Get-Content test\releases.json | ConvertFrom-Json)[0]  #>
-		$jdata = (Get-Content test\releases-$name.json | ConvertFrom-Json)
-			Write-Msg -o dbg, 1 "JSON set `$jdata to contents of test\releases-$name.json"
+		$jdata = (Get-Content test\data\releases-$name.json | ConvertFrom-Json)
+			Write-Msg -o dbg, 1 "JSON set `$jdata to contents of test\data\releases-$name.json"
 	}
 	$break = $false
 	$jdata | ForEach-Object {
