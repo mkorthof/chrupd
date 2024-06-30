@@ -15,9 +15,9 @@ BeforeAll {
 Describe "Read-RssFeed" {
 	It "parse cdata using 'htmlfile'" {
 		if ($env:CI) {
-			Read-RssFeed -rssFeed "https://raw.githubusercontent.com/mkorthof/chrupd/master/test/windows-64-bit" -cdataMethod "htmlfile" | Should -Be $testRssFeed | ConvertTo-Json
+			Read-RssFeed -rssFeed "https://raw.githubusercontent.com/mkorthof/chrupd/master/test/data/windows-64-bit" -cdataMethod "htmlfile" | Should -Be $testRssFeed | ConvertTo-Json
 		} else {
-			Read-RssFeed -rssFeed "file://$PSScriptRoot/windows-64-bit" -cdataMethod "htmlfile" | Should -Be $testRssFeed | ConvertTo-Json
+			Read-RssFeed -rssFeed "file://$PSScriptRoot/data/windows-64-bit" -cdataMethod "htmlfile" | Should -Be $testRssFeed | ConvertTo-Json
 		}
 	}	
 }

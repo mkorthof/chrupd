@@ -23,9 +23,9 @@ Describe "Read-GhJson" {
     It "Extract JSON values from GitHub repos api" -ForEach $testGhJson {
         $name = $itemName
         if ($env:CI) {
-            Read-GhJson -jsonUrl "https://raw.githubusercontent.com/mkorthof/chrupd/master/test/releases-$itemName.json" | Should -Be $expectedResult | ConvertTo-Json
+            Read-GhJson -jsonUrl "https://raw.githubusercontent.com/mkorthof/chrupd/master/test/data/releases-$itemName.json" | Should -Be $expectedResult | ConvertTo-Json
         } else {
-            Read-GhJson -jsonUrl "file://$PSScriptRoot/releases-$itemName.json" | Should -Be $expectedResult | ConvertTo-Json
+            Read-GhJson -jsonUrl "file://$PSScriptRoot/data/releases-$itemName.json" | Should -Be $expectedResult | ConvertTo-Json
         }
     }
 }
