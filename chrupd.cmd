@@ -6,20 +6,20 @@ ENDLOCAL & dir "%~f0.tmp" >nul 2>&1 && move /Y "%~f0" "%~f0.bak" >nul 2>&1 && mo
 
 <#
 .SYNOPSIS
-   -------------------------------------------------------------------------
-    20240327 MK: Simple Chromium Updater (chrupd.cmd)
-   -------------------------------------------------------------------------
+	-------------------------------------------------------------------------
+	20240630 MK: Simple Chromium Updater (chrupd.cmd)
+	-------------------------------------------------------------------------
 
 .DESCRIPTION
 	Installs latest available Chromium version
 	Checks RSS feed from "chromium.woolyss.com" and GitHub API
-	
+
 	Downloads, verifies sha/md5 hash and runs installer:
 	default name: "Hibbiki", channel "stable", arch "64bit"
 	set options using cli args or under CONFIGURATION in script
 
 .EXAMPLE
-    PS> .\chrupd.ps1 -name Marmaduke -arch 64bit -channel stable [-crTask]
+	PS> .\chrupd.ps1 -name Marmaduke -arch 64bit -channel stable [-crTask]
 #>
 
 <# ------------------------------------------------------------------------- #>
@@ -1692,22 +1692,22 @@ function Read-GhJson ([string]$jsonUrl) {
 	}
 	$break = $false
 	$jdata | ForEach-Object {
-	<# EXAMPLE:
-		[
-			{
+		<# EXAMPLE:
+			[
+				{
 					# "url": { "https://api.github.com/repos/justclueless/chromium-win64/releases/..." }
-				"author": {
-					"login": "justclueless",
-				},
-				"assets": [
-					{
+					"author": {
+						"login": "justclueless",
+					},
+					"assets": [
+						{
 							"name": "mini_installer.exe",
 							"browser_download_url": "https://github.com/justclueless/chromium-win64/releases/download/.../mini_installer.exe",
-					}
-				],
-				"body": "..."
-		...
-	#>
+						}
+					],
+					"body": "..."
+			...
+		#>
 
 		if (!$break) {
 
@@ -1729,12 +1729,12 @@ function Read-GhJson ([string]$jsonUrl) {
 				tagMatch		= $false
 			}
 
-	if ($debug -gt 1) {
-		<# Write-Host "DEBUG: JSON contents:`r`n$($jdata)" #>
+			if ($debug -gt 1) {
+				<# Write-Host "DEBUG: JSON contents:`r`n$($jdata)" #>
 				Write-Msg -o dbg, 1 "JSON match author `$_.author.login=$($_.author.login) -> `$items[`$name].author=$($items[$name].author)"
 				Write-Msg -o dbg, 1 "JSON match urls  `$_.url             = $($_.url)"
 				Write-Msg -o dbg, 1 "                 `$items[`$name].repo = $($items[$name].repo).*"
-	}
+			}
 			<# DISABLED: archMatch, urlMatch and revision #>
 			$jdataObj.editorMatch	= ($_.author.login -eq $items[$name].author) -or ($_.author.login -eq "github-actions[bot]")
 			<# $jdataObj.archMatch		= (($_.name -match $archRe[$arch]) -or ($_.body -match $archRe[$arch])) #>
@@ -1785,38 +1785,38 @@ function Read-GhJson ([string]$jsonUrl) {
 			if ($_.body) {
 				$hashN = if ($jdataObj.hashAlgo) { $hashLen[$jdataObj.hashAlgo] } else { 40 }
 				$hashRe = (".*(?:$($($items[$name].filemask).replace(`".exe`",'(?:.exe)?')))[ :-]*([0-9a-f]{$hashN})")
-		$vtRe = ("(https://www.virustotal.com[^ ]+)")
-		$script:vtMatch = $false
+				$vtRe = ("(https://www.virustotal.com[^ ]+)")
+				$script:vtMatch = $false
 				$_.body.Split([Environment]::NewLine) | ForEach-Object {
-			if ($_ -match $hashRe) {
-				$jdataObj.hash = $_ -replace $hashRe, '$1'
+					if ($_ -match $hashRe) {
+						$jdataObj.hash = $_ -replace $hashRe, '$1'
+					}
+					if ($script:vtMatch -eq $false -and $_ -match $vtRe) {
+						$script:vtMatch = $true
+						$jdataObj.virusTotalUrl = $_ -replace $vtRe, '$1'
+					}
+				}
 			}
-			if ($script:vtMatch -eq $false -and $_ -match $vtRe) {
-				$script:vtMatch = $true
-				$jdataObj.virusTotalUrl = $_ -replace $vtRe, '$1'
-			}
-		}
-	}
-	if ($debug -gt 1) {
+			if ($debug -gt 1) {
 				'jdataObj.urlMatch', 'jdataObj.editorMatch', 'jdataObj.archMatch', 'jdataObj.channelMatch', 'jdataObj.version', 'channel', `
 					'jdataObj.revision', 'jdataObj.date', 'jdataObj.url', 'jdataObj.hashAlgo', 'jdataObj.hash', 'jdataObj.virusTotalUrl', `
 					'jdataObj.tagMatch' |
 				ForEach-Object {
 					Write-Msg -o dbg, 1 "JSON `$i=$i ${_} ="$(Invoke-Expression `$$_)
 				}
-	}
+			}
 			<# author/url match and hash check #>
 			if ($jdataObj.editorMatch -and $jdataObj.urlMatch -and $jdataObj.archMatch -and $jdataObj.tagMatch) {
 				if ($items[$name].no_arch) {
 					Write-Msg -o warn, tee "Unable to verify architecture as it's not listed by repository..."
 				}
 				if ($($items[$name].no_hash) -and (-not $jdataObj.hash)) {
-			$script:ignHash = 1
-		}
-		Test-HashFormat $jdataObj | Out-Null
+					$script:ignHash = 1
+				}
+				Test-HashFormat $jdataObj | Out-Null
 				$break = $true
-	}
-	if ($debug -ge 8) {
+			}
+			if ($debug -ge 8) {
 				exit
 			}
 			$i++
@@ -2079,7 +2079,7 @@ if (-not ($dataObj.hash) -or ([string]::IsNullOrWhiteSpace($dataObj.hash))) {
 	Write-Msg -o err, tee "Hash is missing, exiting..."
 	exit 1
 }
-	if ((Test-Variable "fileHash") -and ($fileHash -eq $dataObj.hash)) {
+if ((Test-Variable "fileHash") -and ($fileHash -eq $dataObj.hash)) {
 	$_hMsg = "$($dataObj.hashAlgo.ToUpper()) hash matches `"$($dataObj.hash)`""
 	if (Test-Variable "vtApiKey") {
 		Invoke-VirusTotal -apiKey "$vtApiKey" -url "$($dataObj.virusTotalUrl)" -savePath "$saveAsPath" -id "$($fileHash.ToLower())"

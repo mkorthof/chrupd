@@ -14,7 +14,7 @@ Download and run `chrupd.cmd` or read below for more details.
 
 ---
 
-**🗓 Latest version: 20240327 ([CHANGES.md](CHANGES.md))**
+**🗓 Latest version: 20240630 ([CHANGES.md](CHANGES.md))**
 
 ---
 
@@ -22,15 +22,15 @@ Download and run `chrupd.cmd` or read below for more details.
 
 | Source    | Name                               | Channel         |
 |:----------|:-----------------------------------|:----------------|
-|||
+||||
 | _[Woolyss](https://chromium.woolyss.com)_ |                                               |                 |
 |           |  **[Hibbiki](https://github.com/Hibbiki)**                                    | **stable**, dev |
 |           |  [Marmaduke](https://github.com/macchrome/winchrome/)                         | stable, dev     |
 |           |  [Ungoogled-Marmaduke](https://github.com/macchrome/winchrome/)               | stable          |
 |           |  [Ungoogled-Portable](https://github.com/portapps/)                           | stable          |
 |           |  `Official` ([The Chromium Authors](https://www.chromium.org))                | dev             |
-|||
-|||
+||||
+||||
 | _GitHub_  |                                                                                           |                 |
 |           |  [justclueless](https://github.com/justclueless/chromium-win64)                           | dev             |
 |           |  [Ungoogled-Eloston](https://github.com/ungoogled-software/ungoogled-chromium-windows)    | dev             |
