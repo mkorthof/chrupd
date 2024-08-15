@@ -12,6 +12,8 @@ This script uses the RSS feed from <https://chromium.woolyss.com> or GitHub API 
 
 Download and run `chrupd.cmd` or read below for more details.
 
+_Chromium Updater is also the name of the technology that implements automatic updates in Chromium-based browsers. If you came here to learn how it works, check out [this tutorial](https://omaha-consulting.com/chromium-updater-omaha-4-tutorial)._
+
 ---
 
 **🗓 Latest version: 20240630 ([CHANGES.md](CHANGES.md))**
