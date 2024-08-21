@@ -1,11 +1,11 @@
-@echo off
+@ECHO OFF
 REM :: CI: %psExe% -Command 'Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Confirm:$false -Force;
 REM ::                       Install-Module -Name Pester -Scope CurrentUser -Confirm:$false -Force -SkipPublisherCheck
 REM ::                       Install-Module -Name ImportTestScript -Scope CurrentUser -Confirm:$false -Force -SkipPublisherCheck
 REM ::                       Invoke-ScriptAnalyzer -Path chrupd.ps1 -ExcludeRule PSAvoidUsingWriteHost,PSAvoidUsingInvokeExpression -EnableExit;
 REM ::                       Invoke-Pester'
 IF NOT EXIST .\chrupd.ps1 (
-  echo Run from git repo dir, exiting...
+  ECHO Run from git repo dir, exiting...
   EXIT /B
 )
 SET /A BROKEN_LINK=0
@@ -17,7 +17,7 @@ IF NOT "%attribs:~-3%" == "l--" (
 )
 ( findstr -r "^chrupd.cmd$" chrupd.ps1 >nul 2>&1 ) && SET /A BROKEN_LINK=1
 IF %BROKEN_LINK% EQU 1 (
-  echo Link chrupd.ps1 broken
+  ECHO Link chrupd.ps1 broken
   EXIT /B
 )
 SETLOCAL
@@ -36,9 +36,9 @@ IF /I "%~1" == "-p" ( SET ANALYZE=1 & SET PESTER=0 )
 IF /I "%~1" == "-e" ( SET PESTER=1 )
 
 IF %RUN% EQU 1 (
-  echo:
-  echo Running script and checking logs...
-  echo:
+  ECHO:
+  ECHO Running script and checking logs...
+  ECHO:
   IF EXIST "test\chrupd.log" (
     del /f /q test\chrupd.log
   )
@@ -48,16 +48,16 @@ IF %RUN% EQU 1 (
  )
 
 IF %ANALYZE% EQU 1 (
-  echo:
-  echo Running PSScriptAnalyzer...
-  echo:
+  ECHO:
+  ECHO Running PSScriptAnalyzer...
+  ECHO:
   %psExe% -Command Invoke-ScriptAnalyzer -Path .\chrupd.ps1 -ExcludeRule PSAvoidUsingWriteHost,PSAvoidUsingInvokeExpression,PSUseShouldProcessForStateChangingFunctions
 )
 
 IF %PESTER% EQU 1 (
-  echo:
-  echo Running Pester...
-  echo:
+  ECHO:
+  ECHO Running Pester...
+  ECHO:
   %psExe% -Command Invoke-Pester
 )
 ENDLOCAL
