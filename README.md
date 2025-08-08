@@ -103,4 +103,4 @@ NOTES:   Options "name" and "channel" need an argument (CasE Sensive)
 
 More info about advanced options can be found here: [docs/Options.md](/docs/Options.md)
 
-> _chrupd uses modified code from [http://www.mobzystems.com/code/7-zip-powershell-module/](www.mobzystems.com/code/7-zip-powershell-module)_
+> _chrupd uses modified code from [http://www.mobzystems.com/code/7-zip-powershell-module/](https://www.mobzystems.com/code/7-zip-powershell-module)_
