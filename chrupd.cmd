@@ -82,7 +82,7 @@ $cfg = @{
 		fmt      = "XML";
 		url      = "https://chromium.woolyss.com";
 		repo     = "https://github.com/Hibbiki/chromium-win64/releases/download/";
-		filemask = "mini_installer.sync.exe";
+		filemask = "mini_installer.exe";
 	};
 	"Marmaduke" = @{
 		author   = "Marmaduke";
