@@ -356,6 +356,7 @@ if ($PSCommandPath) {
 [int]$force = 0
 [int]$ignVer = 0
 [int]$script:ignHash = 0
+[int]$script:ignHashWait = 30
 <# tasks #>
 [int]$tsMode = [int]$crTask = [int]$rmTask = [int]$shTask = [int]$xmlTask = [int]$manTask = [int]$noVbs = [int]$confirm = 0
 <# advanced options #>
@@ -526,6 +527,9 @@ if (Test-Variable "name") {
 	if ($_.Key -match $arch) {
 		$arch = $_.Value
 	}
+}
+if (-Not $script:ignHashWait.Name -eq "Int32") {
+	$script:ignHashWait = 30
 }
 
 <# SET: Chromium version from registry or path #>
@@ -1239,7 +1243,7 @@ function Test-HashFormat ([pscustomobject]$dataObj) {
 		Write-Msg -o log "$_hMsg"
 		$host.UI.RawUI.FlushInputBuffer()
 		$startTime = Get-Date
-		$waitTime = New-TimeSpan -Seconds 30
+		$waitTime = New-TimeSpan -Seconds $script:ignHashWait
 		while ((-not $host.ui.RawUI.KeyAvailable) -and ($curTime -lt ($startTime + $waitTime))) {
 			$curTime = Get-Date
 			$RemainTime = (($startTime - $curTime) + $waitTime).Seconds
