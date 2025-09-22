@@ -7,7 +7,7 @@ ENDLOCAL & dir "%~f0.tmp" >nul 2>&1 && move /Y "%~f0" "%~f0.bak" >nul 2>&1 && mo
 <#
 .SYNOPSIS
 	-------------------------------------------------------------------------
-	20240630 MK: Simple Chromium Updater (chrupd.cmd)
+	20250922 MK: Simple Chromium Updater (chrupd.cmd)
 	-------------------------------------------------------------------------
 
 .DESCRIPTION

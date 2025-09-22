@@ -2,7 +2,7 @@
 
 See [commits](https://github.com/mkorthof/chrupd/commits/master) or `git log`
 
-**2025-09-22** Fix Hibbiki installer filemask, add `ignHashWait`, warn about missing Tlsv1.3 support
+**2025-09-22** Fix Hibbiki installer filemask ([#44](https://github.com/mkorthof/chrupd/issues/44), thanks [amoosbr](https://github.com/amoosbr)), add `ignHashWait`, warn about missing Tlsv1.3 support
 
 **2024-05-27** Added thorium and Supermium (github) ([#31](https://github.com/mkorthof/chrupd/issues/30))
 
