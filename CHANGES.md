@@ -2,6 +2,8 @@
 
 See [commits](https://github.com/mkorthof/chrupd/commits/master) or `git log`
 
+**2025-09-22** Fix Hibbiki installer filemask, add `ignHashWait`, warn about missing Tlsv1.3 support
+
 **2024-05-27** Added thorium and Supermium (github) ([#31](https://github.com/mkorthof/chrupd/issues/30))
 
 **2024-05-26** Added `tag` option to match on github tags, e.g. for "avx": `-tag ".*avx$"` ([#31](https://github.com/mkorthof/chrupd/issues/31))

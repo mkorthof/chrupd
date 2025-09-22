@@ -14,7 +14,7 @@ Download and run `chrupd.cmd` or read below for more details.
 
 ---
 
-**🗓 Latest version: 20240630 ([CHANGES.md](CHANGES.md))**
+**🗓 Latest version: 20250922 ([CHANGES.md](CHANGES.md))**
 
 ---
 
