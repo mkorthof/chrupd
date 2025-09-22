@@ -1648,6 +1648,10 @@ function Read-RssFeed ([string]$rssFeed, [string]$cdataMethod) {
 	<# 	XXX: docs  https://paullimblog.wordpress.com/2017/08/08/ps-tip-parsing-html-from-a-local-file-or-a-string #>
 	<# 		 test  $xml = [xml](Get-Content "test\data\windows-64-bit") #>
 
+	if ($debug -ge 1) {
+		Write-Host "DEBUG: `$rssFeed= $rssFeed"
+	}
+
 	<# MAIN OUTER WHILE LOOP: XML
 	   loops over items 'title' and 'author'   #>
 	$xml = [xml](Invoke-WebRequest -UseBasicParsing -TimeoutSec 300 -Uri $rssFeed)
