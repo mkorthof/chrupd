@@ -242,6 +242,9 @@ $cfg = @{
 	}
 }
 
+<# VAR: tls versions #>
+$securityProtocols = (@("Tls13", "Tls12", "Tls11", "Tls"))
+
 <# VAR: define 7z locations #>
 [hashtable]$7zConfig = @{
 	"Paths" = (
@@ -712,6 +715,14 @@ if (-not ($items.Keys -ceq $name)) {
 		}
 	}
 }
+<# most connections we use want Tls13 or Tls12, some still also *might* support lower tls versions #>
+if ("Tls13" -notin [enum]::GetNames([Net.SecurityProtocolType])) {
+	Write-Msg "This PowerShell/.NET install does not support `"TLS v1.3`" protocol (https)"
+}
+if ("Tls12" -notin [enum]::GetNames([Net.SecurityProtocolType])) {
+	Write-Msg -o warn, tee "This PowerShell/.NET install does not support required `"TLS v1.2`" protocol (https)"
+	Write-Msg -o warn, tee "Connecting to GitHub for example might not work. See MS support website for details."
+}
 if ($arch -cnotmatch"^(32-bit|64-bit)$") {
 	$arch = "64-bit"
 	Write-Msg "Using default architecture (64-bit)"
@@ -769,7 +780,7 @@ function Update-ChrScript () {
 		Write-Msg -o dbg, 1, Yellow "Update-ChrScript debug=`"$debug`" (!) NOT CHANGING FILES"
 	}
 	<# get date/version from readme #>
-	[System.Net.ServicePointManager]::SecurityProtocol = @("Tls13", "Tls12", "Tls11", "Tls")
+	[System.Net.ServicePointManager]::SecurityProtocol = $securityProtocols + "Tls13"
 	[string]$ghApiUrl = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String("aHR0cHM6Ly9hcGkuZ2l0aHViLmNvbS9yZXBvcy9ta29ydGhvZi9jaHJ1cGQ="))
 	<# skip api req when dot sourced or debugging, so we dont hit api rate limit #>
 	if (!$dotSourced -and ($debug -eq 0)) {
