@@ -7,7 +7,7 @@ ENDLOCAL & dir "%~f0.tmp" >nul 2>&1 && move /Y "%~f0" "%~f0.bak" >nul 2>&1 && mo
 <#
 .SYNOPSIS
 	-------------------------------------------------------------------------
-	20250922 MK: Simple Chromium Updater (chrupd.cmd)
+	20250923 MK: Simple Chromium Updater (chrupd.cmd)
 	-------------------------------------------------------------------------
 
 .DESCRIPTION
@@ -375,9 +375,9 @@ if ($dotSourced) {
 [string]$tag = ""
 
 <# SET: chrupd script version #>
-[string]$curScriptDate = (Select-String -EA 0 -WA 0 -Pattern " 20[2-3]\d{5} " "${scriptDir}\${scriptCmd}") -replace '.* (20[2-3]\d{5}) .*', '$1'
+[string]$curScriptDate = (Select-String -EA 0 -WA 0 -Pattern "\s20[2-3]\d{5} " "${scriptDir}\${scriptCmd}") -replace '.*\s(20[2-3]\d{5})\s.*', '$1'
 if (-not $curScriptDate) {
-	$curScriptDate = "19700101"
+	$curScriptDate = "10101010"
 }
 
 <# CHECK: logfile #>
