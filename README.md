@@ -16,7 +16,9 @@ Download and run `chrupd.cmd` or read below for more details.
 
 **🗓 Latest version: 20250923 ([CHANGES.md](CHANGES.md))**
 
-⚠️ NOTE: automatic updates have been accidentally disabled since v**20240327**,  run `.\chrupdate.cmd -cUpdate` once to get the latest 
+⚠️ NOTE: automatic updates have been accidentally disabled between v**20240327** and 20250922
+
+⚠️ Run `.\chrupdate.cmd -cUpdate` to get the latest version and re-enable updates (see [below](#-updating-script) for details)
 
 ---
 
