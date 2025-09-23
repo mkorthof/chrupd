@@ -8,7 +8,7 @@ BeforeAll {
     if ($env:CI) {
         $testVer = $(@{osFullName="`"Windows Server 2016`" (10.0.0, Server)"; tsModeName="Normal"; tsMode=1;} | ConvertTo-Json)
     } else {
-        $testVer = $(@{osFullName="`"Windows 10`" (10.0.19045, Workstation)"; tsModeName="Normal"; tsMode=1;} | ConvertTo-Json)
+        $testVer = $(@{osFullName="`"Windows 11`" (10.0.22631, Workstation)"; tsModeName="Normal"; tsMode=1;} | ConvertTo-Json)
     }
 }
 
