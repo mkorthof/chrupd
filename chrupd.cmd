@@ -7,7 +7,7 @@ ENDLOCAL & dir "%~f0.tmp" >nul 2>&1 && move /Y "%~f0" "%~f0.bak" >nul 2>&1 && mo
 <#
 .SYNOPSIS
 	-------------------------------------------------------------------------
-	20250911 MK: Simple Chromium Updater (chrupd.cmd)
+	20250923 MK: Simple Chromium Updater (chrupd.cmd)
 	-------------------------------------------------------------------------
 
 .DESCRIPTION
@@ -82,7 +82,7 @@ $cfg = @{
 		fmt      = "XML";
 		url      = "https://chromium.woolyss.com";
 		repo     = "https://github.com/Hibbiki/chromium-win64/releases/download/";
-		filemask = "mini_installer.exe";
+		filemask = "mini_installer.";
 	};
 	"Marmaduke" = @{
 		author   = "Marmaduke";
@@ -242,6 +242,9 @@ $cfg = @{
 	}
 }
 
+<# VAR: tls versions #>
+$securityProtocols = (@("Tls13", "Tls12", "Tls11", "Tls"))
+
 <# VAR: define 7z locations #>
 [hashtable]$7zConfig = @{
 	"Paths" = (
@@ -353,6 +356,7 @@ if ($PSCommandPath) {
 [int]$force = 0
 [int]$ignVer = 0
 [int]$script:ignHash = 0
+[int]$script:ignHashWait = 30
 <# tasks #>
 [int]$tsMode = [int]$crTask = [int]$rmTask = [int]$shTask = [int]$xmlTask = [int]$manTask = [int]$noVbs = [int]$confirm = 0
 <# advanced options #>
@@ -371,9 +375,9 @@ if ($dotSourced) {
 [string]$tag = ""
 
 <# SET: chrupd script version #>
-[string]$curScriptDate = (Select-String -EA 0 -WA 0 -Pattern " 20[2-3]\d{5} " "${scriptDir}\${scriptCmd}") -replace '.* (20[2-3]\d{5}) .*', '$1'
+[string]$curScriptDate = (Select-String -EA 0 -WA 0 -Pattern "\s20[2-3]\d{5} " "${scriptDir}\${scriptCmd}") -replace '.*\s(20[2-3]\d{5})\s.*', '$1'
 if (-not $curScriptDate) {
-	$curScriptDate = "19700101"
+	$curScriptDate = "10101010"
 }
 
 <# CHECK: logfile #>
@@ -523,6 +527,9 @@ if (Test-Variable "name") {
 	if ($_.Key -match $arch) {
 		$arch = $_.Value
 	}
+}
+if (-Not $script:ignHashWait.Name -eq "Int32") {
+	$script:ignHashWait = 30
 }
 
 <# SET: Chromium version from registry or path #>
@@ -712,6 +719,14 @@ if (-not ($items.Keys -ceq $name)) {
 		}
 	}
 }
+<# most connections we use want Tls13 or Tls12, some still also *might* support lower tls versions #>
+if ("Tls13" -notin [enum]::GetNames([Net.SecurityProtocolType])) {
+	Write-Msg "This PowerShell/.NET install does not support `"TLS v1.3`" protocol (https)"
+}
+if ("Tls12" -notin [enum]::GetNames([Net.SecurityProtocolType])) {
+	Write-Msg -o warn, tee "This PowerShell/.NET install does not support required `"TLS v1.2`" protocol (https)"
+	Write-Msg -o warn, tee "Connecting to GitHub for example might not work. See MS support website for details."
+}
 if ($arch -cnotmatch"^(32-bit|64-bit)$") {
 	$arch = "64-bit"
 	Write-Msg "Using default architecture (64-bit)"
@@ -769,7 +784,7 @@ function Update-ChrScript () {
 		Write-Msg -o dbg, 1, Yellow "Update-ChrScript debug=`"$debug`" (!) NOT CHANGING FILES"
 	}
 	<# get date/version from readme #>
-	[System.Net.ServicePointManager]::SecurityProtocol = @("Tls13", "Tls12", "Tls11", "Tls")
+	[System.Net.ServicePointManager]::SecurityProtocol = $securityProtocols + "Tls13"
 	[string]$ghApiUrl = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String("aHR0cHM6Ly9hcGkuZ2l0aHViLmNvbS9yZXBvcy9ta29ydGhvZi9jaHJ1cGQ="))
 	<# skip api req when dot sourced or debugging, so we dont hit api rate limit #>
 	if (!$dotSourced -and ($debug -eq 0)) {
@@ -1228,7 +1243,7 @@ function Test-HashFormat ([pscustomobject]$dataObj) {
 		Write-Msg -o log "$_hMsg"
 		$host.UI.RawUI.FlushInputBuffer()
 		$startTime = Get-Date
-		$waitTime = New-TimeSpan -Seconds 30
+		$waitTime = New-TimeSpan -Seconds $script:ignHashWait
 		while ((-not $host.ui.RawUI.KeyAvailable) -and ($curTime -lt ($startTime + $waitTime))) {
 			$curTime = Get-Date
 			$RemainTime = (($startTime - $curTime) + $waitTime).Seconds
@@ -1632,6 +1647,10 @@ function Read-RssFeed ([string]$rssFeed, [string]$cdataMethod) {
 
 	<# 	XXX: docs  https://paullimblog.wordpress.com/2017/08/08/ps-tip-parsing-html-from-a-local-file-or-a-string #>
 	<# 		 test  $xml = [xml](Get-Content "test\data\windows-64-bit") #>
+
+	if ($debug -ge 1) {
+		Write-Host "DEBUG: `$rssFeed= $rssFeed"
+	}
 
 	<# MAIN OUTER WHILE LOOP: XML
 	   loops over items 'title' and 'author'   #>

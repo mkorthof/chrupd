@@ -14,7 +14,12 @@ Download and run `chrupd.cmd` or read below for more details.
 
 ---
 
-**🗓 Latest version: 20250911 ([CHANGES.md](CHANGES.md))**
+**🗓 Latest version: 20250923 ([CHANGES.md](CHANGES.md))**
+
+⚠️ NOTE: automatic script updates have been accidentally disabled between v**20240327** and 20250922
+
+⚠️ Run `.\chrupdate.cmd -cUpdate` to get the latest chrupd version 
+which re-enables future updates (see [below](#-updating-script) to manually update)
 
 ---
 
@@ -58,7 +63,7 @@ To make sure Chromium is always automatically updated to the latest version you 
 
 The script auto updates itself (since v20210109).
 
-(**!**) If you keep getting an error about "Unable to get new script, skipped update", this means a new version was detected but the script was unable to get the new version from GitHub. Try again later or manually update.
+ℹ️ If you keep getting an error about "Unable to get new script, skipped update", this means a new version was detected but the script was unable to get the new version from GitHub. Try again later or update manually.
 
 To manually update to a newer script version just replace "chrupd.cmd". Copy "name" and "channel" if set. If you a have Scheduled Task setup, you do not need to change the task.
 
